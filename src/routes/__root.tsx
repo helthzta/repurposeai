@@ -93,6 +93,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Repurpose AI — Turn Any Ad Into Your AI Commercial" },
+      { name: "description", content: "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes." },
+      { property: "og:description", content: "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes." },
+      { name: "twitter:description", content: "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbf24a79-aab3-4b09-aac2-f7dfd891fe64/id-preview-83ebde6e--65b0f76e-f12c-4d3c-bc92-bfa0e97884bb.lovable.app-1783420451471.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbf24a79-aab3-4b09-aac2-f7dfd891fe64/id-preview-83ebde6e--65b0f76e-f12c-4d3c-bc92-bfa0e97884bb.lovable.app-1783420451471.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
