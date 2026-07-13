@@ -1,20 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+"use client";
+
+import type { ComponentType, ReactNode } from "react";
 import { Bell, CreditCard, Globe, KeyRound, Palette, User, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-export const Route = createFileRoute("/settings")({
-  head: () => ({
-    meta: [
-      { title: "Settings — Repurpose AI" },
-      { name: "description", content: "Manage your account, billing, API keys and preferences." },
-    ],
-  }),
-  component: SettingsPage,
-});
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function Section({
   icon: Icon,
@@ -22,10 +20,10 @@ function Section({
   desc,
   children,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   title: string;
   desc: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="rounded-3xl border bg-card p-6 shadow-card">
@@ -45,7 +43,7 @@ function Section({
   );
 }
 
-function SettingsPage() {
+export function SettingsPageClient() {
   return (
     <AppShell title="Settings">
       <div className="mx-auto max-w-3xl space-y-4">
@@ -75,26 +73,41 @@ function SettingsPage() {
           </Select>
         </Section>
 
-        <Section icon={KeyRound} title="API Keys" desc="1 active key" >
-          <Button variant="outline" className="rounded-xl font-semibold" onClick={() => toast.success("API key copied")}>
+        <Section icon={KeyRound} title="API Keys" desc="1 active key">
+          <Button
+            variant="outline"
+            className="rounded-xl font-semibold"
+            onClick={() => toast.success("API key copied")}
+          >
             Manage
           </Button>
         </Section>
 
         <Section icon={Zap} title="Credits" desc="240 remaining · Pro plan">
-          <Button variant="outline" className="rounded-xl font-semibold" onClick={() => toast.info("Redirecting to credits")}>
+          <Button
+            variant="outline"
+            className="rounded-xl font-semibold"
+            onClick={() => toast.info("Redirecting to credits")}
+          >
             View usage
           </Button>
         </Section>
 
         <Section icon={CreditCard} title="Billing" desc="Visa ending 4242 · next invoice Jul 18">
-          <Button variant="outline" className="rounded-xl font-semibold" onClick={() => toast.info("Billing portal opening")}>
+          <Button
+            variant="outline"
+            className="rounded-xl font-semibold"
+            onClick={() => toast.info("Billing portal opening")}
+          >
             Manage
           </Button>
         </Section>
 
         <Section icon={Bell} title="Notifications" desc="Email me when generations finish">
-          <Switch defaultChecked onCheckedChange={(v) => toast.success(v ? "Notifications on" : "Notifications off")} />
+          <Switch
+            defaultChecked
+            onCheckedChange={(v) => toast.success(v ? "Notifications on" : "Notifications off")}
+          />
         </Section>
 
         <Section icon={User} title="Account" desc="alex@lumiere.co">

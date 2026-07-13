@@ -29,7 +29,10 @@ export function GenerationScreen({ onComplete }: { onComplete: () => void }) {
     };
   }, [onComplete]);
 
-  const remaining = Math.max(0, Math.ceil(((100 - progress) / 100) * ((generationStages.length * STAGE_MS) / 1000)));
+  const remaining = Math.max(
+    0,
+    Math.ceil(((100 - progress) / 100) * ((generationStages.length * STAGE_MS) / 1000)),
+  );
 
   return (
     <div className="animate-fade-up mx-auto max-w-xl">
@@ -39,7 +42,10 @@ export function GenerationScreen({ onComplete }: { onComplete: () => void }) {
             <Sparkles className="h-10 w-10 text-primary-foreground animate-pulse-soft" />
           </div>
           <div className="absolute -inset-4 -z-10 rounded-full bg-primary/20 blur-2xl animate-pulse-soft" />
-          <Loader2 className="absolute -inset-2 h-28 w-28 text-primary/30 animate-spin-slow" strokeWidth={0.75} />
+          <Loader2
+            className="absolute -inset-2 h-28 w-28 text-primary/30 animate-spin-slow"
+            strokeWidth={0.75}
+          />
         </div>
 
         <h2 className="mt-8 text-xl font-extrabold tracking-tight">Creating your commercial</h2>
@@ -48,7 +54,10 @@ export function GenerationScreen({ onComplete }: { onComplete: () => void }) {
         </p>
 
         <div className="mx-auto mt-8 h-2 max-w-sm overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full gradient-primary transition-all duration-150" style={{ width: `${progress}%` }} />
+          <div
+            className="h-full rounded-full gradient-primary transition-all duration-150"
+            style={{ width: `${progress}%` }}
+          />
         </div>
         <p className="mt-2 text-sm font-bold text-primary">{Math.round(progress)}%</p>
 
@@ -66,12 +75,22 @@ export function GenerationScreen({ onComplete }: { onComplete: () => void }) {
                     !done && !active && "border bg-muted text-muted-foreground",
                   )}
                 >
-                  {done ? <Check className="h-3 w-3" /> : active ? <Loader2 className="h-3 w-3 animate-spin" /> : i + 1}
+                  {done ? (
+                    <Check className="h-3 w-3" />
+                  ) : active ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    i + 1
+                  )}
                 </span>
                 <span
                   className={cn(
                     "text-sm font-medium transition-colors",
-                    active ? "text-foreground" : done ? "text-muted-foreground line-through decoration-border" : "text-muted-foreground/60",
+                    active
+                      ? "text-foreground"
+                      : done
+                        ? "text-muted-foreground line-through decoration-border"
+                        : "text-muted-foreground/60",
                   )}
                 >
                   {label}

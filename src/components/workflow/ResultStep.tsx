@@ -1,14 +1,30 @@
-import { Copy, Download, FileText, Play, RefreshCw, Share2, Sparkles, Terminal } from "lucide-react";
+import {
+  Copy,
+  Download,
+  FileText,
+  Play,
+  RefreshCw,
+  Share2,
+  Sparkles,
+  Terminal,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { aiInsights, type ScriptVersion } from "@/lib/mock-data";
-import thumbPerfume from "@/assets/thumb-perfume.jpg";
 import { cn } from "@/lib/utils";
+
+const thumbPerfume = "/thumb-perfume.jpg";
 
 const PROMPT = `Cinematic 9:16 luxury perfume commercial, 28s. Golden-hour city apartment, slow push-in on woman at window. Macro fragrance mist in slow motion, warm-cool contrast, shallow DOF. Product hero shot on marble with soft glow. Mood: quiet luxury, self-assurance. End card: "Find the scent that remembers you."`;
 
-export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | null; onRegenerate: () => void }) {
+export function ResultStep({
+  script,
+  onRegenerate,
+}: {
+  script: ScriptVersion | null;
+  onRegenerate: () => void;
+}) {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showScript, setShowScript] = useState(false);
 
@@ -43,7 +59,10 @@ export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | n
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            <Button className="btn-glow rounded-xl font-semibold" onClick={() => toast.success("Download started")}>
+            <Button
+              className="btn-glow rounded-xl font-semibold"
+              onClick={() => toast.success("Download started")}
+            >
               <Download className="h-4 w-4" />
               Download
             </Button>
@@ -55,7 +74,11 @@ export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | n
               <Copy className="h-4 w-4" />
               Variation
             </Button>
-            <Button variant="outline" className="rounded-xl font-semibold" onClick={() => toast.success("Share link copied")}>
+            <Button
+              variant="outline"
+              className="rounded-xl font-semibold"
+              onClick={() => toast.success("Share link copied")}
+            >
               <Share2 className="h-4 w-4" />
               Share
             </Button>
@@ -69,7 +92,12 @@ export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | n
                   <Terminal className="h-4 w-4 text-primary" />
                   Prompt Used
                 </p>
-                <Button variant="ghost" size="sm" className="rounded-lg text-xs" onClick={() => setShowPrompt(!showPrompt)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-lg text-xs"
+                  onClick={() => setShowPrompt(!showPrompt)}
+                >
                   {showPrompt ? "Hide" : "View Prompt"}
                 </Button>
               </div>
@@ -85,7 +113,12 @@ export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | n
                   <FileText className="h-4 w-4 text-primary" />
                   Script Used
                 </p>
-                <Button variant="ghost" size="sm" className="rounded-lg text-xs" onClick={() => setShowScript(!showScript)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-lg text-xs"
+                  onClick={() => setShowScript(!showScript)}
+                >
                   {showScript ? "Hide" : "View Script"}
                 </Button>
               </div>
@@ -108,10 +141,19 @@ export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | n
           </div>
           <div className="mt-6 space-y-5">
             {aiInsights.map((insight, i) => (
-              <div key={insight.label} className="animate-fade-up" style={{ animationDelay: `${i * 80}ms` }}>
+              <div
+                key={insight.label}
+                className="animate-fade-up"
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium text-muted-foreground">{insight.label}</span>
-                  <span className={cn("font-bold", insight.value >= 90 ? "text-success" : "text-foreground")}>
+                  <span
+                    className={cn(
+                      "font-bold",
+                      insight.value >= 90 ? "text-success" : "text-foreground",
+                    )}
+                  >
                     {insight.value}
                   </span>
                 </div>
@@ -128,8 +170,8 @@ export function ResultStep({ script, onRegenerate }: { script: ScriptVersion | n
             ))}
           </div>
           <div className="mt-7 rounded-xl bg-accent/60 p-4 text-xs leading-relaxed text-accent-foreground">
-            This commercial closely matches your brand tone and is predicted to outperform the original ad's
-            hook retention by 18%.
+            This commercial closely matches your brand tone and is predicted to outperform the
+            original ad's hook retention by 18%.
           </div>
         </div>
       </div>

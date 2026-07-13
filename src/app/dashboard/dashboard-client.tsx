@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+"use client";
+
 import { useState } from "react";
 import { AppShell } from "@/components/app/AppShell";
 import { StepProgress } from "@/components/workflow/StepProgress";
@@ -9,16 +10,6 @@ import { GenerateStep } from "@/components/workflow/GenerateStep";
 import { GenerationScreen } from "@/components/workflow/GenerationScreen";
 import { ResultStep } from "@/components/workflow/ResultStep";
 import type { ScriptVersion } from "@/lib/mock-data";
-
-export const Route = createFileRoute("/dashboard")({
-  head: () => ({
-    meta: [
-      { title: "Dashboard — Repurpose AI" },
-      { name: "description", content: "Upload an ad, analyze the strategy, choose a script, and generate your AI commercial." },
-    ],
-  }),
-  component: Dashboard,
-});
 
 type Phase = "upload" | "analysis" | "script" | "settings" | "generating" | "result";
 
@@ -31,7 +22,7 @@ const phaseStep: Record<Phase, number> = {
   result: 4,
 };
 
-function Dashboard() {
+export function DashboardClient() {
   const [phase, setPhase] = useState<Phase>("upload");
   const [selectedScript, setSelectedScript] = useState<ScriptVersion | null>(null);
 
@@ -52,7 +43,9 @@ function Dashboard() {
         )}
         {phase === "settings" && <GenerateStep onGenerate={() => setPhase("generating")} />}
         {phase === "generating" && <GenerationScreen onComplete={() => setPhase("result")} />}
-        {phase === "result" && <ResultStep script={selectedScript} onRegenerate={() => setPhase("generating")} />}
+        {phase === "result" && (
+          <ResultStep script={selectedScript} onRegenerate={() => setPhase("generating")} />
+        )}
       </div>
     </AppShell>
   );

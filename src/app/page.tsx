@@ -1,20 +1,22 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, Clapperboard, Layers, PenLine, Play, ScanEye, Sparkles, Timer } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Clapperboard,
+  Layers,
+  PenLine,
+  Play,
+  ScanEye,
+  Sparkles,
+  Timer,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Repurpose AI — Turn Any Ad Into Your AI Commercial" },
-      {
-        name: "description",
-        content:
-          "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.",
-      },
-    ],
-  }),
-  component: Landing,
-});
+export const metadata: Metadata = {
+  title: "Repurpose AI — Turn Any Ad Into Your AI Commercial",
+  description:
+    "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.",
+};
 
 const features = [
   {
@@ -49,7 +51,7 @@ const particles = [
   { top: "16%", left: "46%", size: 5, delay: "3.2s" },
 ];
 
-function Landing() {
+export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -63,10 +65,10 @@ function Landing() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link to="/login">Log in</Link>
+              <Link href="/login">Log in</Link>
             </Button>
             <Button asChild className="btn-glow rounded-xl">
-              <Link to="/dashboard">
+              <Link href="/dashboard">
                 Start Repurposing
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -85,7 +87,13 @@ function Landing() {
           <span
             key={i}
             className="pointer-events-none absolute rounded-full bg-primary/30 animate-float"
-            style={{ top: p.top, left: p.left, width: p.size, height: p.size, animationDelay: p.delay }}
+            style={{
+              top: p.top,
+              left: p.left,
+              width: p.size,
+              height: p.size,
+              animationDelay: p.delay,
+            }}
           />
         ))}
 
@@ -94,22 +102,41 @@ function Landing() {
             <Sparkles className="h-3.5 w-3.5" />
             AI-Powered Video Repurposing
           </div>
-          <h1 className="animate-fade-up text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl" style={{ animationDelay: "80ms" }}>
-            Turn Any Competitor Ad Into <span className="gradient-text">Your Own AI Commercial</span>
+          <h1
+            className="animate-fade-up text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl"
+            style={{ animationDelay: "80ms" }}
+          >
+            Turn Any Competitor Ad Into{" "}
+            <span className="gradient-text">Your Own AI Commercial</span>
           </h1>
-          <p className="animate-fade-up mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg" style={{ animationDelay: "160ms" }}>
+          <p
+            className="animate-fade-up mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
+            style={{ animationDelay: "160ms" }}
+          >
             Upload any advertisement. Our AI understands the strategy, rewrites it for your brand,
             and generates a brand-new cinematic commercial in minutes.
           </p>
-          <div className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row" style={{ animationDelay: "240ms" }}>
-            <Button asChild size="lg" className="btn-glow h-13 rounded-2xl px-8 text-base font-semibold">
-              <Link to="/dashboard">
+          <div
+            className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
+            style={{ animationDelay: "240ms" }}
+          >
+            <Button
+              asChild
+              size="lg"
+              className="btn-glow h-13 rounded-2xl px-8 text-base font-semibold"
+            >
+              <Link href="/dashboard">
                 Start Repurposing
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="h-13 rounded-2xl bg-card/70 px-8 text-base font-semibold backdrop-blur hover:bg-card">
-              <Link to="/dashboard">
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="h-13 rounded-2xl bg-card/70 px-8 text-base font-semibold backdrop-blur hover:bg-card"
+            >
+              <Link href="/dashboard">
                 <Play className="h-4.5 w-4.5" />
                 Watch Demo
               </Link>
@@ -117,10 +144,16 @@ function Landing() {
           </div>
 
           {/* glass workflow strip */}
-          <div className="animate-fade-up mx-auto mt-16 max-w-3xl rounded-3xl glass p-4 shadow-card sm:p-5" style={{ animationDelay: "320ms" }}>
+          <div
+            className="animate-fade-up mx-auto mt-16 max-w-3xl rounded-3xl glass p-4 shadow-card sm:p-5"
+            style={{ animationDelay: "320ms" }}
+          >
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {["Upload Video", "AI Analysis", "Choose Script", "Generate"].map((step, i) => (
-                <div key={step} className="flex items-center gap-2.5 rounded-2xl bg-card/80 px-3.5 py-3 text-left shadow-card">
+                <div
+                  key={step}
+                  className="flex items-center gap-2.5 rounded-2xl bg-card/80 px-3.5 py-3 text-left shadow-card"
+                >
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg gradient-primary text-xs font-bold text-primary-foreground">
                     {i + 1}
                   </span>
@@ -163,8 +196,13 @@ function Landing() {
           <p className="mx-auto mt-3 max-w-lg text-sm text-primary-foreground/80 sm:text-base">
             Join teams shipping cinematic AI commercials in minutes, not weeks.
           </p>
-          <Button asChild size="lg" variant="secondary" className="mt-8 h-13 rounded-2xl px-8 text-base font-semibold hover-lift">
-            <Link to="/dashboard">
+          <Button
+            asChild
+            size="lg"
+            variant="secondary"
+            className="mt-8 h-13 rounded-2xl px-8 text-base font-semibold hover-lift"
+          >
+            <Link href="/dashboard">
               Start Repurposing
               <ArrowRight className="h-4.5 w-4.5" />
             </Link>

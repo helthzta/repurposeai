@@ -7,15 +7,21 @@ export const analysisCards: AnalysisCard[] = [
   { label: "Company", value: "Lumière Fragrance Co." },
   { label: "Business", value: "Premium D2C perfume brand" },
   { label: "Duration", value: "27 seconds" },
-  { label: "Hook", value: "\"What does confidence smell like?\" — direct question over macro shot" },
+  { label: "Hook", value: '"What does confidence smell like?" — direct question over macro shot' },
   { label: "Audience", value: "Women 24–38, urban, aspirational lifestyle" },
   { label: "Pain", value: "Generic fragrances that fade within hours" },
   { label: "Context", value: "Evening city scenes, golden hour, close-up product moments" },
   { label: "Emotion", value: "Desire, self-assurance, quiet luxury" },
   { label: "Hero", value: "The bottle itself — treated as a jewelry object" },
-  { label: "CTA", value: "\"Find your signature scent\" with limited-drop urgency" },
-  { label: "Marketing Strategy", value: "Aspirational identity play — sell the feeling, not the formula" },
-  { label: "Narrative Structure", value: "Question hook → transformation montage → product reveal → CTA" },
+  { label: "CTA", value: '"Find your signature scent" with limited-drop urgency' },
+  {
+    label: "Marketing Strategy",
+    value: "Aspirational identity play — sell the feeling, not the formula",
+  },
+  {
+    label: "Narrative Structure",
+    value: "Question hook → transformation montage → product reveal → CTA",
+  },
   { label: "Offer", value: "20% off first bottle + free sample set" },
   { label: "Visual Style", value: "Cinematic, shallow depth of field, warm-cool contrast" },
   { label: "Tone", value: "Confident, minimal voiceover, whispered intimacy" },
@@ -37,7 +43,7 @@ export const scriptVersions: ScriptVersion[] = [
     id: "emotional",
     title: "Emotional Version",
     badge: "Emotional",
-    hook: "\"Some moments deserve to be remembered by scent.\"",
+    hook: '"Some moments deserve to be remembered by scent."',
     duration: "~28 sec",
     script: `[0:00] Slow push-in on a woman pausing at a window, city lights blurred behind her.
 [0:04] VO: "Some moments deserve to be remembered by scent."
@@ -53,7 +59,7 @@ export const scriptVersions: ScriptVersion[] = [
     id: "humorous",
     title: "Humorous Version",
     badge: "Humorous",
-    hook: "\"Warning: may cause strangers to follow you into elevators.\"",
+    hook: '"Warning: may cause strangers to follow you into elevators."',
     duration: "~24 sec",
     script: `[0:00] Deadpan narrator over a woman entering an elevator.
 [0:03] VO: "Warning: may cause strangers to follow you into elevators."
@@ -69,7 +75,7 @@ export const scriptVersions: ScriptVersion[] = [
     id: "conversion",
     title: "High Conversion Version",
     badge: "High Conversion",
-    hook: "\"9,000+ five-star reviews. One scent. Here's why.\"",
+    hook: '"9,000+ five-star reviews. One scent. Here\'s why."',
     duration: "~30 sec",
     script: `[0:00] Bold text over product: "9,000+ five-star reviews. One scent."
 [0:04] VO: "Here's why Lumière sells out every single drop."
@@ -94,12 +100,60 @@ export interface HistoryProject {
 }
 
 export const historyProjects: HistoryProject[] = [
-  { id: "p1", name: "Lumière Signature Drop", date: "Jul 4, 2026", duration: "0:28", provider: "Seedance", thumb: "perfume", aspect: "portrait" },
-  { id: "p2", name: "Velocity Runner Launch", date: "Jul 2, 2026", duration: "0:15", provider: "Higgsfield", thumb: "sneaker", aspect: "landscape" },
-  { id: "p3", name: "GlowLab Hydration Serum", date: "Jun 28, 2026", duration: "0:30", provider: "Seedance", thumb: "skincare", aspect: "landscape" },
-  { id: "p4", name: "Lumière Holiday Teaser", date: "Jun 21, 2026", duration: "0:15", provider: "Seedance", thumb: "perfume", aspect: "portrait" },
-  { id: "p5", name: "Velocity Trail Edition", date: "Jun 14, 2026", duration: "0:30", provider: "Higgsfield", thumb: "sneaker", aspect: "landscape" },
-  { id: "p6", name: "GlowLab Night Ritual", date: "Jun 8, 2026", duration: "0:28", provider: "Seedance", thumb: "skincare", aspect: "landscape" },
+  {
+    id: "p1",
+    name: "Lumière Signature Drop",
+    date: "Jul 4, 2026",
+    duration: "0:28",
+    provider: "Seedance",
+    thumb: "perfume",
+    aspect: "portrait",
+  },
+  {
+    id: "p2",
+    name: "Velocity Runner Launch",
+    date: "Jul 2, 2026",
+    duration: "0:15",
+    provider: "Higgsfield",
+    thumb: "sneaker",
+    aspect: "landscape",
+  },
+  {
+    id: "p3",
+    name: "GlowLab Hydration Serum",
+    date: "Jun 28, 2026",
+    duration: "0:30",
+    provider: "Seedance",
+    thumb: "skincare",
+    aspect: "landscape",
+  },
+  {
+    id: "p4",
+    name: "Lumière Holiday Teaser",
+    date: "Jun 21, 2026",
+    duration: "0:15",
+    provider: "Seedance",
+    thumb: "perfume",
+    aspect: "portrait",
+  },
+  {
+    id: "p5",
+    name: "Velocity Trail Edition",
+    date: "Jun 14, 2026",
+    duration: "0:30",
+    provider: "Higgsfield",
+    thumb: "sneaker",
+    aspect: "landscape",
+  },
+  {
+    id: "p6",
+    name: "GlowLab Night Ritual",
+    date: "Jun 8, 2026",
+    duration: "0:28",
+    provider: "Seedance",
+    thumb: "skincare",
+    aspect: "landscape",
+  },
 ];
 
 export const generationStages = [

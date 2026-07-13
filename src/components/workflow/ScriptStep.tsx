@@ -28,7 +28,9 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
   return (
     <div className="animate-fade-up">
       <div className="text-center">
-        <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">Choose Your Repurposed Script</h2>
+        <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">
+          Choose Your Repurposed Script
+        </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Three directions, one winning strategy — pick the voice that fits your brand.
         </p>
@@ -94,11 +96,20 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
                 <Eye className="h-3.5 w-3.5" />
                 Preview
               </Button>
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setEditing(script)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg"
+                onClick={() => setEditing(script)}
+              >
                 <PenLine className="h-3.5 w-3.5" />
                 Edit
               </Button>
-              <Button size="sm" className="btn-glow rounded-lg font-semibold" onClick={() => onSelect(script)}>
+              <Button
+                size="sm"
+                className="btn-glow rounded-lg font-semibold"
+                onClick={() => onSelect(script)}
+              >
                 Select
               </Button>
             </div>

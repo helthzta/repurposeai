@@ -2,7 +2,8 @@ import { ArrowRight, Play, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { analysisCards } from "@/lib/mock-data";
-import thumbPerfume from "@/assets/thumb-perfume.jpg";
+
+const thumbPerfume = "/thumb-perfume.jpg";
 
 export function AnalysisStep({ onContinue }: { onContinue: () => void }) {
   const [progress, setProgress] = useState(0);
@@ -41,7 +42,9 @@ export function AnalysisStep({ onContinue }: { onContinue: () => void }) {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="mt-2.5 text-center text-sm font-bold text-primary">{Math.round(progress)}%</p>
+          <p className="mt-2.5 text-center text-sm font-bold text-primary">
+            {Math.round(progress)}%
+          </p>
         </div>
       </div>
     );
@@ -68,7 +71,9 @@ export function AnalysisStep({ onContinue }: { onContinue: () => void }) {
                 className="hover-lift animate-fade-up rounded-2xl border bg-card p-5 shadow-card"
                 style={{ animationDelay: `${i * 40}ms` }}
               >
-                <p className="text-[11px] font-bold uppercase tracking-wider text-primary">{card.label}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                  {card.label}
+                </p>
                 <p className="mt-2 text-sm leading-relaxed text-foreground">{card.value}</p>
               </div>
             ))}
@@ -105,7 +110,11 @@ export function AnalysisStep({ onContinue }: { onContinue: () => void }) {
       </div>
 
       <div className="flex justify-end">
-        <Button size="lg" className="btn-glow h-12 rounded-xl px-8 font-semibold" onClick={onContinue}>
+        <Button
+          size="lg"
+          className="btn-glow h-12 rounded-xl px-8 font-semibold"
+          onClick={onContinue}
+        >
           Generate Scripts
           <ArrowRight className="h-4.5 w-4.5" />
         </Button>

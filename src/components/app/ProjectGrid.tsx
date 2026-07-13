@@ -1,15 +1,14 @@
+"use client";
+
 import { Clock, Copy, Download, Layers, Play, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { historyProjects } from "@/lib/mock-data";
-import thumbPerfume from "@/assets/thumb-perfume.jpg";
-import thumbSneaker from "@/assets/thumb-sneaker.jpg";
-import thumbSkincare from "@/assets/thumb-skincare.jpg";
 
 const thumbs = {
-  perfume: thumbPerfume,
-  sneaker: thumbSneaker,
-  skincare: thumbSkincare,
+  perfume: "/thumb-perfume.jpg",
+  sneaker: "/thumb-sneaker.jpg",
+  skincare: "/thumb-skincare.jpg",
 } as const;
 
 export function ProjectGrid() {
@@ -53,11 +52,22 @@ export function ProjectGrid() {
               </div>
             </div>
             <div className="mt-3.5 flex items-center gap-1.5">
-              <Button variant="outline" size="sm" className="flex-1 rounded-lg text-xs" onClick={() => toast.success("Download started")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 rounded-lg text-xs"
+                onClick={() => toast.success("Download started")}
+              >
                 <Download className="h-3.5 w-3.5" />
                 Download
               </Button>
-              <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" aria-label="Duplicate" onClick={() => toast.success("Project duplicated")}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 rounded-lg"
+                aria-label="Duplicate"
+                onClick={() => toast.success("Project duplicated")}
+              >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
               <Button

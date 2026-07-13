@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export function UploadStep({ onContinue }: { onContinue: () => void }) {
@@ -90,7 +96,11 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="brand-name">Brand Name</Label>
-            <Input id="brand-name" placeholder="Lumière Fragrance Co." className="h-11 rounded-xl" />
+            <Input
+              id="brand-name"
+              placeholder="Lumière Fragrance Co."
+              className="h-11 rounded-xl"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="service">Service / Product</Label>
@@ -98,7 +108,11 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="audience">Target Audience</Label>
-            <Input id="audience" placeholder="Women 24–38, urban, aspirational" className="h-11 rounded-xl" />
+            <Input
+              id="audience"
+              placeholder="Women 24–38, urban, aspirational"
+              className="h-11 rounded-xl"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Tone</Label>
@@ -133,7 +147,12 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Logo Upload</Label>
             <label className="flex h-24 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-              <input type="file" accept="image/*" className="sr-only" onChange={() => toast.success("Logo uploaded")} />
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={() => toast.success("Logo uploaded")}
+              />
               <Upload className="h-4 w-4" />
               Drop your logo or click to browse
             </label>
@@ -141,7 +160,11 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
         </div>
 
         <div className="mt-8 flex justify-end">
-          <Button size="lg" className="btn-glow h-12 rounded-xl px-8 font-semibold" onClick={onContinue}>
+          <Button
+            size="lg"
+            className="btn-glow h-12 rounded-xl px-8 font-semibold"
+            onClick={onContinue}
+          >
             Start AI Analysis
           </Button>
         </div>

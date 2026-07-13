@@ -33,7 +33,7 @@ const quickActions = [
 
 const suggestions = [
   "Open with the product in motion — moving hooks retain 23% more viewers.",
-  "Your CTA could add urgency: try \"tonight only\" phrasing.",
+  'Your CTA could add urgency: try "tonight only" phrasing.',
   "Consider a 2-second silent beat before the reveal for emotional impact.",
 ];
 
@@ -79,22 +79,47 @@ export function ScriptEditor({
     <div className="animate-fade-up">
       <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Button variant="outline" size="icon" className="shrink-0 rounded-xl" onClick={onBack} aria-label="Back to scripts">
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0 rounded-xl"
+            onClick={onBack}
+            aria-label="Back to scripts"
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
             <h2 className="truncate text-[15px] font-bold">Editing · {script.title}</h2>
-            <p className="truncate text-xs text-muted-foreground">Changes are saved as a new version</p>
+            <p className="truncate text-xs text-muted-foreground">
+              Changes are saved as a new version
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="rounded-xl" onClick={undo} disabled={!history.length} aria-label="Undo">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-xl"
+            onClick={undo}
+            disabled={!history.length}
+            aria-label="Undo"
+          >
             <Undo2 className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="rounded-xl" onClick={redo} disabled={!future.length} aria-label="Redo">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-xl"
+            onClick={redo}
+            disabled={!future.length}
+            aria-label="Redo"
+          >
             <Redo2 className="h-4 w-4" />
           </Button>
-          <Button className="btn-glow rounded-xl font-semibold" onClick={() => onSave({ ...script, script: text })}>
+          <Button
+            className="btn-glow rounded-xl font-semibold"
+            onClick={() => onSave({ ...script, script: text })}
+          >
             <Save className="h-4 w-4" />
             Save Version
           </Button>

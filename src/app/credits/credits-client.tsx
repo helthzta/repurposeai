@@ -1,27 +1,36 @@
-import { createFileRoute } from "@tanstack/react-router";
+"use client";
+
 import { Check, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/credits")({
-  head: () => ({
-    meta: [
-      { title: "Credits — Repurpose AI" },
-      { name: "description", content: "Manage your generation credits and upgrade your plan." },
-    ],
-  }),
-  component: CreditsPage,
-});
-
 const plans = [
-  { name: "Starter", price: "$29", credits: "300 credits / mo", features: ["15s & 30s videos", "2 AI providers", "Standard quality"], current: false },
-  { name: "Pro", price: "$79", credits: "1,000 credits / mo", features: ["All video lengths", "All providers", "Ultra quality", "Priority rendering"], current: true },
-  { name: "Enterprise", price: "Custom", credits: "Unlimited credits", features: ["Dedicated capacity", "Custom providers", "SSO & API access", "Success manager"], current: false },
+  {
+    name: "Starter",
+    price: "$29",
+    credits: "300 credits / mo",
+    features: ["15s & 30s videos", "2 AI providers", "Standard quality"],
+    current: false,
+  },
+  {
+    name: "Pro",
+    price: "$79",
+    credits: "1,000 credits / mo",
+    features: ["All video lengths", "All providers", "Ultra quality", "Priority rendering"],
+    current: true,
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    credits: "Unlimited credits",
+    features: ["Dedicated capacity", "Custom providers", "SSO & API access", "Success manager"],
+    current: false,
+  },
 ];
 
-function CreditsPage() {
+export function CreditsPageClient() {
   return (
     <AppShell title="Credits">
       <div className="mx-auto max-w-5xl space-y-8">
@@ -36,7 +45,10 @@ function CreditsPage() {
                 <p className="text-sm text-muted-foreground">Resets in 12 days · Pro plan</p>
               </div>
             </div>
-            <Button className="btn-glow rounded-xl font-semibold" onClick={() => toast.success("Top-up added")}>
+            <Button
+              className="btn-glow rounded-xl font-semibold"
+              onClick={() => toast.success("Top-up added")}
+            >
               Buy more
             </Button>
           </div>
@@ -81,9 +93,15 @@ function CreditsPage() {
               <Button
                 variant={plan.current ? "outline" : "default"}
                 className={cn("mt-6 rounded-xl font-semibold", !plan.current && "btn-glow")}
-                onClick={() => toast.success(plan.current ? "You're on this plan" : `Switched to ${plan.name}`)}
+                onClick={() =>
+                  toast.success(plan.current ? "You're on this plan" : `Switched to ${plan.name}`)
+                }
               >
-                {plan.current ? "Manage plan" : plan.price === "Custom" ? "Contact sales" : "Upgrade"}
+                {plan.current
+                  ? "Manage plan"
+                  : plan.price === "Custom"
+                    ? "Contact sales"
+                    : "Upgrade"}
               </Button>
             </div>
           ))}

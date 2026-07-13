@@ -1,26 +1,22 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { ProjectGrid } from "@/components/app/ProjectGrid";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/projects")({
-  head: () => ({
-    meta: [
-      { title: "Projects — Repurpose AI" },
-      { name: "description", content: "All your AI commercial projects in one place." },
-    ],
-  }),
-  component: ProjectsPage,
-});
+export const metadata: Metadata = {
+  title: "Projects — Repurpose AI",
+  description: "All your AI commercial projects in one place.",
+};
 
-function ProjectsPage() {
+export default function ProjectsPage() {
   return (
     <AppShell title="Projects">
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex justify-end">
           <Button asChild className="btn-glow rounded-xl font-semibold">
-            <Link to="/dashboard">
+            <Link href="/dashboard">
               <Plus className="h-4 w-4" />
               New Commercial
             </Link>

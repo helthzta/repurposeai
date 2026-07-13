@@ -1,4 +1,13 @@
-import { Camera, Clock, Layers, MonitorPlay, RectangleVertical, Sparkles, Square, RectangleHorizontal } from "lucide-react";
+import {
+  Camera,
+  Clock,
+  Layers,
+  MonitorPlay,
+  RectangleVertical,
+  Sparkles,
+  Square,
+  RectangleHorizontal,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,11 +47,14 @@ function OptionGroup<T extends string>({
                 active
                   ? "border-primary bg-accent text-accent-foreground shadow-glow"
                   : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                disabled && "cursor-not-allowed opacity-45 hover:border-border hover:text-muted-foreground",
+                disabled &&
+                  "cursor-not-allowed opacity-45 hover:border-border hover:text-muted-foreground",
               )}
             >
               {opt.label}
-              {opt.hint && <span className="ml-1.5 text-[11px] font-medium opacity-70">{opt.hint}</span>}
+              {opt.hint && (
+                <span className="ml-1.5 text-[11px] font-medium opacity-70">{opt.hint}</span>
+              )}
             </button>
           );
         })}
@@ -67,7 +79,9 @@ export function GenerateStep({ onGenerate }: { onGenerate: () => void }) {
           </div>
           <div>
             <h2 className="text-lg font-extrabold tracking-tight">Generation Settings</h2>
-            <p className="text-xs text-muted-foreground">Fine-tune how your commercial is rendered</p>
+            <p className="text-xs text-muted-foreground">
+              Fine-tune how your commercial is rendered
+            </p>
           </div>
         </div>
 
@@ -132,11 +146,17 @@ export function GenerateStep({ onGenerate }: { onGenerate: () => void }) {
           />
         </div>
 
-        <Button size="lg" className="btn-glow mt-10 h-14 w-full rounded-2xl text-base font-bold" onClick={onGenerate}>
+        <Button
+          size="lg"
+          className="btn-glow mt-10 h-14 w-full rounded-2xl text-base font-bold"
+          onClick={onGenerate}
+        >
           <Sparkles className="h-5 w-5" />
           Generate Commercial
         </Button>
-        <p className="mt-3 text-center text-xs text-muted-foreground">Uses 20 credits · Estimated 2–4 minutes</p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          Uses 20 credits · Estimated 2–4 minutes
+        </p>
       </div>
     </div>
   );

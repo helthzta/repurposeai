@@ -1,20 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+"use client";
+
 import { Copy, KeyRound, Plug } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/api")({
-  head: () => ({
-    meta: [
-      { title: "API — Repurpose AI" },
-      { name: "description", content: "Integrate Repurpose AI video generation into your own products." },
-    ],
-  }),
-  component: ApiPage,
-});
-
-function ApiPage() {
+export function ApiPageClient() {
   return (
     <AppShell title="API">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -25,7 +16,9 @@ function ApiPage() {
             </div>
             <div>
               <h2 className="text-[15px] font-bold">API Keys</h2>
-              <p className="text-xs text-muted-foreground">Authenticate requests to the Repurpose API</p>
+              <p className="text-xs text-muted-foreground">
+                Authenticate requests to the Repurpose API
+              </p>
             </div>
           </div>
           <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3">
@@ -40,7 +33,11 @@ function ApiPage() {
               <Copy className="h-4 w-4" />
             </Button>
           </div>
-          <Button variant="outline" className="mt-4 rounded-xl font-semibold" onClick={() => toast.success("New key generated")}>
+          <Button
+            variant="outline"
+            className="mt-4 rounded-xl font-semibold"
+            onClick={() => toast.success("New key generated")}
+          >
             Generate new key
           </Button>
         </div>
@@ -52,11 +49,13 @@ function ApiPage() {
             </div>
             <div>
               <h2 className="text-[15px] font-bold">Quick start</h2>
-              <p className="text-xs text-muted-foreground">Generate a commercial with one request</p>
+              <p className="text-xs text-muted-foreground">
+                Generate a commercial with one request
+              </p>
             </div>
           </div>
           <pre className="mt-5 overflow-x-auto rounded-xl bg-foreground p-5 text-xs leading-relaxed text-background">
-{`curl -X POST https://api.repurpose.ai/v1/commercials \\
+            {`curl -X POST https://api.repurpose.ai/v1/commercials \\
   -H "Authorization: Bearer rp_live_..." \\
   -d '{
     "source_video": "https://...",

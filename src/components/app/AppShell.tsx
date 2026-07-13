@@ -1,4 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   Clapperboard,
@@ -28,11 +31,11 @@ const navItems = [
 ] as const;
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname = usePathname();
 
   return (
     <div className="flex h-full flex-col">
-      <Link to="/" className="flex items-center gap-2.5 px-5 py-5" onClick={onNavigate}>
+      <Link href="/" className="flex items-center gap-2.5 px-5 py-5" onClick={onNavigate}>
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl gradient-primary shadow-card">
           <Clapperboard className="h-4.5 w-4.5 text-primary-foreground" />
         </div>
@@ -45,7 +48,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           return (
             <Link
               key={item.url}
-              to={item.url}
+              href={item.url}
               onClick={onNavigate}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
@@ -89,7 +92,10 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
       {/* Mobile sidebar */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div
+            className="absolute inset-0 bg-foreground/30 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+          />
           <aside className="absolute inset-y-0 left-0 w-64 bg-sidebar shadow-lift animate-fade-up">
             <button
               className="absolute right-3 top-4 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
@@ -122,10 +128,17 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
                 <Zap className="h-3.5 w-3.5 text-warning" />
                 240 credits
               </div>
-              <Button size="sm" className="btn-glow hidden rounded-xl font-semibold sm:inline-flex" asChild>
-                <Link to="/credits">Upgrade</Link>
+              <Button
+                size="sm"
+                className="btn-glow hidden rounded-xl font-semibold sm:inline-flex"
+                asChild
+              >
+                <Link href="/credits">Upgrade</Link>
               </Button>
-              <button className="relative rounded-xl border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Notifications">
+              <button
+                className="relative rounded-xl border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Notifications"
+              >
                 <Bell className="h-4 w-4" />
                 <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
               </button>
