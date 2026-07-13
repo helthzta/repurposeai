@@ -1,4 +1,4 @@
-import { CloudUpload, FileVideo, Link2, Palette, Upload } from "lucide-react";
+import { CloudUpload, FileVideo, Loader2, Palette, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,14 +13,122 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import type { SourceVideoKind } from "@/lib/types";
 
-export function UploadStep({ onContinue }: { onContinue: () => void }) {
+async function uploadSourceVideo(projectId: string, kind: SourceVideoKind, file: File) {
+  const signRes = await fetch("/api/uploads/sign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectId, kind, filename: file.name }),
+  });
+  if (!signRes.ok) throw new Error("Could not prepare upload");
+  const { bucket, path, token } = await signRes.json();
+
+  const supabase = createClient();
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .uploadToSignedUrl(path, token, file);
+  if (uploadError) throw uploadError;
+
+  const confirmRes = await fetch("/api/uploads/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      projectId,
+      kind,
+      path,
+      filename: file.name,
+      mimeType: file.type,
+      fileSizeBytes: file.size,
+    }),
+  });
+  if (!confirmRes.ok) throw new Error("Could not save the uploaded video");
+}
+
+function SecondaryUpload({
+  label,
+  file,
+  onChange,
+}: {
+  label: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <label className="flex h-16 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+      <input
+        type="file"
+        accept=".mp4,.mov,.webm"
+        className="sr-only"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+      <Upload className="h-3.5 w-3.5" />
+      {file ? file.name : label}
+    </label>
+  );
+}
+
+export function UploadStep({ onContinue }: { onContinue: (projectId: string) => void }) {
   const [dragging, setDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [competitorFile, setCompetitorFile] = useState<File | null>(null);
+  const [productFile, setProductFile] = useState<File | null>(null);
+  const [brandFile, setBrandFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const acceptFile = (name?: string) => {
-    setFileName(name ?? "competitor-ad.mp4");
-    toast.success("Video added", { description: name ?? "competitor-ad.mp4" });
+  const [brandName, setBrandName] = useState("");
+  const [productService, setProductService] = useState("");
+  const [targetAudience, setTargetAudience] = useState("");
+  const [tone, setTone] = useState("");
+  const [description, setDescription] = useState("");
+  const [brandColors, setBrandColors] = useState("");
+  const [cta, setCta] = useState("");
+
+  const acceptFile = (file?: File) => {
+    if (!file) return;
+    setCompetitorFile(file);
+    toast.success("Video added", { description: file.name });
+  };
+
+  const handleSubmit = async () => {
+    if (!competitorFile) {
+      toast.error("Add your competitor's ad first");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brandName,
+          productService,
+          targetAudience,
+          tone,
+          description,
+          brandColors: brandColors
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean),
+          cta,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not create the project");
+      const { project } = await res.json();
+
+      await uploadSourceVideo(project.id, "competitor", competitorFile);
+      if (productFile) await uploadSourceVideo(project.id, "product", productFile);
+      if (brandFile) await uploadSourceVideo(project.id, "brand", brandFile);
+
+      onContinue(project.id);
+    } catch (error) {
+      toast.error("Upload failed", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -35,7 +143,7 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          acceptFile(e.dataTransfer.files[0]?.name);
+          acceptFile(e.dataTransfer.files[0]);
         }}
         className={cn(
           "relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center transition-all duration-300 sm:py-20",
@@ -43,17 +151,17 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
         )}
       >
         <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent animate-float">
-          {fileName ? (
+          {competitorFile ? (
             <FileVideo className="h-7 w-7 text-primary" />
           ) : (
             <CloudUpload className="h-7 w-7 text-primary" />
           )}
         </div>
         <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
-          {fileName ?? "Drag & drop your competitor's ad"}
+          {competitorFile?.name ?? "Drag & drop your competitor's ad"}
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          {fileName ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}
+          {competitorFile ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}
         </p>
         <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
           <label>
@@ -61,7 +169,7 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
               type="file"
               accept=".mp4,.mov,.webm"
               className="sr-only"
-              onChange={(e) => acceptFile(e.target.files?.[0]?.name)}
+              onChange={(e) => acceptFile(e.target.files?.[0])}
             />
             <Button asChild className="btn-glow rounded-xl font-semibold">
               <span className="cursor-pointer">
@@ -70,14 +178,15 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
               </span>
             </Button>
           </label>
-          <Button
-            variant="outline"
-            className="rounded-xl font-semibold"
-            onClick={() => toast.info("Paste Video URL is coming soon")}
-          >
-            <Link2 className="h-4 w-4" />
-            Paste Video URL
-          </Button>
+        </div>
+
+        <div className="mt-6 grid w-full max-w-lg gap-2.5 sm:grid-cols-2">
+          <SecondaryUpload
+            label="Product ad (optional)"
+            file={productFile}
+            onChange={setProductFile}
+          />
+          <SecondaryUpload label="Brand ad (optional)" file={brandFile} onChange={setBrandFile} />
         </div>
       </div>
 
@@ -100,11 +209,19 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
               id="brand-name"
               placeholder="Lumière Fragrance Co."
               className="h-11 rounded-xl"
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="service">Service / Product</Label>
-            <Input id="service" placeholder="Premium D2C perfume" className="h-11 rounded-xl" />
+            <Input
+              id="service"
+              placeholder="Premium D2C perfume"
+              className="h-11 rounded-xl"
+              value={productService}
+              onChange={(e) => setProductService(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="audience">Target Audience</Label>
@@ -112,11 +229,13 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
               id="audience"
               placeholder="Women 24–38, urban, aspirational"
               className="h-11 rounded-xl"
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
             <Label>Tone</Label>
-            <Select>
+            <Select value={tone} onValueChange={setTone}>
               <SelectTrigger className="h-11 w-full rounded-xl">
                 <SelectValue placeholder="Select tone" />
               </SelectTrigger>
@@ -134,28 +253,29 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
               id="description"
               placeholder="What makes your brand different?"
               className="min-h-24 rounded-xl"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="colors">Brand Colors</Label>
-            <Input id="colors" placeholder="#2563EB, #F8FAFC" className="h-11 rounded-xl" />
+            <Input
+              id="colors"
+              placeholder="#2563EB, #F8FAFC"
+              className="h-11 rounded-xl"
+              value={brandColors}
+              onChange={(e) => setBrandColors(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cta">CTA</Label>
-            <Input id="cta" placeholder="Find your signature scent" className="h-11 rounded-xl" />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Logo Upload</Label>
-            <label className="flex h-24 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary">
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={() => toast.success("Logo uploaded")}
-              />
-              <Upload className="h-4 w-4" />
-              Drop your logo or click to browse
-            </label>
+            <Input
+              id="cta"
+              placeholder="Find your signature scent"
+              className="h-11 rounded-xl"
+              value={cta}
+              onChange={(e) => setCta(e.target.value)}
+            />
           </div>
         </div>
 
@@ -163,8 +283,10 @@ export function UploadStep({ onContinue }: { onContinue: () => void }) {
           <Button
             size="lg"
             className="btn-glow h-12 rounded-xl px-8 font-semibold"
-            onClick={onContinue}
+            onClick={handleSubmit}
+            disabled={submitting}
           >
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Start AI Analysis
           </Button>
         </div>

@@ -26,7 +26,7 @@ const faqs = [
   },
   {
     q: "Which AI video providers are supported?",
-    a: "Seedance and Higgsfield today, with more providers coming soon. You can switch providers per generation.",
+    a: "Seedance today, with Higgsfield and more providers coming soon.",
   },
   {
     q: "How do credits work?",

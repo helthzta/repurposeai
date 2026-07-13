@@ -1,7 +1,9 @@
 "use client";
 
 import type { ComponentType, ReactNode } from "react";
-import { Bell, CreditCard, Globe, KeyRound, Palette, User, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Bell, Globe, KeyRound, Palette, User, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
+import type { Profile } from "@/lib/types";
 
 function Section({
   icon: Icon,
@@ -44,11 +48,53 @@ function Section({
 }
 
 export function SettingsPageClient() {
+  const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => {
+        setProfile(data.profile);
+        setEmail(data.email ?? "");
+      })
+      .catch(() => toast.error("Could not load settings"));
+  }, []);
+
+  const patch = async (body: Partial<Profile>) => {
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error("Could not save setting");
+      return;
+    }
+    setProfile(data.profile);
+  };
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/");
+    router.refresh();
+  };
+
   return (
     <AppShell title="Settings">
       <div className="mx-auto max-w-3xl space-y-4">
-        <Section icon={Palette} title="Theme" desc="Light mode is active">
-          <Select defaultValue="light">
+        <Section
+          icon={Palette}
+          title="Theme"
+          desc={profile?.theme === "system" ? "Follows system" : "Light mode is active"}
+        >
+          <Select
+            value={profile?.theme ?? "light"}
+            onValueChange={(theme) => patch({ theme: theme as Profile["theme"] })}
+          >
             <SelectTrigger className="w-32 rounded-xl">
               <SelectValue />
             </SelectTrigger>
@@ -60,7 +106,7 @@ export function SettingsPageClient() {
         </Section>
 
         <Section icon={Globe} title="Language" desc="Interface language">
-          <Select defaultValue="en">
+          <Select value={profile?.locale ?? "en"} onValueChange={(locale) => patch({ locale })}>
             <SelectTrigger className="w-32 rounded-xl">
               <SelectValue />
             </SelectTrigger>
@@ -73,48 +119,34 @@ export function SettingsPageClient() {
           </Select>
         </Section>
 
-        <Section icon={KeyRound} title="API Keys" desc="1 active key">
-          <Button
-            variant="outline"
-            className="rounded-xl font-semibold"
-            onClick={() => toast.success("API key copied")}
-          >
-            Manage
+        <Section icon={KeyRound} title="API Keys" desc="Manage keys for the integration API">
+          <Button variant="outline" className="rounded-xl font-semibold" asChild>
+            <a href="/api">Manage</a>
           </Button>
         </Section>
 
-        <Section icon={Zap} title="Credits" desc="240 remaining · Pro plan">
-          <Button
-            variant="outline"
-            className="rounded-xl font-semibold"
-            onClick={() => toast.info("Redirecting to credits")}
-          >
-            View usage
-          </Button>
-        </Section>
-
-        <Section icon={CreditCard} title="Billing" desc="Visa ending 4242 · next invoice Jul 18">
-          <Button
-            variant="outline"
-            className="rounded-xl font-semibold"
-            onClick={() => toast.info("Billing portal opening")}
-          >
-            Manage
+        <Section
+          icon={Zap}
+          title="Credits"
+          desc={`${profile?.credits_balance ?? "…"} remaining · ${profile?.plan ?? "starter"} plan`}
+        >
+          <Button variant="outline" className="rounded-xl font-semibold" asChild>
+            <a href="/credits">View usage</a>
           </Button>
         </Section>
 
         <Section icon={Bell} title="Notifications" desc="Email me when generations finish">
           <Switch
-            defaultChecked
-            onCheckedChange={(v) => toast.success(v ? "Notifications on" : "Notifications off")}
+            checked={profile?.notify_on_completion ?? true}
+            onCheckedChange={(v) => patch({ notify_on_completion: v })}
           />
         </Section>
 
-        <Section icon={User} title="Account" desc="alex@lumiere.co">
+        <Section icon={User} title="Account" desc={email}>
           <Button
             variant="outline"
             className="rounded-xl font-semibold text-destructive hover:text-destructive"
-            onClick={() => toast.info("Signed out")}
+            onClick={handleSignOut}
           >
             Sign out
           </Button>

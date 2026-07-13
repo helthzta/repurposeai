@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clapperboard } from "lucide-react";
+import { Clapperboard, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createClient } from "@/lib/supabase/client";
 
 function GoogleIcon() {
   return (
@@ -32,6 +35,40 @@ function GoogleIcon() {
 
 export function LoginPageClient() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const handleGoogle = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email"));
+    const password = String(form.get("password"));
+
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (signInError) {
+      const { error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) {
+        toast.error("Couldn't sign in", { description: signUpError.message });
+        setLoading(false);
+        return;
+      }
+      toast.success("Account created — signing you in");
+    }
+
+    setLoading(false);
+    router.push("/dashboard");
+    router.refresh();
+  };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden gradient-hero animate-gradient-pan px-4">
@@ -55,7 +92,8 @@ export function LoginPageClient() {
           <Button
             variant="outline"
             className="mt-7 h-11 w-full rounded-xl font-semibold"
-            onClick={() => router.push("/dashboard")}
+            onClick={handleGoogle}
+            type="button"
           >
             <GoogleIcon />
             Continue with Google
@@ -67,17 +105,12 @@ export function LoginPageClient() {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              router.push("/dashboard");
-            }}
-          >
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 required
                 placeholder="you@company.com"
@@ -88,22 +121,26 @@ export function LoginPageClient() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 required
+                minLength={6}
                 placeholder="••••••••"
                 className="h-11 rounded-xl"
               />
             </div>
-            <Button type="submit" className="btn-glow h-11 w-full rounded-xl font-semibold">
+            <Button
+              type="submit"
+              className="btn-glow h-11 w-full rounded-xl font-semibold"
+              disabled={loading}
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Sign in
             </Button>
           </form>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            No account yet?{" "}
-            <Link href="/dashboard" className="font-semibold text-primary hover:underline">
-              Start free
-            </Link>
+            No account yet? Just sign in above — we&apos;ll create one automatically.
           </p>
         </div>
       </div>

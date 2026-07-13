@@ -16,7 +16,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +30,34 @@ const navItems = [
   { title: "Help", url: "/help", icon: HelpCircle },
 ] as const;
 
+function useCurrentUser() {
+  const [state, setState] = useState<{ name: string; plan: string; credits: number | null }>({
+    name: "",
+    plan: "starter",
+    credits: null,
+  });
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.profile) return;
+        setState({
+          name: data.profile.full_name || data.email || "Account",
+          plan: data.profile.plan,
+          credits: data.profile.credits_balance,
+        });
+      })
+      .catch(() => undefined);
+  }, []);
+
+  return state;
+}
+
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { name, plan } = useCurrentUser();
+  const initials = name ? name.slice(0, 2).toUpperCase() : "•";
 
   return (
     <div className="flex h-full flex-col">
@@ -67,11 +93,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-t p-4">
         <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full gradient-primary text-xs font-bold text-primary-foreground">
-            AK
+            {initials}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">Alex Kim</p>
-            <p className="truncate text-xs text-muted-foreground">Pro plan</p>
+            <p className="truncate text-sm font-semibold">{name || "Loading…"}</p>
+            <p className="truncate text-xs capitalize text-muted-foreground">{plan} plan</p>
           </div>
         </div>
       </div>
@@ -81,6 +107,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ title, children }: { title: string; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { name, credits } = useCurrentUser();
+  const initials = name ? name.slice(0, 2).toUpperCase() : "•";
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -126,7 +154,7 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="hidden items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold sm:flex">
                 <Zap className="h-3.5 w-3.5 text-warning" />
-                240 credits
+                {credits ?? "…"} credits
               </div>
               <Button
                 size="sm"
@@ -143,7 +171,7 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
                 <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
               </button>
               <div className="grid h-8.5 w-8.5 place-items-center rounded-full gradient-primary text-[11px] font-bold text-primary-foreground">
-                AK
+                {initials}
               </div>
             </div>
           </div>

@@ -2,15 +2,13 @@ import {
   ArrowLeft,
   Clapperboard,
   Laugh,
-  Lightbulb,
+  Loader2,
   Megaphone,
   MinusCircle,
   PlusCircle,
-  Redo2,
   RefreshCw,
   Save,
   Sparkles,
-  Undo2,
   Gem,
   HeartHandshake,
 } from "lucide-react";
@@ -18,7 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { ScriptVersion } from "@/lib/mock-data";
+import type { Script } from "@/lib/types";
 
 const quickActions = [
   { label: "Make Funnier", icon: Laugh },
@@ -27,14 +25,7 @@ const quickActions = [
   { label: "Shorter", icon: MinusCircle },
   { label: "Longer", icon: PlusCircle },
   { label: "Change CTA", icon: Megaphone },
-  { label: "Add Humor", icon: Laugh },
   { label: "More Cinematic", icon: Clapperboard },
-];
-
-const suggestions = [
-  "Open with the product in motion — moving hooks retain 23% more viewers.",
-  'Your CTA could add urgency: try "tonight only" phrasing.',
-  "Consider a 2-second silent beat before the reveal for emotional impact.",
 ];
 
 export function ScriptEditor({
@@ -42,37 +33,51 @@ export function ScriptEditor({
   onBack,
   onSave,
 }: {
-  script: ScriptVersion;
+  script: Script;
   onBack: () => void;
-  onSave: (script: ScriptVersion) => void;
+  onSave: (script: Script) => void;
 }) {
-  const [text, setText] = useState(script.script);
-  const [history, setHistory] = useState<string[]>([]);
-  const [future, setFuture] = useState<string[]>([]);
+  const [text, setText] = useState(script.body);
+  const [saving, setSaving] = useState(false);
+  const [applying, setApplying] = useState<string | null>(null);
 
-  const pushHistory = (next: string) => {
-    setHistory((h) => [...h, text]);
-    setFuture([]);
-    setText(next);
+  const applyAction = async (label: string, instruction: string) => {
+    setApplying(label);
+    try {
+      const res = await fetch(`/api/scripts/${script.id}/assist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "AI edit failed");
+      setText(data.script.body);
+      toast.success(label, { description: "AI updated your script" });
+    } catch (err) {
+      toast.error("AI edit failed", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setApplying(null);
+    }
   };
 
-  const undo = () => {
-    if (!history.length) return;
-    setFuture((f) => [text, ...f]);
-    setText(history[history.length - 1]);
-    setHistory((h) => h.slice(0, -1));
-  };
-
-  const redo = () => {
-    if (!future.length) return;
-    setHistory((h) => [...h, text]);
-    setText(future[0]);
-    setFuture((f) => f.slice(1));
-  };
-
-  const applyAction = (label: string) => {
-    pushHistory(text + `\n\n[AI · ${label}] Suggested revision applied to pacing and tone.`);
-    toast.success(label, { description: "AI updated your script" });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/scripts/${script.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      onSave(data.script);
+    } catch (err) {
+      toast.error("Save failed", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -91,39 +96,18 @@ export function ScriptEditor({
           <div className="min-w-0">
             <h2 className="truncate text-[15px] font-bold">Editing · {script.title}</h2>
             <p className="truncate text-xs text-muted-foreground">
-              Changes are saved as a new version
+              Changes are saved to this version
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-xl"
-            onClick={undo}
-            disabled={!history.length}
-            aria-label="Undo"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-xl"
-            onClick={redo}
-            disabled={!future.length}
-            aria-label="Redo"
-          >
-            <Redo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            className="btn-glow rounded-xl font-semibold"
-            onClick={() => onSave({ ...script, script: text })}
-          >
-            <Save className="h-4 w-4" />
-            Save Version
-          </Button>
-        </div>
+        <Button
+          className="btn-glow rounded-xl font-semibold"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Save Version
+        </Button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -152,9 +136,14 @@ export function ScriptEditor({
                   variant="outline"
                   size="sm"
                   className="justify-start rounded-lg text-xs"
-                  onClick={() => applyAction(action.label)}
+                  onClick={() => applyAction(action.label, action.label)}
+                  disabled={applying !== null}
                 >
-                  <action.icon className="h-3.5 w-3.5 text-primary" />
+                  {applying === action.label ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <action.icon className="h-3.5 w-3.5 text-primary" />
+                  )}
                   {action.label}
                 </Button>
               ))}
@@ -163,29 +152,18 @@ export function ScriptEditor({
               variant="secondary"
               size="sm"
               className="mt-3 w-full rounded-lg font-semibold"
-              onClick={() => applyAction("Regenerate")}
+              onClick={() =>
+                applyAction("Regenerate", "Rewrite this script with a fresh creative take")
+              }
+              disabled={applying !== null}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              {applying === "Regenerate" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
               Regenerate
             </Button>
-          </div>
-
-          <div className="rounded-3xl border bg-card p-5 shadow-card">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-warning" />
-              <h3 className="text-sm font-bold">Live Suggestions</h3>
-            </div>
-            <ul className="mt-3 space-y-2.5">
-              {suggestions.map((s, i) => (
-                <li
-                  key={i}
-                  className="animate-fade-up rounded-xl bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground"
-                  style={{ animationDelay: `${i * 120}ms` }}
-                >
-                  {s}
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       </div>

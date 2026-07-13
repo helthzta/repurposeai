@@ -1,38 +1,80 @@
+"use client";
+
 import { Check, Loader2, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generationStages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
-const STAGE_MS = 1600;
+const POLL_MS = 2500;
 
-export function GenerationScreen({ onComplete }: { onComplete: () => void }) {
+export function GenerationScreen({
+  generationId,
+  onComplete,
+  onRetry,
+}: {
+  generationId: string;
+  onComplete: () => void;
+  onRetry?: () => void;
+}) {
   const [stage, setStage] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const stopped = useRef(false);
 
   useEffect(() => {
+    stopped.current = false;
     const stageTimer = setInterval(() => {
-      setStage((s) => {
-        if (s >= generationStages.length - 1) {
-          clearInterval(stageTimer);
-          setTimeout(onComplete, 900);
-          return s;
-        }
-        return s + 1;
-      });
-    }, STAGE_MS);
-    const progressTimer = setInterval(() => {
-      setProgress((p) => Math.min(100, p + 100 / ((generationStages.length * STAGE_MS) / 120)));
-    }, 120);
-    return () => {
-      clearInterval(stageTimer);
-      clearInterval(progressTimer);
-    };
-  }, [onComplete]);
+      setStage((s) => Math.min(s + 1, generationStages.length - 1));
+    }, 4000);
 
-  const remaining = Math.max(
-    0,
-    Math.ceil(((100 - progress) / 100) * ((generationStages.length * STAGE_MS) / 1000)),
-  );
+    const poll = async () => {
+      if (stopped.current) return;
+      try {
+        const res = await fetch(`/api/generations/${generationId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Generation status check failed");
+
+        if (data.generation.status === "completed") {
+          stopped.current = true;
+          onComplete();
+          return;
+        }
+        if (data.generation.status === "failed") {
+          stopped.current = true;
+          setError(data.generation.error_message ?? "Generation failed");
+          return;
+        }
+      } catch (err) {
+        stopped.current = true;
+        setError(err instanceof Error ? err.message : "Generation status check failed");
+        return;
+      }
+      setTimeout(poll, POLL_MS);
+    };
+
+    poll();
+
+    return () => {
+      stopped.current = true;
+      clearInterval(stageTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generationId]);
+
+  if (error) {
+    return (
+      <div className="animate-fade-up mx-auto max-w-xl">
+        <div className="rounded-3xl border bg-card px-6 py-14 text-center shadow-card sm:px-12">
+          <p className="text-sm font-semibold text-destructive">{error}</p>
+          {onRetry && (
+            <Button className="btn-glow mt-6 rounded-xl font-semibold" onClick={onRetry}>
+              Back to settings
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-up mx-auto max-w-xl">
@@ -49,17 +91,7 @@ export function GenerationScreen({ onComplete }: { onComplete: () => void }) {
         </div>
 
         <h2 className="mt-8 text-xl font-extrabold tracking-tight">Creating your commercial</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Estimated time remaining: ~{remaining}s
-        </p>
-
-        <div className="mx-auto mt-8 h-2 max-w-sm overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full gradient-primary transition-all duration-150"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="mt-2 text-sm font-bold text-primary">{Math.round(progress)}%</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">This usually takes 2–4 minutes</p>
 
         <ol className="mx-auto mt-10 max-w-xs space-y-3 text-left">
           {generationStages.map((label, i) => {

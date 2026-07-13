@@ -37,7 +37,7 @@ const features = [
   {
     icon: Layers,
     title: "Multi AI Provider Ready",
-    desc: "Seedance, Higgsfield, and future providers — switch with one click.",
+    desc: "Launching with Seedance, built to add Higgsfield and future providers next.",
   },
 ];
 

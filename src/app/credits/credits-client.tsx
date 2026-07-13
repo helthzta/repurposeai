@@ -1,36 +1,55 @@
 "use client";
 
-import { Check, Zap } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
-const plans = [
+const PLANS = [
   {
     name: "Starter",
-    price: "$29",
     credits: "300 credits / mo",
-    features: ["15s & 30s videos", "2 AI providers", "Standard quality"],
-    current: false,
+    features: ["15s & 30s videos", "1 AI provider", "Standard quality"],
   },
   {
     name: "Pro",
-    price: "$79",
     credits: "1,000 credits / mo",
-    features: ["All video lengths", "All providers", "Ultra quality", "Priority rendering"],
-    current: true,
+    features: ["All video lengths", "Ultra quality", "Priority rendering"],
   },
   {
     name: "Enterprise",
-    price: "Custom",
     credits: "Unlimited credits",
-    features: ["Dedicated capacity", "Custom providers", "SSO & API access", "Success manager"],
-    current: false,
+    features: ["Dedicated capacity", "SSO & API access", "Success manager"],
   },
 ];
 
+interface CreditTransaction {
+  id: string;
+  amount: number;
+  reason: string;
+  balance_after: number;
+  created_at: string;
+}
+
 export function CreditsPageClient() {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [plan, setPlan] = useState("starter");
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/credits")
+      .then((res) => res.json())
+      .then((data) => {
+        setBalance(data.balance);
+        setPlan(data.plan);
+        setTransactions(data.transactions ?? []);
+      })
+      .catch(() => toast.error("Could not load credits"))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <AppShell title="Credits">
       <div className="mx-auto max-w-5xl space-y-8">
@@ -41,70 +60,67 @@ export function CreditsPageClient() {
                 <Zap className="h-6 w-6 text-warning" />
               </div>
               <div className="min-w-0">
-                <p className="text-2xl font-extrabold tracking-tight">240 credits</p>
-                <p className="text-sm text-muted-foreground">Resets in 12 days · Pro plan</p>
+                <p className="text-2xl font-extrabold tracking-tight">
+                  {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${balance} credits`}
+                </p>
+                <p className="text-sm capitalize text-muted-foreground">{plan} plan</p>
               </div>
             </div>
             <Button
               className="btn-glow rounded-xl font-semibold"
-              onClick={() => toast.success("Top-up added")}
+              onClick={() => toast.info("No payment integration yet — contact us to add credits")}
             >
               Buy more
             </Button>
           </div>
-          <div className="mt-6">
-            <div className="flex justify-between text-xs font-medium text-muted-foreground">
-              <span>Used this month: 760</span>
-              <span>1,000 total</span>
-            </div>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-3/4 rounded-full gradient-primary" />
-            </div>
-          </div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
-          {plans.map((plan) => (
+          {PLANS.map((p) => (
             <div
-              key={plan.name}
-              className={cn(
-                "hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card",
-                plan.current && "border-primary/50 shadow-glow",
-              )}
+              key={p.name}
+              className="hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card"
             >
-              <div className="flex items-center justify-between">
-                <h3 className="text-[15px] font-bold">{plan.name}</h3>
-                {plan.current && (
-                  <span className="rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-bold text-accent-foreground">
-                    Current
-                  </span>
-                )}
-              </div>
-              <p className="mt-3 text-3xl font-extrabold tracking-tight">{plan.price}</p>
-              <p className="mt-1 text-xs font-medium text-muted-foreground">{plan.credits}</p>
+              <h3 className="text-[15px] font-bold">{p.name}</h3>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">{p.credits}</p>
               <ul className="mt-5 flex-1 space-y-2.5">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="h-4 w-4 shrink-0 text-success" />
+                {p.features.map((f) => (
+                  <li key={f} className="text-sm text-muted-foreground">
                     {f}
                   </li>
                 ))}
               </ul>
               <Button
-                variant={plan.current ? "outline" : "default"}
-                className={cn("mt-6 rounded-xl font-semibold", !plan.current && "btn-glow")}
+                variant="outline"
+                className="mt-6 rounded-xl font-semibold"
                 onClick={() =>
-                  toast.success(plan.current ? "You're on this plan" : `Switched to ${plan.name}`)
+                  toast.info("Contact us to change plans — no payment integration yet")
                 }
               >
-                {plan.current
-                  ? "Manage plan"
-                  : plan.price === "Custom"
-                    ? "Contact sales"
-                    : "Upgrade"}
+                Contact us
               </Button>
             </div>
           ))}
+        </div>
+
+        <div className="rounded-3xl border bg-card p-6 shadow-card">
+          <h3 className="text-sm font-bold">Recent activity</h3>
+          <div className="mt-4 space-y-2">
+            {transactions.length === 0 && (
+              <p className="text-xs text-muted-foreground">No credit activity yet.</p>
+            )}
+            {transactions.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between text-sm">
+                <span className="capitalize text-muted-foreground">
+                  {tx.reason.replace(/_/g, " ")}
+                </span>
+                <span className={tx.amount < 0 ? "text-destructive" : "text-success"}>
+                  {tx.amount > 0 ? "+" : ""}
+                  {tx.amount}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </AppShell>

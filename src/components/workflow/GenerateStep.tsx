@@ -1,16 +1,21 @@
+"use client";
+
 import {
   Camera,
   Clock,
   Layers,
+  Loader2,
   MonitorPlay,
   RectangleVertical,
   Sparkles,
-  Square,
-  RectangleHorizontal,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { costForGeneration } from "@/lib/credits";
+import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
 
 function OptionGroup<T extends string>({
   label,
@@ -63,12 +68,52 @@ function OptionGroup<T extends string>({
   );
 }
 
-export function GenerateStep({ onGenerate }: { onGenerate: () => void }) {
-  const [provider, setProvider] = useState("seedance");
-  const [length, setLength] = useState("15");
-  const [aspect, setAspect] = useState("9:16");
-  const [quality, setQuality] = useState("high");
+export function GenerateStep({
+  projectId,
+  scriptId,
+  onGenerate,
+}: {
+  projectId: string;
+  scriptId: string;
+  onGenerate: (generationId: string) => void;
+}) {
+  const [provider, setProvider] = useState<VideoProviderName>("seedance");
+  const [length, setLength] = useState<"15" | "30" | "custom">("15");
+  const [customLength, setCustomLength] = useState(20);
+  const [aspect, setAspect] = useState<AspectRatio>("9:16");
+  const [quality, setQuality] = useState<Quality>("high");
   const [style, setStyle] = useState("commercial");
+  const [submitting, setSubmitting] = useState(false);
+
+  const durationSeconds = length === "custom" ? customLength : Number(length);
+
+  const handleGenerate = async () => {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          scriptId,
+          provider,
+          durationSeconds,
+          aspectRatio: aspect,
+          quality,
+          cameraStyle: style,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not start generation");
+      onGenerate(data.generation.id);
+    } catch (err) {
+      toast.error("Generation failed to start", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="animate-fade-up mx-auto max-w-3xl">
@@ -93,22 +138,36 @@ export function GenerateStep({ onGenerate }: { onGenerate: () => void }) {
             onChange={setProvider}
             options={[
               { value: "seedance", label: "Seedance" },
-              { value: "higgsfield", label: "Higgsfield" },
-              { value: "future", label: "Future Provider", hint: "soon" },
+              { value: "higgsfield", label: "Higgsfield", hint: "soon" },
             ]}
-            disabledValues={["future"]}
+            disabledValues={["higgsfield"]}
           />
-          <OptionGroup
-            label="Video Length"
-            icon={Clock}
-            value={length}
-            onChange={setLength}
-            options={[
-              { value: "15", label: "15 seconds" },
-              { value: "30", label: "30 seconds" },
-              { value: "custom", label: "Custom" },
-            ]}
-          />
+          <div>
+            <OptionGroup
+              label="Video Length"
+              icon={Clock}
+              value={length}
+              onChange={setLength}
+              options={[
+                { value: "15", label: "15 seconds" },
+                { value: "30", label: "30 seconds" },
+                { value: "custom", label: "Custom" },
+              ]}
+            />
+            {length === "custom" && (
+              <div className="mt-3 flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={5}
+                  max={120}
+                  className="h-10 w-28 rounded-xl"
+                  value={customLength}
+                  onChange={(e) => setCustomLength(Number(e.target.value))}
+                />
+                <span className="text-xs text-muted-foreground">seconds</span>
+              </div>
+            )}
+          </div>
           <OptionGroup
             label="Aspect Ratio"
             icon={RectangleVertical}
@@ -149,13 +208,18 @@ export function GenerateStep({ onGenerate }: { onGenerate: () => void }) {
         <Button
           size="lg"
           className="btn-glow mt-10 h-14 w-full rounded-2xl text-base font-bold"
-          onClick={onGenerate}
+          onClick={handleGenerate}
+          disabled={submitting}
         >
-          <Sparkles className="h-5 w-5" />
+          {submitting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Sparkles className="h-5 w-5" />
+          )}
           Generate Commercial
         </Button>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Uses 20 credits · Estimated 2–4 minutes
+          Uses {costForGeneration(durationSeconds, quality, aspect)} credits · Estimated 2–4 minutes
         </p>
       </div>
     </div>

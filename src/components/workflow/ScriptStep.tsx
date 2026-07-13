@@ -1,15 +1,72 @@
-import { Clock, Eye, Heart, Megaphone, PenLine, Sparkles } from "lucide-react";
-import { useState } from "react";
+"use client";
+
+import { Clock, Eye, Heart, Loader2, Megaphone, PenLine, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { scriptVersions, type ScriptVersion } from "@/lib/mock-data";
+import type { Script } from "@/lib/types";
 import { ScriptEditor } from "./ScriptEditor";
 import { cn } from "@/lib/utils";
 
-export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => void }) {
-  const [editing, setEditing] = useState<ScriptVersion | null>(null);
-  const [scripts, setScripts] = useState(scriptVersions);
+const BADGE_LABEL: Record<string, string> = {
+  emotional: "Emotional",
+  humorous: "Humorous",
+  high_conversion: "High Conversion",
+  custom: "Custom",
+};
+
+export function ScriptStep({
+  projectId,
+  onSelect,
+}: {
+  projectId: string;
+  onSelect: (script: Script) => void;
+}) {
+  const [scripts, setScripts] = useState<Script[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Script | null>(null);
+  const [selecting, setSelecting] = useState<string | null>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/scripts/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Script generation failed");
+        setScripts(data.scripts);
+      } catch (err) {
+        toast.error("Couldn't generate scripts", {
+          description: err instanceof Error ? err.message : undefined,
+        });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [projectId]);
+
+  const handleSelect = async (script: Script) => {
+    setSelecting(script.id);
+    try {
+      const res = await fetch(`/api/scripts/${script.id}/select`, { method: "POST" });
+      if (!res.ok) throw new Error("Could not select this script");
+      onSelect(script);
+    } catch (err) {
+      toast.error("Selection failed", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setSelecting(null);
+    }
+  };
 
   if (editing) {
     return (
@@ -22,6 +79,15 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
           toast.success("Version saved");
         }}
       />
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="animate-fade-up flex flex-col items-center rounded-3xl border bg-card px-6 py-20 shadow-card sm:py-28">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-4 text-sm text-muted-foreground">Writing three repurposed scripts…</p>
+      </div>
     );
   }
 
@@ -42,7 +108,7 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
             key={script.id}
             className={cn(
               "hover-lift animate-fade-up flex flex-col rounded-3xl border bg-card p-6 shadow-card",
-              i === 2 && "border-primary/40",
+              script.style === "high_conversion" && "border-primary/40",
             )}
             style={{ animationDelay: `${i * 90}ms` }}
           >
@@ -51,14 +117,14 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
                 variant="secondary"
                 className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-bold",
-                  script.id === "conversion" && "bg-accent text-accent-foreground",
+                  script.style === "high_conversion" && "bg-accent text-accent-foreground",
                 )}
               >
-                {script.badge}
+                {BADGE_LABEL[script.style] ?? script.style}
               </Badge>
               <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
-                {script.duration}
+                {script.estimated_duration}
               </span>
             </div>
 
@@ -72,7 +138,7 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
             </div>
 
             <pre className="mt-4 max-h-44 flex-1 overflow-y-auto whitespace-pre-wrap rounded-xl bg-muted/60 p-3.5 font-sans text-xs leading-relaxed text-muted-foreground">
-              {script.script}
+              {script.body}
             </pre>
 
             <div className="mt-4 space-y-2 text-xs">
@@ -82,7 +148,7 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
               </p>
               <p className="flex items-center gap-2 font-medium text-muted-foreground">
                 <Heart className="h-3.5 w-3.5 text-primary" />
-                {script.emotion}
+                {script.emotional_direction}
               </p>
             </div>
 
@@ -91,7 +157,7 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
                 variant="outline"
                 size="sm"
                 className="rounded-lg"
-                onClick={() => toast.info("Preview", { description: script.hook })}
+                onClick={() => toast.info("Preview", { description: script.hook ?? undefined })}
               >
                 <Eye className="h-3.5 w-3.5" />
                 Preview
@@ -108,9 +174,14 @@ export function ScriptStep({ onSelect }: { onSelect: (script: ScriptVersion) => 
               <Button
                 size="sm"
                 className="btn-glow rounded-lg font-semibold"
-                onClick={() => onSelect(script)}
+                onClick={() => handleSelect(script)}
+                disabled={selecting === script.id}
               >
-                Select
+                {selecting === script.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  "Select"
+                )}
               </Button>
             </div>
           </div>

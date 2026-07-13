@@ -9,7 +9,7 @@ import { ScriptStep } from "@/components/workflow/ScriptStep";
 import { GenerateStep } from "@/components/workflow/GenerateStep";
 import { GenerationScreen } from "@/components/workflow/GenerationScreen";
 import { ResultStep } from "@/components/workflow/ResultStep";
-import type { ScriptVersion } from "@/lib/mock-data";
+import type { Script } from "@/lib/types";
 
 type Phase = "upload" | "analysis" | "script" | "settings" | "generating" | "result";
 
@@ -24,27 +24,61 @@ const phaseStep: Record<Phase, number> = {
 
 export function DashboardClient() {
   const [phase, setPhase] = useState<Phase>("upload");
-  const [selectedScript, setSelectedScript] = useState<ScriptVersion | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [selectedScript, setSelectedScript] = useState<Script | null>(null);
+  const [generationId, setGenerationId] = useState<string | null>(null);
 
   return (
-    <AppShell title="New Commercial · Lumière Signature Drop">
+    <AppShell title="New Commercial">
       <div className="mx-auto max-w-6xl space-y-6">
         <StepProgress current={phaseStep[phase]} />
 
-        {phase === "upload" && <UploadStep onContinue={() => setPhase("analysis")} />}
-        {phase === "analysis" && <AnalysisStep onContinue={() => setPhase("script")} />}
-        {phase === "script" && (
+        {phase === "upload" && (
+          <UploadStep
+            onContinue={(id) => {
+              setProjectId(id);
+              setPhase("analysis");
+            }}
+          />
+        )}
+        {phase === "analysis" && projectId && (
+          <AnalysisStep projectId={projectId} onContinue={() => setPhase("script")} />
+        )}
+        {phase === "script" && projectId && (
           <ScriptStep
+            projectId={projectId}
             onSelect={(script) => {
               setSelectedScript(script);
               setPhase("settings");
             }}
           />
         )}
-        {phase === "settings" && <GenerateStep onGenerate={() => setPhase("generating")} />}
-        {phase === "generating" && <GenerationScreen onComplete={() => setPhase("result")} />}
-        {phase === "result" && (
-          <ResultStep script={selectedScript} onRegenerate={() => setPhase("generating")} />
+        {phase === "settings" && projectId && selectedScript && (
+          <GenerateStep
+            projectId={projectId}
+            scriptId={selectedScript.id}
+            onGenerate={(id) => {
+              setGenerationId(id);
+              setPhase("generating");
+            }}
+          />
+        )}
+        {phase === "generating" && generationId && (
+          <GenerationScreen
+            generationId={generationId}
+            onComplete={() => setPhase("result")}
+            onRetry={() => setPhase("settings")}
+          />
+        )}
+        {phase === "result" && generationId && (
+          <ResultStep
+            generationId={generationId}
+            script={selectedScript}
+            onRegenerate={(newGenerationId) => {
+              setGenerationId(newGenerationId);
+              setPhase("generating");
+            }}
+          />
         )}
       </div>
     </AppShell>
