@@ -1,0 +1,97 @@
+/**
+ * Structured request/response logger for API route handlers.
+ *
+ * Usage:
+ *   import { withLogger } from "@/lib/logger";
+ *
+ *   export const POST = withLogger("uploads.sign", async (req) => {
+ *     ...
+ *     return NextResponse.json({ ... });
+ *   });
+ *
+ * Every request logs:
+ *   → [METHOD] /path  (on entry)
+ *   ← [METHOD] /path  NNNms  STATUS  (on exit or error)
+ *
+ * Errors are also forwarded to logError() so they land in the error_logs table.
+ */
+
+import { type NextRequest, NextResponse } from "next/server";
+import { logError } from "@/lib/errors";
+import { ApiError, apiErrorResponse } from "@/lib/auth";
+
+type LoggerRouteCtx<T extends object = Record<string, never>> = T;
+type RouteHandler<T extends object = Record<string, never>> = (
+  req: NextRequest,
+  ctx: LoggerRouteCtx<T>,
+) => Promise<NextResponse>;
+
+function timestamp() {
+  return new Date().toISOString();
+}
+
+function colorStatus(status: number) {
+  if (status < 300) return `\x1b[32m${status}\x1b[0m`;
+  if (status < 400) return `\x1b[33m${status}\x1b[0m`;
+  return `\x1b[31m${status}\x1b[0m`;
+}
+
+/**
+ * Wraps a Next.js route handler with structured request/response logging.
+ *
+ * @param scope   Human-readable name used in logs and error_logs.scope ("uploads.sign")
+ * @param handler The actual async handler function.
+ */
+export function withLogger<T extends object = object>(
+  scope: string,
+  handler: RouteHandler<T>,
+): RouteHandler<T> {
+  return async (req: NextRequest, ctx: T) => {
+    const start = Date.now();
+    const method = req.method;
+    const pathname = req.nextUrl.pathname;
+
+    console.log(`\x1b[36m→\x1b[0m [${timestamp()}] [${scope}] ${method} ${pathname}`);
+
+    try {
+      const response = await handler(req, ctx);
+      const elapsed = Date.now() - start;
+      const status = response.status;
+
+      console.log(
+        `\x1b[36m←\x1b[0m [${timestamp()}] [${scope}] ${method} ${pathname} ${elapsed}ms ${colorStatus(status)}`,
+      );
+
+      return response;
+    } catch (error) {
+      const elapsed = Date.now() - start;
+      const message = error instanceof Error ? error.message : String(error);
+      const status = error instanceof ApiError ? error.status : 500;
+
+      console.error(
+        `\x1b[31m✗\x1b[0m [${timestamp()}] [${scope}] ${method} ${pathname} ${elapsed}ms ${colorStatus(status)} — ${message}`,
+      );
+
+      await logError(scope, error);
+      return apiErrorResponse(error);
+    }
+  };
+}
+
+/**
+ * Lightweight logger for non-route contexts (background jobs, lib functions).
+ */
+export const logger = {
+  info: (scope: string, message: string, meta?: Record<string, unknown>) => {
+    const extra = meta ? ` ${JSON.stringify(meta)}` : "";
+    console.log(`\x1b[32m•\x1b[0m [${timestamp()}] [${scope}] ${message}${extra}`);
+  },
+  warn: (scope: string, message: string, meta?: Record<string, unknown>) => {
+    const extra = meta ? ` ${JSON.stringify(meta)}` : "";
+    console.warn(`\x1b[33m⚠\x1b[0m [${timestamp()}] [${scope}] ${message}${extra}`);
+  },
+  error: (scope: string, message: string, meta?: Record<string, unknown>) => {
+    const extra = meta ? ` ${JSON.stringify(meta)}` : "";
+    console.error(`\x1b[31m✗\x1b[0m [${timestamp()}] [${scope}] ${message}${extra}`);
+  },
+};

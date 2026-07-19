@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { withLogger } from "@/lib/logger";
 
 const EDITABLE_FIELDS = [
   "title",
@@ -12,11 +12,12 @@ const EDITABLE_FIELDS = [
   "estimated_duration",
 ] as const;
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const PATCH = withLogger(
+  "scripts.update",
+  async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase } = await requireUser();
     const { id } = await params;
-    const body = await request.json();
+    const body = await req.json();
 
     const patch: Record<string, unknown> = {};
     for (const field of EDITABLE_FIELDS) {
@@ -32,8 +33,5 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (error) throw error;
 
     return NextResponse.json({ script });
-  } catch (error) {
-    await logError("scripts.update", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+);

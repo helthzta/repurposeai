@@ -3,6 +3,7 @@ import { scoreGeneration } from "@/lib/ai/gemini";
 import { videoPrompt } from "@/lib/ai/prompts";
 import { costForGeneration, refundCredits, spendCredits } from "@/lib/credits";
 import { logError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { getProvider } from "@/lib/providers";
 import { mirrorToStorage, signUrl } from "@/lib/storage";
 import type {
@@ -33,6 +34,7 @@ export async function createGeneration(
   params: CreateGenerationParams,
 ): Promise<Generation> {
   const cost = costForGeneration(params.durationSeconds, params.quality, params.aspectRatio);
+  logger.info("generation", "spending credits", { userId, cost, projectId: params.projectId });
   await spendCredits(client, userId, cost, "generation", "project", params.projectId);
 
   const prompt = videoPrompt({
@@ -46,12 +48,14 @@ export async function createGeneration(
 
   try {
     const providerImpl = getProvider(params.provider);
+    logger.info("generation", "submitting to provider", { provider: params.provider, durationSeconds: params.durationSeconds });
     const { jobId } = await providerImpl.submit({
       prompt,
       durationSeconds: params.durationSeconds,
       aspectRatio: params.aspectRatio,
       quality: params.quality,
     });
+    logger.info("generation", "provider job submitted", { jobId });
 
     const { data: generation, error } = await client
       .from("generations")
@@ -102,7 +106,9 @@ export async function pollAndFinalize(
   }
 
   const providerImpl = getProvider(generation.provider);
+  logger.info("generation.poll", "polling provider", { provider: generation.provider, jobId: generation.provider_job_id });
   const result = await providerImpl.poll(generation.provider_job_id);
+  logger.info("generation.poll", `poll result: ${result.status}`, { generationId: generation.id });
 
   if (result.status === "processing") return generation;
 
@@ -131,9 +137,12 @@ export async function pollAndFinalize(
   let output_path: string | null = null;
   if (result.outputUrl) {
     output_path = `${userId}/${generation.project_id}/${generation.id}.mp4`;
+    logger.info("generation.mirror", "mirroring video to storage", { output_path });
     try {
       await mirrorToStorage(client, "generated-videos", output_path, result.outputUrl);
+      logger.info("generation.mirror", "video mirrored successfully");
     } catch (mirrorError) {
+      logger.error("generation.mirror", "failed to mirror video");
       await logError("generation.mirror", mirrorError, {
         userId,
         metadata: { generationId: generation.id },
@@ -144,8 +153,11 @@ export async function pollAndFinalize(
 
   let ai_insights = null;
   try {
+    logger.info("generation.score", "scoring generation with Gemini");
     ai_insights = await scoreGeneration(script.body, brand);
+    logger.info("generation.score", "scoring complete");
   } catch (scoreError) {
+    logger.error("generation.score", "scoring failed — continuing without insights");
     await logError("generation.score", scoreError, {
       userId,
       metadata: { generationId: generation.id },

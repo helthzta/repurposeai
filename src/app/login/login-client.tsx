@@ -53,15 +53,28 @@ export function LoginPageClient() {
     const password = String(form.get("password"));
 
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) {
-        toast.error("Couldn't sign in", { description: signUpError.message });
+      if (signInError.message.includes("Email not confirmed")) {
+        toast.error("Please verify your email address to sign in.");
         setLoading(false);
         return;
       }
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) {
+        toast.error("Couldn't sign in", { description: signUpError.message ?? signInError.message });
+        setLoading(false);
+        return;
+      }
+      
+      if (!signUpData.session) {
+        toast.success("Check your email!", { description: "We sent you a link to verify your account." });
+        setLoading(false);
+        return;
+      }
+      
       toast.success("Account created — signing you in");
     }
 

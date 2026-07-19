@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { logError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
+  const start = Date.now();
+  logger.info("generations.create", `POST ${req.nextUrl.pathname}`);
   try {
     const { supabase, user } = await requireUser();
-    const body = await request.json();
+    const body = await req.json();
     const { projectId, scriptId, provider, durationSeconds, aspectRatio, quality, cameraStyle } =
       body as {
         projectId?: string;
@@ -58,8 +61,10 @@ export async function POST(request: Request) {
       cameraStyle,
     });
 
-    return NextResponse.json({ generation });
+    logger.info("generations.create", `201 created (${Date.now() - start}ms)`, { id: generation.id });
+    return NextResponse.json({ generation }, { status: 201 });
   } catch (error) {
+    logger.error("generations.create", `failed (${Date.now() - start}ms)`);
     if (error instanceof Error && error.message === "insufficient_credits") {
       return NextResponse.json(
         { error: "Not enough credits for this generation" },

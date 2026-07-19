@@ -1,9 +1,15 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireUser } from "@/lib/auth";
 import { logError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const start = Date.now();
+  logger.info("generations.regenerate", `POST ${req.nextUrl.pathname}`);
   try {
     const { supabase, user } = await requireUser();
     const { id } = await params;
@@ -39,8 +45,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       cameraStyle: previous.camera_style,
     });
 
-    return NextResponse.json({ generation });
+    logger.info("generations.regenerate", `201 created (${Date.now() - start}ms)`, { id: generation.id });
+    return NextResponse.json({ generation }, { status: 201 });
   } catch (error) {
+    logger.error("generations.regenerate", `failed (${Date.now() - start}ms)`);
     if (error instanceof Error && error.message === "insufficient_credits") {
       return NextResponse.json({ error: "Not enough credits to regenerate" }, { status: 402 });
     }

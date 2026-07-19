@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { analyzeVideo } from "@/lib/ai/gemini";
 import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { logError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
+  const start = Date.now();
+  logger.info("analyze.get", `GET ${req.nextUrl.pathname}`);
   try {
     const { supabase } = await requireUser();
-    const projectId = new URL(request.url).searchParams.get("projectId");
+    const projectId = req.nextUrl.searchParams.get("projectId");
     if (!projectId) throw new ApiError(400, "projectId query param is required");
 
     const { data: analysis, error } = await supabase
@@ -18,22 +21,28 @@ export async function GET(request: Request) {
       .maybeSingle();
     if (error) throw error;
 
+    logger.info("analyze.get", `200 OK (${Date.now() - start}ms)`);
     return NextResponse.json({ analysis });
   } catch (error) {
+    logger.error("analyze.get", `failed (${Date.now() - start}ms)`);
     await logError("analyze.get", error);
     return apiErrorResponse(error);
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
+  const start = Date.now();
+  logger.info("analyze.post", `POST ${req.nextUrl.pathname}`);
   const { supabase, user } = await requireUser();
   let projectId: string | undefined;
   let sourceVideoId: string | undefined;
 
   try {
-    const body = await request.json();
+    const body = await req.json();
     projectId = body.projectId;
     if (!projectId) throw new ApiError(400, "projectId is required");
+
+    logger.info("analyze.post", "fetching source video", { projectId });
 
     const { data: sourceVideo, error: videoError } = await supabase
       .from("source_videos")
@@ -47,6 +56,7 @@ export async function POST(request: Request) {
     sourceVideoId = sourceVideo.id;
 
     await supabase.from("projects").update({ status: "analyzing" }).eq("id", projectId);
+    logger.info("analyze.post", "downloading video from storage", { path: sourceVideo.storage_path });
 
     const { data: fileBytes, error: downloadError } = await supabase.storage
       .from("source-videos")
@@ -55,7 +65,10 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await fileBytes.arrayBuffer());
     const mimeType = sourceVideo.mime_type || fileBytes.type || "video/mp4";
+    logger.info("analyze.post", "sending to Gemini for analysis", { mimeType, bytes: buffer.length });
+
     const result = await analyzeVideo(buffer, mimeType);
+    logger.info("analyze.post", "Gemini analysis complete");
 
     const { data: analysis, error: insertError } = await supabase
       .from("video_analyses")
@@ -71,9 +84,12 @@ export async function POST(request: Request) {
     if (insertError) throw insertError;
 
     await supabase.from("projects").update({ status: "scripted" }).eq("id", projectId);
+    logger.info("analyze.post", `201 done (${Date.now() - start}ms)`, { analysisId: analysis.id });
 
     return NextResponse.json({ analysis });
   } catch (error) {
+    logger.error("analyze.post", `failed (${Date.now() - start}ms)`);
+    // Best-effort: mark DB records as failed so UI can show error state
     if (projectId) {
       await supabase.from("projects").update({ status: "failed" }).eq("id", projectId);
       if (sourceVideoId) {

@@ -1,16 +1,15 @@
 import type { PollResult, SubmitParams, VideoProvider } from "./types";
 
 /**
- * ponytail: the real HTTP calls are pending a host decision (BytePlus/Volcengine
- * ModelArk, fal.ai, or Replicate all serve Seedance with different request shapes).
- * Until SEEDANCE_API_BASE_URL/SEEDANCE_API_KEY are set, MOCK_PROVIDERS short-circuits
- * to a canned "completed" result so the rest of the pipeline (credits, storage,
- * insights, UI polling) is fully exercisable today. Fill in the fetch calls below
- * once the host is chosen — see SETUP.md.
+ * Uses OpenRouter's unified video generation API to call the Seedance 2.0 model.
  */
 class SeedanceProvider implements VideoProvider {
   private get mocked() {
-    return process.env.MOCK_PROVIDERS === "true" || !process.env.SEEDANCE_API_KEY;
+    return process.env.MOCK_PROVIDERS === "true";
+  }
+
+  private get apiKey() {
+    return process.env.OPENROUTER_API_KEY || process.env.SEEDANCE_API_KEY;
   }
 
   async submit(params: SubmitParams): Promise<{ jobId: string }> {
@@ -18,23 +17,31 @@ class SeedanceProvider implements VideoProvider {
       return { jobId: `mock_${Date.now()}_${Math.round(Math.random() * 1e6)}` };
     }
 
-    const res = await fetch(`${process.env.SEEDANCE_API_BASE_URL}/tasks`, {
+    if (!this.apiKey) {
+      throw new Error("Missing OPENROUTER_API_KEY or SEEDANCE_API_KEY");
+    }
+
+    const res = await fetch("https://openrouter.ai/api/v1/videos", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.SEEDANCE_API_KEY}`,
+        Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        model: "bytedance/seedance-2.0-fast",
         prompt: params.prompt,
         duration: params.durationSeconds,
         aspect_ratio: params.aspectRatio,
-        quality: params.quality,
+        // Maps quality to resolution
+        resolution: params.quality === "ultra" ? "1080p" : "720p",
       }),
     });
 
-    if (!res.ok) throw new Error(`Seedance submit failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`OpenRouter submit failed: ${res.status} ${await res.text()}`);
     const data = await res.json();
-    return { jobId: data.id };
+    
+    // OpenRouter returns an `id` or `generation_id`
+    return { jobId: data.id || data.generation_id };
   }
 
   async poll(jobId: string): Promise<PollResult> {
@@ -44,16 +51,22 @@ class SeedanceProvider implements VideoProvider {
         : { status: "failed", error: "unknown mock job" };
     }
 
-    const res = await fetch(`${process.env.SEEDANCE_API_BASE_URL}/tasks/${jobId}`, {
-      headers: { Authorization: `Bearer ${process.env.SEEDANCE_API_KEY}` },
+    const res = await fetch(`https://openrouter.ai/api/v1/videos/${jobId}`, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
     });
 
-    if (!res.ok) throw new Error(`Seedance poll failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`OpenRouter poll failed: ${res.status} ${await res.text()}`);
     const data = await res.json();
 
-    if (data.status === "succeeded") return { status: "completed", outputUrl: data.output_url };
-    if (data.status === "failed")
+    if (data.status === "completed") {
+      const outputUrl = data.unsigned_urls?.[0] || data.content_url;
+      return { status: "completed", outputUrl };
+    }
+    
+    if (data.status === "failed") {
       return { status: "failed", error: data.error ?? "generation failed" };
+    }
+    
     return { status: "processing" };
   }
 }

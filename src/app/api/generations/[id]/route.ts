@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { withLogger } from "@/lib/logger";
 import { pollAndFinalize } from "@/lib/generation";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const GET = withLogger(
+  "generations.get",
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase, user } = await requireUser();
     const { id } = await params;
 
@@ -39,8 +40,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
 
     return NextResponse.json({ generation: finalized });
-  } catch (error) {
-    await logError("generations.get", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+);

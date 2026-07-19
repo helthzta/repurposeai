@@ -1,13 +1,14 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { editScript } from "@/lib/ai/gemini";
 import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { withLogger } from "@/lib/logger";
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const POST = withLogger(
+  "scripts.assist",
+  async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase } = await requireUser();
     const { id } = await params;
-    const { instruction } = await request.json();
+    const { instruction } = await req.json();
     if (!instruction) throw new ApiError(400, "instruction is required");
 
     const { data: current, error: fetchError } = await supabase
@@ -28,8 +29,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error) throw error;
 
     return NextResponse.json({ script });
-  } catch (error) {
-    await logError("scripts.assist", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+);

@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { withLogger } from "@/lib/logger";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const GET = withLogger(
+  "projects.get",
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase, user } = await requireUser();
     const { id } = await params;
 
@@ -21,14 +22,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (error) throw error;
 
     return NextResponse.json({ project });
-  } catch (error) {
-    await logError("projects.get", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+);
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const DELETE = withLogger(
+  "projects.delete",
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase, user } = await requireUser();
     const { id } = await params;
 
@@ -44,8 +43,5 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     }
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    await logError("projects.delete", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+);
