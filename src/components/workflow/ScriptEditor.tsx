@@ -31,10 +31,12 @@ const quickActions = [
 export function ScriptEditor({
   script,
   onBack,
+  onSync,
   onSave,
 }: {
   script: Script;
   onBack: () => void;
+  onSync: (script: Script) => void;
   onSave: (script: Script) => void;
 }) {
   const [text, setText] = useState(script.body);
@@ -52,6 +54,10 @@ export function ScriptEditor({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "AI edit failed");
       setText(data.script.body);
+      // The assist route already persisted this to the DB — keep the parent's
+      // list state in sync now, not just when "Save Version" is clicked, so
+      // "Back" without an explicit save doesn't leave stale text on the card.
+      onSync(data.script);
       toast.success(label, { description: "AI updated your script" });
     } catch (err) {
       toast.error("AI edit failed", {

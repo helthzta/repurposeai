@@ -6,9 +6,11 @@ import "./globals.css";
 const title = "Repurpose AI — Turn Any Ad Into Your AI Commercial";
 const description =
   "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.";
-const previewImage =
-  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbf24a79-aab3-4b09-aac2-f7dfd891fe64/id-preview-83ebde6e--65b0f76e-f12c-4d3c-bc92-bfa0e97884bb.lovable.app-1783420451471.png";
 
+// TODO: add a real branded screenshot to public/ and reference it here as the
+// openGraph/twitter `images` field. The previous value pointed at a Lovable
+// scaffold preview screenshot, not this app — removed rather than ship a
+// stale/foreign image.
 export const metadata: Metadata = {
   title,
   description,
@@ -18,13 +20,11 @@ export const metadata: Metadata = {
     title,
     description,
     type: "website",
-    images: [previewImage],
   },
   twitter: {
     card: "summary_large_image",
     title,
     description,
-    images: [previewImage],
   },
 };
 

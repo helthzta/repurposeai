@@ -33,7 +33,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const start = Date.now();
   logger.info("analyze.post", `POST ${req.nextUrl.pathname}`);
-  const { supabase, user } = await requireUser();
+
+  let auth: Awaited<ReturnType<typeof requireUser>>;
+  try {
+    auth = await requireUser();
+  } catch (error) {
+    logger.error("analyze.post", `failed (${Date.now() - start}ms)`);
+    await logError("analyze.post", error);
+    return apiErrorResponse(error);
+  }
+  const { supabase, user } = auth;
+
   let projectId: string | undefined;
   let sourceVideoId: string | undefined;
 
@@ -56,7 +66,9 @@ export async function POST(req: NextRequest) {
     sourceVideoId = sourceVideo.id;
 
     await supabase.from("projects").update({ status: "analyzing" }).eq("id", projectId);
-    logger.info("analyze.post", "downloading video from storage", { path: sourceVideo.storage_path });
+    logger.info("analyze.post", "downloading video from storage", {
+      path: sourceVideo.storage_path,
+    });
 
     const { data: fileBytes, error: downloadError } = await supabase.storage
       .from("source-videos")
@@ -65,7 +77,10 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await fileBytes.arrayBuffer());
     const mimeType = sourceVideo.mime_type || fileBytes.type || "video/mp4";
-    logger.info("analyze.post", "sending to Gemini for analysis", { mimeType, bytes: buffer.length });
+    logger.info("analyze.post", "sending to Gemini for analysis", {
+      mimeType,
+      bytes: buffer.length,
+    });
 
     const result = await analyzeVideo(buffer, mimeType);
     logger.info("analyze.post", "Gemini analysis complete");

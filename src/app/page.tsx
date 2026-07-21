@@ -136,9 +136,9 @@ export default function Landing() {
               variant="outline"
               className="h-13 rounded-2xl bg-card/70 px-8 text-base font-semibold backdrop-blur hover:bg-card"
             >
-              <Link href="/dashboard">
+              <Link href="#how-it-works">
                 <Play className="h-4.5 w-4.5" />
-                Watch Demo
+                See How It Works
               </Link>
             </Button>
           </div>
@@ -166,7 +166,10 @@ export default function Landing() {
       </section>
 
       {/* Feature cards */}
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+      <section
+        id="how-it-works"
+        className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28"
+      >
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
           Everything between their ad and yours
         </h2>

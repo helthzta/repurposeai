@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -163,13 +164,19 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
               >
                 <Link href="/credits">Upgrade</Link>
               </Button>
-              <button
-                className="relative rounded-xl border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-              </button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="rounded-xl border bg-card p-2 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 text-sm text-muted-foreground">
+                  You&apos;re all caught up — no notifications yet.
+                </PopoverContent>
+              </Popover>
               <div className="grid h-8.5 w-8.5 place-items-center rounded-full gradient-primary text-[11px] font-bold text-primary-foreground">
                 {initials}
               </div>

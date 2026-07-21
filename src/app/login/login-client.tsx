@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Clapperboard, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,15 @@ function GoogleIcon() {
 
 export function LoginPageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("error") === "oauth_failed") {
+      toast.error("Google sign-in failed", { description: "Please try again." });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGoogle = async () => {
     const supabase = createClient();
@@ -53,7 +61,10 @@ export function LoginPageClient() {
     const password = String(form.get("password"));
 
     const supabase = createClient();
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (signInError) {
       if (signInError.message.includes("Email not confirmed")) {
@@ -62,19 +73,37 @@ export function LoginPageClient() {
         return;
       }
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
       if (signUpError) {
-        toast.error("Couldn't sign in", { description: signUpError.message ?? signInError.message });
+        toast.error("Couldn't sign in", {
+          description: signUpError.message ?? signInError.message,
+        });
         setLoading(false);
         return;
       }
-      
+
       if (!signUpData.session) {
-        toast.success("Check your email!", { description: "We sent you a link to verify your account." });
+        // Supabase's documented signal for "this email is already registered": signUp on an
+        // existing address succeeds with no error, but returns an empty identities array.
+        // Without this check, a wrong password on an existing account looks identical to a
+        // brand-new signup and shows the wrong message ("check your email to verify").
+        const alreadyRegistered = (signUpData.user?.identities?.length ?? 0) === 0;
+        if (alreadyRegistered) {
+          toast.error("Incorrect password", {
+            description: "That email already has an account — double-check your password.",
+          });
+        } else {
+          toast.success("Check your email!", {
+            description: "We sent you a link to verify your account.",
+          });
+        }
         setLoading(false);
         return;
       }
-      
+
       toast.success("Account created — signing you in");
     }
 

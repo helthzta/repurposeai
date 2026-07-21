@@ -166,9 +166,11 @@ export function GenerateStep({
                   max={maxDurationSeconds}
                   className="h-10 w-28 rounded-xl"
                   value={customLength}
-                  onChange={(e) =>
-                    setCustomLength(Math.min(maxDurationSeconds, Number(e.target.value)))
-                  }
+                  onChange={(e) => {
+                    const parsed = Number(e.target.value);
+                    if (!Number.isFinite(parsed)) return;
+                    setCustomLength(Math.min(maxDurationSeconds, Math.max(5, parsed)));
+                  }}
                 />
                 <span className="text-xs text-muted-foreground">
                   seconds (max {maxDurationSeconds})

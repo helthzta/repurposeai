@@ -61,7 +61,9 @@ export async function POST(req: NextRequest) {
       cameraStyle,
     });
 
-    logger.info("generations.create", `201 created (${Date.now() - start}ms)`, { id: generation.id });
+    logger.info("generations.create", `201 created (${Date.now() - start}ms)`, {
+      id: generation.id,
+    });
     return NextResponse.json({ generation }, { status: 201 });
   } catch (error) {
     logger.error("generations.create", `failed (${Date.now() - start}ms)`);

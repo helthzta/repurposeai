@@ -48,7 +48,10 @@ export async function createGeneration(
 
   try {
     const providerImpl = getProvider(params.provider);
-    logger.info("generation", "submitting to provider", { provider: params.provider, durationSeconds: params.durationSeconds });
+    logger.info("generation", "submitting to provider", {
+      provider: params.provider,
+      durationSeconds: params.durationSeconds,
+    });
     const { jobId } = await providerImpl.submit({
       prompt,
       durationSeconds: params.durationSeconds,
@@ -106,7 +109,10 @@ export async function pollAndFinalize(
   }
 
   const providerImpl = getProvider(generation.provider);
-  logger.info("generation.poll", "polling provider", { provider: generation.provider, jobId: generation.provider_job_id });
+  logger.info("generation.poll", "polling provider", {
+    provider: generation.provider,
+    jobId: generation.provider_job_id,
+  });
   const result = await providerImpl.poll(generation.provider_job_id);
   logger.info("generation.poll", `poll result: ${result.status}`, { generationId: generation.id });
 

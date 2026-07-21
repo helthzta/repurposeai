@@ -73,6 +73,9 @@ export function ScriptStep({
       <ScriptEditor
         script={editing}
         onBack={() => setEditing(null)}
+        onSync={(updated) =>
+          setScripts((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        }
         onSave={(updated) => {
           setScripts((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
           setEditing(null);

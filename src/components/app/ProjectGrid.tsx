@@ -58,7 +58,11 @@ export function ProjectGrid() {
     try {
       const res = await fetch(`/api/projects/${id}/duplicate`, { method: "POST" });
       if (!res.ok) throw new Error("Could not duplicate project");
-      toast.success("Project duplicated");
+      // ponytail: only brand details are copied into a fresh draft, not the source
+      // videos/analysis/scripts — full pipeline re-run is a bigger feature, not this one.
+      toast.success("New draft created", {
+        description: "Brand details copied — upload videos to continue.",
+      });
       await load();
     } catch (err) {
       toast.error("Duplicate failed", {
@@ -153,7 +157,7 @@ export function ProjectGrid() {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8 rounded-lg"
-                  aria-label="Duplicate"
+                  aria-label="Duplicate brand details as a new draft"
                   disabled={busyId === project.id}
                   onClick={() => handleDuplicate(project.id)}
                 >

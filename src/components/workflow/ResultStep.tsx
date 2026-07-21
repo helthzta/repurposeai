@@ -39,7 +39,11 @@ export function ResultStep({
   const handleRegenerate = async (kind: "regenerate" | "variation") => {
     setRegenerating(kind);
     try {
-      const res = await fetch(`/api/generations/${generationId}/regenerate`, { method: "POST" });
+      const res = await fetch(`/api/generations/${generationId}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variation: kind === "variation" }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not regenerate");
       onRegenerate(data.generation.id);
