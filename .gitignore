@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 *.local
 
+# Environment variables (real secrets — never commit this)
+.env
+
 # Next.js
 /.next/
 /out/
