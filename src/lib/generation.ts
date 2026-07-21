@@ -113,42 +113,27 @@ export async function pollAndFinalize(
   if (result.status === "processing") return generation;
 
   if (result.status === "failed") {
-    await refundCredits(
-      client,
-      userId,
-      generation.credits_charged,
-      "generation_refund",
-      "generation",
-      generation.id,
-    );
-    const { data: updated } = await client
-      .from("generations")
-      .update({
-        status: "failed",
-        error_message: result.error ?? "Generation failed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", generation.id)
-      .select()
-      .single();
-    return (updated as Generation) ?? generation;
+    return failGeneration(client, userId, generation, result.error ?? "Generation failed");
   }
 
-  let output_path: string | null = null;
-  if (result.outputUrl) {
-    output_path = `${userId}/${generation.project_id}/${generation.id}.mp4`;
-    logger.info("generation.mirror", "mirroring video to storage", { output_path });
-    try {
-      await mirrorToStorage(client, "generated-videos", output_path, result.outputUrl);
-      logger.info("generation.mirror", "video mirrored successfully");
-    } catch (mirrorError) {
-      logger.error("generation.mirror", "failed to mirror video");
-      await logError("generation.mirror", mirrorError, {
-        userId,
-        metadata: { generationId: generation.id },
-      });
-      output_path = null;
-    }
+  // A "succeeded" provider result with no playable video is a failure from the
+  // user's perspective — never mark it completed without a stored output.
+  if (!result.outputUrl) {
+    return failGeneration(client, userId, generation, "Provider returned no video output");
+  }
+
+  const output_path = `${userId}/${generation.project_id}/${generation.id}.mp4`;
+  logger.info("generation.mirror", "mirroring video to storage", { output_path });
+  try {
+    await mirrorToStorage(client, "generated-videos", output_path, result.outputUrl);
+    logger.info("generation.mirror", "video mirrored successfully");
+  } catch (mirrorError) {
+    logger.error("generation.mirror", "failed to mirror video");
+    await logError("generation.mirror", mirrorError, {
+      userId,
+      metadata: { generationId: generation.id },
+    });
+    return failGeneration(client, userId, generation, "Failed to save the generated video");
   }
 
   let ai_insights = null;
@@ -177,6 +162,34 @@ export async function pollAndFinalize(
     .single();
   if (error) throw error;
 
-  const output_url = output_path ? await signUrl(client, "generated-videos", output_path) : null;
+  const output_url = await signUrl(client, "generated-videos", output_path);
   return { ...(updated as Generation), output_url };
+}
+
+/** Refunds the charge and marks a generation failed — shared by every failure path above. */
+async function failGeneration(
+  client: SupabaseClient,
+  userId: string,
+  generation: Generation,
+  errorMessage: string,
+): Promise<Generation> {
+  await refundCredits(
+    client,
+    userId,
+    generation.credits_charged,
+    "generation_refund",
+    "generation",
+    generation.id,
+  );
+  const { data: updated } = await client
+    .from("generations")
+    .update({
+      status: "failed",
+      error_message: errorMessage,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", generation.id)
+    .select()
+    .single();
+  return (updated as Generation) ?? generation;
 }

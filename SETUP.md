@@ -43,10 +43,11 @@ This key powers video analysis (Step 2), script generation/editing (Steps 3–4)
 
 ## 5. Seedance (video generation)
 
-The doc didn't pin down which host serves Seedance (BytePlus/Volcengine ModelArk, fal.ai, and Replicate all offer it with different request shapes), so `src/lib/providers/seedance.ts` ships with the `VideoProvider` interface fully wired into the app (credits, storage, polling, UI) but the actual `fetch()` calls are placeholders you'll adjust once you pick a host:
+`src/lib/providers/seedance.ts` calls **bytedance/seedance-2.0-fast on Replicate** (https://replicate.com/bytedance/seedance-2.0-fast), verified against the model's live OpenAPI schema:
 
-- Set `SEEDANCE_API_BASE_URL` and `SEEDANCE_API_KEY` once you have them.
+- Set `REPLICATE_API_TOKEN` from your [Replicate account](https://replicate.com/account/api-tokens).
 - Until then, leave `MOCK_PROVIDERS=true` — generation requests will "complete" instantly with no real video, so you can exercise the entire upload → analyze → script → generate → result flow today.
+- **Model limits that shape the app's UI**: max 15 seconds per generation (the 30-second option is disabled for this provider in `GenerateStep.tsx`), and only 480p/720p resolution tiers (`standard` quality maps to 480p, `high`/`ultra` both map to 720p — there's no 1080p tier on this model).
 - To add a second real provider later, implement the `VideoProvider` interface (see `src/lib/providers/higgsfield.ts` for the current stub) and register it in `src/lib/providers/index.ts`.
 
 ## 6. Environment variables
@@ -61,7 +62,7 @@ Copy `.env.example` to `.env.local` and fill in the values described above:
 | `NEXT_PUBLIC_SITE_URL`                       | yes                        | Base URL used for the OAuth redirect                                 |
 | `GEMINI_API_KEY`                             | yes                        | Google AI Studio key                                                 |
 | `GEMINI_MODEL`                               | no                         | Defaults to `gemini-2.5-flash`                                       |
-| `SEEDANCE_API_BASE_URL` / `SEEDANCE_API_KEY` | no (until you pick a host) | Real Seedance calls are skipped while these are unset                |
+| `REPLICATE_API_TOKEN`                        | no (until you have one)    | Real Seedance calls fail without this; use `MOCK_PROVIDERS` meanwhile |
 | `MOCK_PROVIDERS`                             | no                         | `true` forces the mock video-provider result regardless of the above |
 
 ## 7. Install and run

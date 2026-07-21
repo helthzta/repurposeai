@@ -79,12 +79,15 @@ export function GenerateStep({
 }) {
   const [provider, setProvider] = useState<VideoProviderName>("seedance");
   const [length, setLength] = useState<"15" | "30" | "custom">("15");
-  const [customLength, setCustomLength] = useState(20);
+  const [customLength, setCustomLength] = useState(15);
   const [aspect, setAspect] = useState<AspectRatio>("9:16");
   const [quality, setQuality] = useState<Quality>("high");
   const [style, setStyle] = useState("commercial");
   const [submitting, setSubmitting] = useState(false);
 
+  // ponytail: bytedance/seedance-2.0-fast caps at 15s per generation (see SETUP.md).
+  // Raise this once a provider with longer output is wired up.
+  const maxDurationSeconds = provider === "seedance" ? 15 : 120;
   const durationSeconds = length === "custom" ? customLength : Number(length);
 
   const handleGenerate = async () => {
@@ -153,18 +156,23 @@ export function GenerateStep({
                 { value: "30", label: "30 seconds" },
                 { value: "custom", label: "Custom" },
               ]}
+              disabledValues={maxDurationSeconds < 30 ? ["30"] : []}
             />
             {length === "custom" && (
               <div className="mt-3 flex items-center gap-2">
                 <Input
                   type="number"
                   min={5}
-                  max={120}
+                  max={maxDurationSeconds}
                   className="h-10 w-28 rounded-xl"
                   value={customLength}
-                  onChange={(e) => setCustomLength(Number(e.target.value))}
+                  onChange={(e) =>
+                    setCustomLength(Math.min(maxDurationSeconds, Number(e.target.value)))
+                  }
                 />
-                <span className="text-xs text-muted-foreground">seconds</span>
+                <span className="text-xs text-muted-foreground">
+                  seconds (max {maxDurationSeconds})
+                </span>
               </div>
             )}
           </div>
