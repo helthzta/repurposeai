@@ -1,6 +1,7 @@
 "use client";
 
 import { Clock, Copy, Download, Layers, Loader2, Play, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,10 @@ export function ProjectGrid() {
             className="hover-lift animate-fade-up group overflow-hidden rounded-2xl border bg-card shadow-card"
             style={{ animationDelay: `${i * 60}ms` }}
           >
-            <div className="relative aspect-video overflow-hidden bg-muted">
+            <Link
+              href={`/dashboard/${project.id}`}
+              className="relative block aspect-video overflow-hidden bg-muted"
+            >
               {latest?.output_url ? (
                 <video src={latest.output_url} className="h-full w-full object-cover" muted />
               ) : (
@@ -116,10 +120,10 @@ export function ProjectGrid() {
                   {formatDuration(latest.duration_seconds)}
                 </span>
               )}
-            </div>
+            </Link>
             <div className="p-4">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                <div className="min-w-0">
+                <Link href={`/dashboard/${project.id}`} className="min-w-0 hover:underline">
                   <h3 className="truncate text-sm font-bold">{project.name}</h3>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     {new Date(project.created_at).toLocaleDateString()}
@@ -131,7 +135,7 @@ export function ProjectGrid() {
                       </>
                     )}
                   </p>
-                </div>
+                </Link>
               </div>
               <div className="mt-3.5 flex items-center gap-1.5">
                 <Button

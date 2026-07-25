@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { apiErrorResponse, requireUser } from "@/lib/auth";
+import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
+import { getProjectDetail } from "@/lib/projects";
 
 export const GET = withLogger(
   "projects.get",
@@ -8,18 +9,8 @@ export const GET = withLogger(
     const { supabase, user } = await requireUser();
     const { id } = await params;
 
-    const { data: project, error } = await supabase
-      .from("projects")
-      .select(
-        `*, brand_profiles(*), source_videos(*),
-         video_analyses(*),
-         scripts(*),
-         generations(*)`,
-      )
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
-    if (error) throw error;
+    const project = await getProjectDetail(supabase, user.id, id);
+    if (!project) throw new ApiError(404, "Project not found");
 
     return NextResponse.json({ project });
   },

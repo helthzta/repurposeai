@@ -71,7 +71,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="flex-1 space-y-1 px-3 py-2">
         {navItems.map((item) => {
-          const active = pathname === item.url;
+          const active = pathname === item.url || pathname.startsWith(`${item.url}/`);
           return (
             <Link
               key={item.url}
