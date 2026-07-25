@@ -85,9 +85,9 @@ export function GenerateStep({
   const [style, setStyle] = useState("commercial");
   const [submitting, setSubmitting] = useState(false);
 
-  // ponytail: bytedance/seedance-2.0-fast caps at 15s per generation (see SETUP.md).
-  // Raise this once a provider with longer output is wired up.
-  const maxDurationSeconds = provider === "seedance" ? 15 : 120;
+  // 30s renders as two chained 15s clips stitched together server-side (see generation.ts)
+  // since the model itself caps a single call at 15s — see SETUP.md.
+  const maxDurationSeconds = provider === "seedance" ? 30 : 120;
   const durationSeconds = length === "custom" ? customLength : Number(length);
 
   const handleGenerate = async () => {
@@ -229,7 +229,8 @@ export function GenerateStep({
           Generate Commercial
         </Button>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Uses {costForGeneration(durationSeconds, quality, aspect)} credits · Estimated 2–4 minutes
+          Uses {costForGeneration(durationSeconds, quality, aspect)} credits · Estimated{" "}
+          {durationSeconds > 15 ? "4–8" : "2–4"} minutes
         </p>
       </div>
     </div>

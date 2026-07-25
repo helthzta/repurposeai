@@ -108,6 +108,10 @@ export interface Generation {
   status: GenerationStatus;
   prompt_used: string | null;
   provider_job_id: string | null;
+  /** Set while a >maxClipDurationSeconds request is being rendered as chained clips; null for a normal single-call generation. */
+  chain_stage: "clip1" | "clip2" | null;
+  /** clip1's provider_job_id, kept once provider_job_id is overwritten by clip2's — needed to re-fetch clip1 for the final stitch. */
+  chain_clip1_job_id: string | null;
   output_path: string | null;
   output_url: string | null;
   ai_insights: AiInsights | null;

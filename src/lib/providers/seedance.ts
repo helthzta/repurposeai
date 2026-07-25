@@ -1,10 +1,7 @@
 import type { PollResult, SubmitParams, VideoProvider } from "./types";
 
-const REPLICATE_API = "https://api.replicate.com/v1";
-
-// bytedance/seedance-2.0-fast hard limit — verified against the model's live
-// OpenAPI schema (GET /v1/models/bytedance/seedance-2.0-fast), not guessed.
-const MAX_DURATION_SECONDS = 15;
+const OPENROUTER_API = "https://openrouter.ai/api/v1";
+const MODEL = "bytedance/seedance-2.0-fast";
 
 // The model only exposes two resolution tiers; "ultra" shares the "high" ceiling.
 // ponytail: no 1080p tier exists on this model yet, ceiling is 720p.
@@ -15,15 +12,24 @@ const RESOLUTION_BY_QUALITY: Record<SubmitParams["quality"], "480p" | "720p"> = 
 };
 
 /**
- * bytedance/seedance-2.0-fast on Replicate — https://replicate.com/bytedance/seedance-2.0-fast
+ * bytedance/seedance-2.0-fast via OpenRouter's video generation API —
+ * https://openrouter.ai/docs/guides/overview/multimodal/video-generation
  */
 class SeedanceProvider implements VideoProvider {
+  // ponytail: no single-call tier past 15s exists on this model yet — generation.ts
+  // chains two calls together for anything longer instead of failing the request.
+  maxClipDurationSeconds = 15;
+
   private get mocked() {
     return process.env.MOCK_PROVIDERS === "true";
   }
 
-  private get token() {
-    return process.env.REPLICATE_API_TOKEN;
+  private get apiKey() {
+    return process.env.OPENROUTER_API_KEY;
+  }
+
+  private get authHeader() {
+    return { Authorization: `Bearer ${this.apiKey}` };
   }
 
   async submit(params: SubmitParams): Promise<{ jobId: string }> {
@@ -31,31 +37,30 @@ class SeedanceProvider implements VideoProvider {
       return { jobId: `mock_${Date.now()}_${Math.round(Math.random() * 1e6)}` };
     }
 
-    if (!this.token) throw new Error("Missing REPLICATE_API_TOKEN");
+    if (!this.apiKey) throw new Error("Missing OPENROUTER_API_KEY");
 
-    if (params.durationSeconds > MAX_DURATION_SECONDS) {
-      throw new Error(
-        `Seedance 2.0 Fast supports at most ${MAX_DURATION_SECONDS}s per generation — choose a shorter duration.`,
-      );
-    }
-
-    const res = await fetch(`${REPLICATE_API}/models/bytedance/seedance-2.0-fast/predictions`, {
+    const res = await fetch(`${OPENROUTER_API}/videos`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { ...this.authHeader, "Content-Type": "application/json" },
       body: JSON.stringify({
-        input: {
-          prompt: params.prompt,
-          duration: params.durationSeconds,
-          resolution: RESOLUTION_BY_QUALITY[params.quality],
-          aspect_ratio: params.aspectRatio,
-        },
+        model: MODEL,
+        prompt: params.prompt,
+        duration: params.durationSeconds,
+        resolution: RESOLUTION_BY_QUALITY[params.quality],
+        aspect_ratio: params.aspectRatio,
+        ...(params.seedImageUrl && {
+          frame_images: [
+            {
+              type: "image_url",
+              image_url: { url: params.seedImageUrl },
+              frame_type: "first_frame",
+            },
+          ],
+        }),
       }),
     });
 
-    if (!res.ok) throw new Error(`Replicate submit failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`OpenRouter submit failed: ${res.status} ${await res.text()}`);
     const data = await res.json();
     return { jobId: data.id };
   }
@@ -67,19 +72,22 @@ class SeedanceProvider implements VideoProvider {
         : { status: "failed", error: "unknown mock job" };
     }
 
-    if (!this.token) throw new Error("Missing REPLICATE_API_TOKEN");
+    if (!this.apiKey) throw new Error("Missing OPENROUTER_API_KEY");
 
-    const res = await fetch(`${REPLICATE_API}/predictions/${jobId}`, {
-      headers: { Authorization: `Bearer ${this.token}` },
+    const res = await fetch(`${OPENROUTER_API}/videos/${jobId}`, {
+      headers: this.authHeader,
     });
 
-    if (!res.ok) throw new Error(`Replicate poll failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`OpenRouter poll failed: ${res.status} ${await res.text()}`);
     const data = await res.json();
 
-    if (data.status === "succeeded") {
-      return { status: "completed", outputUrl: data.output as string };
+    if (data.status === "completed") {
+      const outputUrl = data.unsigned_urls?.[0];
+      if (!outputUrl) return { status: "failed", error: "no video output returned" };
+      // unsigned_urls point back at the OpenRouter API and need the same bearer token to fetch.
+      return { status: "completed", outputUrl, outputHeaders: this.authHeader };
     }
-    if (data.status === "failed" || data.status === "canceled") {
+    if (data.status === "failed") {
       return { status: "failed", error: data.error ?? "generation failed" };
     }
     return { status: "processing" };

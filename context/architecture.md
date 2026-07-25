@@ -12,7 +12,7 @@ and src/lib/*. Citations inline. -->
 | UI components | shadcn/ui on Radix primitives (`src/components/ui/*`), Tailwind CSS v4 | |
 | Data fetching | `@tanstack/react-query` (client), direct Supabase queries in route handlers (server) | |
 | Auth + DB | Supabase (Postgres + Auth + Storage), `@supabase/ssr` for cookie-based session | |
-| AI | `@google/genai` (Gemini) for analysis/scripts/insights; provider-abstracted video gen (Seedance live, Higgsfield stub) | |
+| AI | `@google/genai` (Gemini) for analysis/scripts/insights; provider-abstracted video gen (Seedance via OpenRouter live, Higgsfield stub) | |
 | Hosting | {{TODO: confirm with a human — no deploy config found in repo}} | |
 | Package manager | npm (`package-lock.json` present; `bunfig.toml` also present — {{TODO: confirm with a human which is canonical}}) | |
 
@@ -41,7 +41,10 @@ and src/lib/*. Citations inline. -->
   (`createGeneration`, `pollAndFinalize`) used by the dashboard's generate/
   regenerate routes and the public v1 API — the one place credit spend,
   provider submission, storage mirroring, and AI insight scoring are wired
-  together.
+  together. Also owns clip-chaining: a duration past a provider's
+  `maxClipDurationSeconds` (Seedance: 15s) renders as an internal clip1 +
+  a last-frame-seeded continuation clip2, stitched with `src/lib/ffmpeg.ts`
+  into the single video that's actually delivered.
 - `middleware.ts` — page-level auth gate only. Explicitly does NOT gate
   `/api/*` — those routes handle their own auth (see comment in the file).
 
@@ -50,13 +53,19 @@ and src/lib/*. Citations inline. -->
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`
-  (`supabase/migrations/0001`–`0011`).
+  (`supabase/migrations/0001`–`0012`). `generations.chain_stage`
+  (`0012_generation_chaining.sql`) tracks in-flight multi-clip chaining —
+  not yet applied to the live project as of this note, see
+  `progress-tracker.md`.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):
   - `source-videos` (private, 500MB limit) — uploaded ads.
   - `generated-videos` (private, 500MB limit) — provider output, mirrored
-    in via `mirrorToStorage` (`src/lib/storage.ts`).
+    in via `mirrorToStorage` (`src/lib/storage.ts`). Accepts optional fetch
+    headers (`PollResult.outputHeaders`) since not every provider's output
+    URL is publicly fetchable — OpenRouter's video content endpoint requires
+    the same bearer token used to poll it.
   - `brand-logos` (public read, 10MB limit) — brand logo uploads.
 - **No cache/ephemeral store** — polling for generation status is
   request-driven (client polls `GET /api/generations/[id]`, which calls
@@ -109,3 +118,15 @@ and src/lib/*. Citations inline. -->
 7. A failed/errored generation or provider submission must refund credits
    (`refundCredits` in `src/lib/generation.ts`) — never leave a charge
    standing against a failed job.
+8. A chained generation's intermediate clip1 video is never written to our
+   own storage at all — it's re-fetched from the provider at stitch time —
+   because `generated-videos`'s RLS policy (`generated_videos_owner_rw`)
+   lets the owner read/download anything under their own path prefix
+   directly via the Storage SDK, not just what the app links to; there's no
+   way to store it there and keep it truly non-downloadable. The one
+   exception is the last-frame seed image, which does sit at
+   `{user_id}/{project_id}/{generation_id}-seed.jpg` for the few minutes
+   clip2 takes to render (deleted immediately after the final merge) — a
+   deliberately accepted gap since it's a single frame, not the clip
+   itself. Only the merged output ever lands at the delivered
+   `output_path`.

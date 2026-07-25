@@ -43,12 +43,13 @@ This key powers video analysis (Step 2), script generation/editing (Steps 3–4)
 
 ## 5. Seedance (video generation)
 
-`src/lib/providers/seedance.ts` calls **bytedance/seedance-2.0-fast on Replicate** (https://replicate.com/bytedance/seedance-2.0-fast), verified against the model's live OpenAPI schema:
+`src/lib/providers/seedance.ts` calls **bytedance/seedance-2.0-fast via OpenRouter** (https://openrouter.ai/bytedance/seedance-2.0-fast), OpenRouter's unified video generation API:
 
-- Set `REPLICATE_API_TOKEN` from your [Replicate account](https://replicate.com/account/api-tokens).
+- Set `OPENROUTER_API_KEY` from your [OpenRouter dashboard](https://openrouter.ai/settings/keys).
 - Until then, leave `MOCK_PROVIDERS=true` — generation requests will "complete" instantly with no real video, so you can exercise the entire upload → analyze → script → generate → result flow today.
-- **Model limits that shape the app's UI**: max 15 seconds per generation (the 30-second option is disabled for this provider in `GenerateStep.tsx`), and only 480p/720p resolution tiers (`standard` quality maps to 480p, `high`/`ultra` both map to 720p — there's no 1080p tier on this model).
-- To add a second real provider later, implement the `VideoProvider` interface (see `src/lib/providers/higgsfield.ts` for the current stub) and register it in `src/lib/providers/index.ts`.
+- **Model limits that shape the app's UI**: only 480p/720p resolution tiers (`standard` quality maps to 480p, `high`/`ultra` both map to 720p — there's no 1080p tier on this model).
+- **Durations above 15s are chained**: the model itself still caps a single call at 15s (`SeedanceProvider.maxClipDurationSeconds`), so a 16–30s request renders as an internal 15s clip1, a continuation clip2 seeded from clip1's last frame, and a server-side ffmpeg stitch into one delivered video (`src/lib/generation.ts`, `src/lib/ffmpeg.ts`). The intermediate clip1 is never stored or exposed — only the final merged video is. Requires `ffmpeg-static`'s binary to be present at runtime (bundled automatically by `outputFileTracingIncludes` in `next.config.ts` for a deployed build).
+- To add a second real provider later, implement the `VideoProvider` interface (see `src/lib/providers/higgsfield.ts` for the current stub) and register it in `src/lib/providers/index.ts`. Set `maxClipDurationSeconds` accurately — that's what drives whether `generation.ts` chains requests for it.
 
 ## 6. Environment variables
 
@@ -62,7 +63,7 @@ Copy `.env.example` to `.env.local` and fill in the values described above:
 | `NEXT_PUBLIC_SITE_URL`                       | yes                        | Base URL used for the OAuth redirect                                 |
 | `GEMINI_API_KEY`                             | yes                        | Google AI Studio key                                                 |
 | `GEMINI_MODEL`                               | no                         | Defaults to `gemini-2.5-flash`                                       |
-| `REPLICATE_API_TOKEN`                        | no (until you have one)    | Real Seedance calls fail without this; use `MOCK_PROVIDERS` meanwhile |
+| `OPENROUTER_API_KEY`                         | no (until you have one)    | Real Seedance calls fail without this; use `MOCK_PROVIDERS` meanwhile |
 | `MOCK_PROVIDERS`                             | no                         | `true` forces the mock video-provider result regardless of the above |
 
 ## 7. Install and run
