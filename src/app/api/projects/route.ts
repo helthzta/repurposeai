@@ -36,10 +36,8 @@ export const POST = withLogger("projects.create", async (req: NextRequest) => {
       brand_name: body.brandName ?? null,
       product_service: body.productService ?? null,
       target_audience: body.targetAudience ?? null,
-      tone: body.tone ?? null,
       description: body.description ?? null,
       brand_colors: body.brandColors ?? null,
-      cta: body.cta ?? null,
     })
     .select()
     .single();

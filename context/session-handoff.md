@@ -5,90 +5,84 @@ _Last updated: 2026-07-25_
 
 ## Status
 
-Two pieces of work this session, both on Seedance/video generation:
+Prior session (still uncommitted): OpenRouter/Seedance swap + 15–30s clip
+chaining. See `git diff` / `learned-rules.md` R-001–R-003 for that work —
+not re-summarized here.
 
-1. Switched Seedance's video backend from Replicate to OpenRouter's video
-   generation API (confirmed via web search that OpenRouter hosts
-   `bytedance/seedance-2.0-fast` before writing code). User has since added
-   a real `OPENROUTER_API_KEY` to `.env`.
-2. Extended generation duration from a flat 15s cap to a 15–30s range, per
-   explicit user spec: 16–30s requests render as two chained 15s-max clips
-   (clip1, then clip2 seeded from clip1's last frame for continuity),
-   stitched server-side into one video with ffmpeg. The intermediate clip1
-   is never stored or exposed — only the final merged video is delivered.
+This session: a large product-note dump asking for changes across brand
+input, video analysis, script generation flow, and video-gen settings.
+Split into "build now" (concrete) vs "ask first" (ambiguous, schema-touching)
+— see `decision-log.md` D-001–D-004 for what was asked and decided. All
+four were resolved via AskUserQuestion before writing code, then fully
+implemented:
 
-Neither piece has been exercised against the live API yet — see Blockers.
+1. **CTA/Tone fully automatic** — removed from Upload step; script
+   generation now derives tone from the analyzed video's `tone_of_voice`
+   and picks its own CTA.
+2. **Analysis fields fully replaced** — viral-framing fields
+   (`viral_factor`, `relief`, `language`, `video_metrics`) added;
+   `business_category`→`company_does` renamed; `marketing_strategy`,
+   `offer`, `cta`, `narrative_structure` dropped. `tone_of_voice` and
+   `visual_style` were kept despite not being in the user's field list —
+   both are load-bearing for items 1 and 4 here.
+3. **New "mini ideas → master script" flow** — a new Ideas step generates 3
+   short concepts; picking one writes the one full script. Replaces the old
+   "3 full scripts, pick one" flow in the dashboard UI only.
+4. **Video Generation Settings** — provider picker removed (Seedance only),
+   duration floor raised 5→10 (range now 10–30s), new "Original" camera
+   style that pulls the analyzed `visual_style` into the video prompt.
+
+`npx tsc --noEmit` and `npx eslint .` clean (only pre-existing unrelated
+warnings/errors elsewhere). Dev server smoke-tested — `/` and `/dashboard`
+both compile and return 200 with no console errors.
 
 ## Current branch
 
-`main`. Uncommitted changes (not committed — user hasn't asked for a commit):
-
-**OpenRouter swap:** `src/lib/providers/seedance.ts`, `.env`/`.env.example`,
-`SETUP.md`.
-
-**Duration chaining (new this session):**
-- `src/lib/ffmpeg.ts` (new) — `extractLastFrame`/`concatVideos` via
-  `ffmpeg-static` (added as a dependency; binary confirmed present and
-  working locally).
-- `src/lib/providers/types.ts` — `VideoProvider.maxClipDurationSeconds`
-  (Seedance: 15, Higgsfield stub: `Infinity`); `SubmitParams.seedImageUrl`.
-- `src/lib/providers/seedance.ts` — sends `frame_images`/`first_frame` when
-  `seedImageUrl` is set.
-- `src/lib/storage.ts` — extracted `uploadToStorage` (raw bytes), reused by
-  `mirrorToStorage`.
-- `src/lib/generation.ts` — `createGeneration` splits >15s requests into
-  clip1/clip2; `pollAndFinalize` gained `advanceChainToClip2` and
-  `finalizeChain`, driven by a new `generations.chain_stage` column,
-  advancing one step per client poll (same request-driven polling model as
-  before, no new queue).
-- `src/lib/types.ts` — `Generation.chain_stage`, `Generation.chain_clip1_job_id`.
-- `supabase/migrations/0012_generation_chaining.sql` (new) — adds those two
-  columns. **Not yet applied to the live Supabase project.**
-- `src/components/workflow/GenerateStep.tsx` — 30s option enabled, duration
-  cap raised to 30 for Seedance, cost/time estimate updated.
-- `src/components/workflow/GenerationScreen.tsx` — "usually takes X
-  minutes" copy now reflects chained vs single-clip duration.
-- `next.config.ts` (new) — `outputFileTracingIncludes` for the ffmpeg
-  binary, needed for a deployed build (not needed for `next dev`).
-- `context/architecture.md` — new invariant #8 on why the intermediate
-  clip is never mirrored into `generated-videos` (that bucket's RLS lets
-  the owner read anything under their own path directly, not just what the
-  app links to — so "never downloadable" means "never stored there," not
-  "stored but unlinked").
-
-`npx tsc --noEmit` and `npx eslint .` are both clean against these files
-(only pre-existing, unrelated warnings/errors remain elsewhere).
+`main`. Uncommitted (not committed — user hasn't asked for a commit). New
+files this session: `src/components/workflow/IdeaStep.tsx`,
+`src/app/api/scripts/ideas/route.ts`,
+`supabase/migrations/0013_viral_analysis_fields.sql`. Everything else is
+edits — see `git diff` for the full list; touches `types.ts`, `gemini.ts`,
+`prompts.ts`, `ScriptStep.tsx`, `dashboard-client.tsx`, `StepProgress.tsx`,
+`UploadStep.tsx`, `AnalysisStep.tsx`, `GenerateStep.tsx`, `generation.ts`,
+the regenerate route, and `/api/scripts/generate`.
 
 ## Half-done work
 
-- Duration chaining is implemented and typechecks but has never run
-  against the live OpenRouter API — no real 20s/30s generation has been
-  fired yet (would spend the user's OpenRouter balance).
-- Migration `0012` exists as a file only; this repo applies migrations
-  manually (SQL Editor or CLI, per `SETUP.md` §2), so it needs to be run
-  against the live Supabase project before any >15s generation will work —
-  it'll error on the missing columns otherwise.
-- `outputFileTracingIncludes` in `next.config.ts` is untested against an
-  actual `next build`/deployment — hosting target is still an open
-  question (see `progress-tracker.md`), so this is best-effort until one
-  exists to verify against.
+- **Migrations `0012` and `0013` are both unapplied** to the live Supabase
+  project (manual application only — no CLI/DB credentials available in
+  this environment; `SETUP.md` §2 has the steps). Nothing analysis- or
+  generation-related will work until both are run, in order.
+- None of this session's changes have been exercised against the live
+  Gemini/OpenRouter APIs — schema and prompt changes are correct by
+  reading, not yet confirmed by an actual analysis→ideas→script→generate
+  run.
+- `brand_profiles.tone` and `brand_profiles.cta` columns were deliberately
+  left in the DB schema (nullable, now unwritten) rather than dropped —
+  lower-risk than a destructive migration on a table that might hold real
+  rows. `src/app/api/projects/[id]/duplicate/route.ts` still copies them
+  from any pre-existing row; harmless, no code path writes them anymore.
+- The idea→master-script flow only changed the dashboard UI/route
+  (`/api/scripts/generate`). The public `/api/v1/commercials` endpoint
+  still uses the old `generateScripts` (3-full-scripts, auto-select
+  `high_conversion`) — unaffected by the ideas step, since there's no
+  human in the loop there. It does now benefit from auto-tone/CTA though,
+  since that lives in the shared prompt function.
 
 ## First action next session
 
-1. Apply `supabase/migrations/0012_generation_chaining.sql` to the live
-   project.
-2. Run one real generation >15s (e.g. 20s or 30s) through the dashboard to
-   validate the full chain: clip1 submit/poll → last-frame extraction →
-   clip2 submit with `frame_images` → poll → re-fetch clip1 → ffmpeg concat
-   → upload → delivered video. This is the first time any of this touches
-   the real API.
-3. If that works, also verify a normal ≤15s generation still behaves
-   exactly as before (chain_stage stays null) — regression check on the
-   unchained path.
+1. Apply `0012_generation_chaining.sql` then `0013_viral_analysis_fields.sql`
+   to the live Supabase project, in that order.
+2. Run one full real flow end-to-end: upload → analyze (confirm new fields
+   populate) → ideas (confirm 3 short concepts) → pick one → master script
+   → settings (confirm Seedance-only, 10–30s, "Original" camera style
+   default) → generate → result. First live test of everything from both
+   this session and the prior one.
+3. If "Original" camera style produces weak results, revisit whether
+   `visual_style`'s free-text description is specific enough to steer
+   Seedance, or needs a more structured prompt.
 
 ## Blockers
 
-None structurally — key is in place. Just needs the migration applied and
-a live test run, both deferred by design (real API costs money, user
-wanted to test in the UI themselves rather than have it fired
-automatically).
+Same as before — migrations unapplied, no live test run yet. Both
+deferred by design (real API cost, no DB CLI access in this environment).

@@ -5,21 +5,23 @@ import { AppShell } from "@/components/app/AppShell";
 import { StepProgress } from "@/components/workflow/StepProgress";
 import { UploadStep } from "@/components/workflow/UploadStep";
 import { AnalysisStep } from "@/components/workflow/AnalysisStep";
+import { IdeaStep } from "@/components/workflow/IdeaStep";
 import { ScriptStep } from "@/components/workflow/ScriptStep";
 import { GenerateStep } from "@/components/workflow/GenerateStep";
 import { GenerationScreen } from "@/components/workflow/GenerationScreen";
 import { ResultStep } from "@/components/workflow/ResultStep";
 import type { Script } from "@/lib/types";
 
-type Phase = "upload" | "analysis" | "script" | "settings" | "generating" | "result";
+type Phase = "upload" | "analysis" | "ideas" | "script" | "settings" | "generating" | "result";
 
 const phaseStep: Record<Phase, number> = {
   upload: 0,
   analysis: 1,
-  script: 2,
-  settings: 3,
-  generating: 3,
-  result: 4,
+  ideas: 2,
+  script: 3,
+  settings: 4,
+  generating: 4,
+  result: 5,
 };
 
 export function DashboardClient() {
@@ -42,12 +44,22 @@ export function DashboardClient() {
           />
         )}
         {phase === "analysis" && projectId && (
-          <AnalysisStep projectId={projectId} onContinue={() => setPhase("script")} />
+          <AnalysisStep projectId={projectId} onContinue={() => setPhase("ideas")} />
         )}
-        {phase === "script" && projectId && (
-          <ScriptStep
+        {phase === "ideas" && projectId && (
+          <IdeaStep
             projectId={projectId}
-            onSelect={(script) => {
+            onScriptReady={(script) => {
+              setSelectedScript(script);
+              setPhase("script");
+            }}
+          />
+        )}
+        {phase === "script" && selectedScript && (
+          <ScriptStep
+            script={selectedScript}
+            onBack={() => setPhase("ideas")}
+            onContinue={(script) => {
               setSelectedScript(script);
               setPhase("settings");
             }}

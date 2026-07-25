@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { SourceVideoKind } from "@/lib/types";
@@ -79,10 +72,8 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
   const [brandName, setBrandName] = useState("");
   const [productService, setProductService] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
-  const [tone, setTone] = useState("");
   const [description, setDescription] = useState("");
   const [brandColors, setBrandColors] = useState("");
-  const [cta, setCta] = useState("");
 
   const acceptFile = (file?: File) => {
     if (!file) return;
@@ -105,13 +96,11 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
           brandName,
           productService,
           targetAudience,
-          tone,
           description,
           brandColors: brandColors
             .split(",")
             .map((c) => c.trim())
             .filter(Boolean),
-          cta,
         }),
       });
       if (!res.ok) throw new Error("Could not create the project");
@@ -234,18 +223,14 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Tone</Label>
-            <Select value={tone} onValueChange={setTone}>
-              <SelectTrigger className="h-11 w-full rounded-xl">
-                <SelectValue placeholder="Select tone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="luxury">Luxury & minimal</SelectItem>
-                <SelectItem value="playful">Playful & bold</SelectItem>
-                <SelectItem value="trust">Trustworthy & expert</SelectItem>
-                <SelectItem value="cinematic">Cinematic & emotional</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="colors">Brand Colors</Label>
+            <Input
+              id="colors"
+              placeholder="#2563EB, #F8FAFC"
+              className="h-11 rounded-xl"
+              value={brandColors}
+              onChange={(e) => setBrandColors(e.target.value)}
+            />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="description">Brand Description</Label>
@@ -257,27 +242,11 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="colors">Brand Colors</Label>
-            <Input
-              id="colors"
-              placeholder="#2563EB, #F8FAFC"
-              className="h-11 rounded-xl"
-              value={brandColors}
-              onChange={(e) => setBrandColors(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="cta">CTA</Label>
-            <Input
-              id="cta"
-              placeholder="Find your signature scent"
-              className="h-11 rounded-xl"
-              value={cta}
-              onChange={(e) => setCta(e.target.value)}
-            />
-          </div>
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Tone and CTA aren't set here — they're picked automatically to match what made the
+          uploaded video work.
+        </p>
 
         <div className="mt-8 flex justify-end">
           <Button

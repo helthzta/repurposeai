@@ -45,18 +45,18 @@ export interface VideoAnalysis {
   source_video_id: string;
   status: "processing" | "completed" | "failed";
   company: string | null;
-  business_category: string | null;
+  company_does: string | null;
   duration_seconds: number | null;
+  viral_factor: string | null;
   hook: string | null;
-  audience: string | null;
   pain_point: string | null;
   context: string | null;
   emotional_trigger: string | null;
+  audience: string | null;
+  relief: string | null;
   hero: string | null;
-  marketing_strategy: string | null;
-  offer: string | null;
-  cta: string | null;
-  narrative_structure: string | null;
+  language: string | null;
+  video_metrics: string | null;
   tone_of_voice: string | null;
   visual_style: string | null;
   error_message: string | null;
@@ -64,6 +64,14 @@ export interface VideoAnalysis {
 }
 
 export type ScriptStyle = "emotional" | "humorous" | "high_conversion" | "custom";
+
+/** A short, un-persisted concept shown before a full script is written — see IdeaStep.tsx. */
+export interface ScriptIdea {
+  style: ScriptStyle;
+  title: string;
+  hook: string;
+  pitch: string;
+}
 
 export interface Script {
   id: string;

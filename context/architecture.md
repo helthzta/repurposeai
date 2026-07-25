@@ -29,9 +29,17 @@ and src/lib/*. Citations inline. -->
   (`VideoProvider` interface: `submit`/`poll`). Add a provider by implementing
   the interface and registering it in `src/lib/providers/index.ts`; nothing
   else (routes, UI, credits) should need to change.
-- `src/lib/ai/*` — Gemini calls: `gemini.ts` (analysis, scoring),
-  `prompts.ts` (prompt templates, including `videoPrompt` used to turn a
-  script into a provider prompt).
+- `src/lib/ai/*` — Gemini calls: `gemini.ts` (analysis, scoring, script
+  ideas/master-script), `prompts.ts` (prompt templates, including
+  `videoPrompt` used to turn a script into a provider prompt). Tone and CTA
+  are never user input — `toneNote()` in `prompts.ts` derives tone from the
+  analyzed `tone_of_voice`, and every script prompt tells the model to pick
+  its own CTA.
+- Script flow is two-stage: `generateScriptIdeas` (3 short, un-persisted
+  concepts — `/api/scripts/ideas`) then `generateMasterScript` (the one
+  full script for whichever concept was picked — `/api/scripts/generate`).
+  `generateScripts` (3 full scripts at once) is kept only for the
+  synchronous public v1 API, which has no human in the loop to pick an idea.
 - `src/lib/supabase/{client,server,admin}.ts` — three distinct Supabase
   clients: `client.ts` (browser, anon key), `server.ts` (server components/
   route handlers, cookie-scoped session, anon key + RLS), `admin.ts`
@@ -53,10 +61,17 @@ and src/lib/*. Citations inline. -->
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`
-  (`supabase/migrations/0001`–`0012`). `generations.chain_stage`
-  (`0012_generation_chaining.sql`) tracks in-flight multi-clip chaining —
-  not yet applied to the live project as of this note, see
-  `progress-tracker.md`.
+  (`supabase/migrations/0001`–`0013`). `generations.chain_stage`
+  (`0012_generation_chaining.sql`) tracks in-flight multi-clip chaining.
+  `video_analyses` was reworked around virality in `0013` — `company_does`
+  (renamed from `business_category`), `viral_factor`, `relief`, `language`,
+  `video_metrics` added; `marketing_strategy`, `offer`, `cta`,
+  `narrative_structure` dropped; `tone_of_voice`/`visual_style` kept
+  (load-bearing for auto-tone and "Original" camera style — see
+  `decision-log.md` D-002/D-004). `brand_profiles.tone`/`cta` still exist
+  as columns but are no longer written by any code path — CTA/tone are
+  fully AI-derived now (D-001). **Neither `0012` nor `0013` has been
+  applied to the live project** as of this note, see `progress-tracker.md`.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):

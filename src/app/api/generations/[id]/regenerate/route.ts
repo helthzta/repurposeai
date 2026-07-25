@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 
 // Keep in sync with the Camera Style options in GenerateStep.tsx.
-const CAMERA_STYLES = ["commercial", "luxury", "cinematic", "product", "ugc"] as const;
+const CAMERA_STYLES = ["original", "commercial", "luxury", "cinematic", "product", "ugc"] as const;
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const start = Date.now();

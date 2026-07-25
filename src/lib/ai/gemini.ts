@@ -1,9 +1,11 @@
 import { createPartFromUri, createUserContent, GoogleGenAI, Type } from "@google/genai";
-import type { AiInsights, BrandProfile, ScriptStyle, VideoAnalysis } from "@/lib/types";
+import type { AiInsights, BrandProfile, ScriptIdea, ScriptStyle, VideoAnalysis } from "@/lib/types";
 import {
   ANALYSIS_SYSTEM_PROMPT,
+  masterScriptPrompt,
   scriptAssistPrompt,
   scriptGenerationPrompt,
+  scriptIdeasPrompt,
   scorePrompt,
 } from "./prompts";
 
@@ -22,18 +24,18 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const ANALYSIS_FIELDS = [
   "company",
-  "business_category",
+  "company_does",
   "duration_seconds",
+  "viral_factor",
   "hook",
-  "audience",
   "pain_point",
   "context",
   "emotional_trigger",
+  "audience",
+  "relief",
   "hero",
-  "marketing_strategy",
-  "offer",
-  "cta",
-  "narrative_structure",
+  "language",
+  "video_metrics",
   "tone_of_voice",
   "visual_style",
 ] as const;
@@ -132,6 +134,53 @@ export async function generateScripts(
   });
 
   if (!response.text) throw new Error("Gemini returned no scripts");
+  return JSON.parse(response.text);
+}
+
+const SCRIPT_IDEA_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    style: { type: Type.STRING, enum: ["emotional", "humorous", "high_conversion"] },
+    title: { type: Type.STRING },
+    hook: { type: Type.STRING },
+    pitch: { type: Type.STRING },
+  },
+  required: ["style", "title", "hook", "pitch"],
+};
+
+/** 3 short, un-persisted concepts shown before committing to writing a full script. */
+export async function generateScriptIdeas(
+  analysis: VideoAnalysis,
+  brand: BrandProfile,
+): Promise<ScriptIdea[]> {
+  const client = ai();
+  const response = await client.models.generateContent({
+    model: MODEL,
+    contents: scriptIdeasPrompt(analysis, brand),
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: { type: Type.ARRAY, items: SCRIPT_IDEA_SCHEMA, minItems: 3, maxItems: 3 },
+    },
+  });
+
+  if (!response.text) throw new Error("Gemini returned no ideas");
+  return JSON.parse(response.text);
+}
+
+/** The one full script written once a user commits to a specific idea. */
+export async function generateMasterScript(
+  analysis: VideoAnalysis,
+  brand: BrandProfile,
+  idea: ScriptIdea,
+): Promise<GeneratedScript> {
+  const client = ai();
+  const response = await client.models.generateContent({
+    model: MODEL,
+    contents: masterScriptPrompt(analysis, brand, idea),
+    config: { responseMimeType: "application/json", responseSchema: SCRIPT_ITEM_SCHEMA },
+  });
+
+  if (!response.text) throw new Error("Gemini returned no script");
   return JSON.parse(response.text);
 }
 

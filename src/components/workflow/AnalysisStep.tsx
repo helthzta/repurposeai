@@ -8,20 +8,20 @@ import type { VideoAnalysis } from "@/lib/types";
 
 const FIELD_LABELS: Record<string, string> = {
   company: "Company",
-  business_category: "Business",
+  company_does: "What They Do",
   duration_seconds: "Duration",
+  viral_factor: "Why It Went Viral",
   hook: "Hook",
-  audience: "Audience",
   pain_point: "Pain",
   context: "Context",
   emotional_trigger: "Emotion",
+  audience: "Audience",
+  relief: "Relief",
   hero: "Hero",
-  marketing_strategy: "Marketing Strategy",
-  narrative_structure: "Narrative Structure",
-  offer: "Offer",
+  language: "Language",
+  video_metrics: "Pacing",
   visual_style: "Visual Style",
   tone_of_voice: "Tone",
-  cta: "CTA",
 };
 
 export function AnalysisStep({
@@ -119,7 +119,7 @@ export function AnalysisStep({
           className="btn-glow h-12 rounded-xl px-8 font-semibold"
           onClick={onContinue}
         >
-          Generate Scripts
+          Get Script Ideas
           <ArrowRight className="h-4.5 w-4.5" />
         </Button>
       </div>

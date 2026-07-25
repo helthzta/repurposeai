@@ -1,21 +1,16 @@
 "use client";
 
-import {
-  Camera,
-  Clock,
-  Layers,
-  Loader2,
-  MonitorPlay,
-  RectangleVertical,
-  Sparkles,
-} from "lucide-react";
+import { Camera, Clock, Loader2, MonitorPlay, RectangleVertical, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { costForGeneration } from "@/lib/credits";
-import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
+import type { AspectRatio, Quality } from "@/lib/types";
+
+const MIN_DURATION_SECONDS = 10;
+const MAX_DURATION_SECONDS = 30;
 
 function OptionGroup<T extends string>({
   label,
@@ -77,17 +72,13 @@ export function GenerateStep({
   scriptId: string;
   onGenerate: (generationId: string) => void;
 }) {
-  const [provider, setProvider] = useState<VideoProviderName>("seedance");
   const [length, setLength] = useState<"15" | "30" | "custom">("15");
   const [customLength, setCustomLength] = useState(15);
   const [aspect, setAspect] = useState<AspectRatio>("9:16");
   const [quality, setQuality] = useState<Quality>("high");
-  const [style, setStyle] = useState("commercial");
+  const [style, setStyle] = useState("original");
   const [submitting, setSubmitting] = useState(false);
 
-  // 30s renders as two chained 15s clips stitched together server-side (see generation.ts)
-  // since the model itself caps a single call at 15s — see SETUP.md.
-  const maxDurationSeconds = provider === "seedance" ? 30 : 120;
   const durationSeconds = length === "custom" ? customLength : Number(length);
 
   const handleGenerate = async () => {
@@ -99,7 +90,7 @@ export function GenerateStep({
         body: JSON.stringify({
           projectId,
           scriptId,
-          provider,
+          provider: "seedance",
           durationSeconds,
           aspectRatio: aspect,
           quality,
@@ -134,17 +125,6 @@ export function GenerateStep({
         </div>
 
         <div className="mt-8 space-y-8">
-          <OptionGroup
-            label="Select Provider"
-            icon={Layers}
-            value={provider}
-            onChange={setProvider}
-            options={[
-              { value: "seedance", label: "Seedance" },
-              { value: "higgsfield", label: "Higgsfield", hint: "soon" },
-            ]}
-            disabledValues={["higgsfield"]}
-          />
           <div>
             <OptionGroup
               label="Video Length"
@@ -156,24 +136,25 @@ export function GenerateStep({
                 { value: "30", label: "30 seconds" },
                 { value: "custom", label: "Custom" },
               ]}
-              disabledValues={maxDurationSeconds < 30 ? ["30"] : []}
             />
             {length === "custom" && (
               <div className="mt-3 flex items-center gap-2">
                 <Input
                   type="number"
-                  min={5}
-                  max={maxDurationSeconds}
+                  min={MIN_DURATION_SECONDS}
+                  max={MAX_DURATION_SECONDS}
                   className="h-10 w-28 rounded-xl"
                   value={customLength}
                   onChange={(e) => {
                     const parsed = Number(e.target.value);
                     if (!Number.isFinite(parsed)) return;
-                    setCustomLength(Math.min(maxDurationSeconds, Math.max(5, parsed)));
+                    setCustomLength(
+                      Math.min(MAX_DURATION_SECONDS, Math.max(MIN_DURATION_SECONDS, parsed)),
+                    );
                   }}
                 />
                 <span className="text-xs text-muted-foreground">
-                  seconds (max {maxDurationSeconds})
+                  seconds ({MIN_DURATION_SECONDS}–{MAX_DURATION_SECONDS})
                 </span>
               </div>
             )}
@@ -206,6 +187,7 @@ export function GenerateStep({
             value={style}
             onChange={setStyle}
             options={[
+              { value: "original", label: "Original", hint: "match uploaded video" },
               { value: "commercial", label: "Commercial" },
               { value: "luxury", label: "Luxury" },
               { value: "cinematic", label: "Cinematic" },

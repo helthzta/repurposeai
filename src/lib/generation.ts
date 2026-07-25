@@ -39,6 +39,21 @@ export async function createGeneration(
   logger.info("generation", "spending credits", { userId, cost, projectId: params.projectId });
   await spendCredits(client, userId, cost, "generation", "project", params.projectId);
 
+  // "Original" camera style means "match the source video we analyzed" — only look that
+  // up when actually needed, not on every generation.
+  let sourceVisualStyle: string | null = null;
+  if (params.cameraStyle === "original") {
+    const { data: analysis } = await client
+      .from("video_analyses")
+      .select("visual_style")
+      .eq("project_id", params.projectId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    sourceVisualStyle = analysis?.visual_style ?? null;
+  }
+
   const prompt = videoPrompt({
     scriptBody: script.body,
     brand,
@@ -46,6 +61,7 @@ export async function createGeneration(
     aspectRatio: params.aspectRatio,
     quality: params.quality,
     cameraStyle: params.cameraStyle,
+    sourceVisualStyle,
   });
 
   try {
