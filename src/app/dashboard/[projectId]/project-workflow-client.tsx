@@ -25,6 +25,7 @@ const phaseStep: Record<WorkflowPhase, number> = {
 export function ProjectWorkflowClient({
   projectId,
   initialPhase,
+  initialScripts,
   initialScript,
   initialGenerationId,
   initialIdeas,
@@ -32,12 +33,15 @@ export function ProjectWorkflowClient({
 }: {
   projectId: string;
   initialPhase: WorkflowPhase;
+  /** The 15s/30s pair for the Script step, once an idea's been picked. */
+  initialScripts: Script[];
   initialScript: Script | null;
   initialGenerationId: string | null;
   initialIdeas: ScriptIdea[] | null;
   initialError: string | null;
 }) {
   const [phase, setPhase] = useState<WorkflowPhase>(initialPhase);
+  const [scripts, setScripts] = useState<Script[]>(initialScripts);
   const [selectedScript, setSelectedScript] = useState<Script | null>(initialScript);
   const [generationId, setGenerationId] = useState<string | null>(initialGenerationId);
   const [ideas, setIdeas] = useState<ScriptIdea[] | null>(initialIdeas);
@@ -64,15 +68,15 @@ export function ProjectWorkflowClient({
             projectId={projectId}
             initialIdeas={ideas}
             onIdeasReady={setIdeas}
-            onScriptReady={(script) => {
-              setSelectedScript(script);
+            onScriptsReady={(scripts) => {
+              setScripts(scripts);
               setPhase("script");
             }}
           />
         )}
-        {phase === "script" && selectedScript && (
+        {phase === "script" && scripts.length > 0 && (
           <ScriptStep
-            script={selectedScript}
+            scripts={scripts}
             onBack={() => setPhase("ideas")}
             onContinue={(script) => {
               setSelectedScript(script);
@@ -84,6 +88,7 @@ export function ProjectWorkflowClient({
           <GenerateStep
             projectId={projectId}
             scriptId={selectedScript.id}
+            durationSeconds={selectedScript.target_duration_seconds ?? 15}
             onGenerate={(id) => {
               setGenerationId(id);
               setPhase("generating");

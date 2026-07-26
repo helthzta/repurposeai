@@ -52,7 +52,12 @@ one-line hook, and a 2-3 sentence pitch describing the angle and how it repurpos
 no scene-by-scene detail yet.`;
 }
 
-export function masterScriptPrompt(analysis: VideoAnalysis, brand: BrandProfile, idea: ScriptIdea) {
+export function masterScriptPrompt(
+  analysis: VideoAnalysis,
+  brand: BrandProfile,
+  idea: ScriptIdea,
+  durationSeconds: number,
+) {
   return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}
 
@@ -71,7 +76,12 @@ Reuse the viral factor and structure from the analysis — the hook shape, the p
 entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't
 ask the user for one. Return one script with: the title and hook above (refine them if it makes the script
 stronger), a full timestamped scene-by-scene script (dialogue + visual direction), scene descriptions, emotional
-direction, a CTA, an estimated duration in seconds, and the ISO 639-1 language code the script is written in.`;
+direction, and a CTA.
+
+This script will be rendered as exactly a ${durationSeconds}-second video — pace the scene timestamps so they
+literally span 0:00 to ${durationSeconds}s, the last scene must end at ${durationSeconds}s exactly, not before
+or after. Fit the hook-to-CTA arc naturally into that runtime rather than padding or rushing it. Set
+estimated_duration to "${durationSeconds}s" and return the ISO 639-1 language code the script is written in.`;
 }
 
 export function scriptAssistPrompt(currentBody: string, instruction: string) {

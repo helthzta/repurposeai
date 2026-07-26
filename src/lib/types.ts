@@ -87,6 +87,8 @@ export interface Script {
   emotional_direction: string | null;
   cta: string | null;
   estimated_duration: string | null;
+  /** The exact runtime this variant's scenes were written to fit — 15 or 30. Null for scripts written before this existed. */
+  target_duration_seconds: 15 | 30 | null;
   language: string;
   is_selected: boolean;
   created_at: string;

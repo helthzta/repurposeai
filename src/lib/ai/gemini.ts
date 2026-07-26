@@ -1,4 +1,10 @@
-import { createPartFromBase64, createPartFromUri, createUserContent, GoogleGenAI, Type } from "@google/genai";
+import {
+  createPartFromBase64,
+  createPartFromUri,
+  createUserContent,
+  GoogleGenAI,
+  Type,
+} from "@google/genai";
 import type { AiInsights, BrandProfile, ScriptIdea, ScriptStyle, VideoAnalysis } from "@/lib/types";
 import {
   ANALYSIS_SYSTEM_PROMPT,
@@ -172,11 +178,12 @@ export async function generateMasterScript(
   analysis: VideoAnalysis,
   brand: BrandProfile,
   idea: ScriptIdea,
+  durationSeconds: 15 | 30,
 ): Promise<GeneratedScript> {
   const client = ai();
   const response = await client.models.generateContent({
     model: MODEL,
-    contents: masterScriptPrompt(analysis, brand, idea),
+    contents: masterScriptPrompt(analysis, brand, idea, durationSeconds),
     config: { responseMimeType: "application/json", responseSchema: SCRIPT_ITEM_SCHEMA },
   });
 

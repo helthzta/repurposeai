@@ -30,12 +30,13 @@ export default async function ProjectDashboard({
   const project = await getProjectDetail(supabase, user.id, projectId);
   if (!project) notFound();
 
-  const { phase, script, generationId, ideas, lastError } = deriveWorkflowPhase(project);
+  const { phase, scripts, script, generationId, ideas, lastError } = deriveWorkflowPhase(project);
 
   return (
     <ProjectWorkflowClient
       projectId={projectId}
       initialPhase={phase}
+      initialScripts={scripts}
       initialScript={script}
       initialGenerationId={generationId}
       initialIdeas={ideas}

@@ -11,29 +11,19 @@ export async function POST(req: NextRequest) {
   try {
     const { supabase, user } = await requireUser();
     const body = await req.json();
-    const { projectId, scriptId, provider, durationSeconds, aspectRatio, quality, cameraStyle } =
-      body as {
-        projectId?: string;
-        scriptId?: string;
-        provider?: VideoProviderName;
-        durationSeconds?: number;
-        aspectRatio?: AspectRatio;
-        quality?: Quality;
-        cameraStyle?: string;
-      };
+    const { projectId, scriptId, provider, aspectRatio, quality, cameraStyle } = body as {
+      projectId?: string;
+      scriptId?: string;
+      provider?: VideoProviderName;
+      aspectRatio?: AspectRatio;
+      quality?: Quality;
+      cameraStyle?: string;
+    };
 
-    if (
-      !projectId ||
-      !scriptId ||
-      !provider ||
-      !durationSeconds ||
-      !aspectRatio ||
-      !quality ||
-      !cameraStyle
-    ) {
+    if (!projectId || !scriptId || !provider || !aspectRatio || !quality || !cameraStyle) {
       throw new ApiError(
         400,
-        "projectId, scriptId, provider, durationSeconds, aspectRatio, quality and cameraStyle are required",
+        "projectId, scriptId, provider, aspectRatio, quality and cameraStyle are required",
       );
     }
 
@@ -43,6 +33,13 @@ export async function POST(req: NextRequest) {
       .eq("id", scriptId)
       .single();
     if (scriptError) throw new ApiError(404, "Script not found");
+
+    // The script's own target_duration_seconds is authoritative — it's what its scene
+    // timestamps were actually written to fit, not whatever a client might send.
+    const durationSeconds = script.target_duration_seconds;
+    if (!durationSeconds) {
+      throw new ApiError(400, "This script has no target duration — pick a 15s or 30s version");
+    }
 
     const { data: brand, error: brandError } = await supabase
       .from("brand_profiles")

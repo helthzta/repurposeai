@@ -4,7 +4,7 @@ import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import type { ScriptIdea, VideoAnalysis } from "@/lib/types";
 
-/** Writes the one full "master script" for whichever idea the user picked in IdeaStep. */
+/** Writes both duration variants (15s and 30s) of the "master script" for whichever idea the user picked in IdeaStep. */
 export const POST = withLogger("scripts.generate", async (req: NextRequest) => {
   const { supabase } = await requireUser();
   const { projectId, idea } = (await req.json()) as { projectId?: string; idea?: ScriptIdea };
@@ -27,27 +27,35 @@ export const POST = withLogger("scripts.generate", async (req: NextRequest) => {
     .single();
   if (brandError) throw brandError;
 
-  const generated = await generateMasterScript(analysis, brand, idea);
+  const [generated15, generated30] = await Promise.all([
+    generateMasterScript(analysis, brand, idea, 15),
+    generateMasterScript(analysis, brand, idea, 30),
+  ]);
 
-  const { data: script, error } = await supabase
+  const { data: scripts, error } = await supabase
     .from("scripts")
-    .insert({
-      project_id: projectId,
-      analysis_id: analysis.id,
-      style: generated.style,
-      title: generated.title,
-      hook: generated.hook,
-      body: generated.body,
-      scene_descriptions: generated.scene_descriptions,
-      emotional_direction: generated.emotional_direction,
-      cta: generated.cta,
-      estimated_duration: generated.estimated_duration,
-      language: generated.language,
-      is_selected: true,
-    })
-    .select()
-    .single();
+    .insert(
+      [
+        { generated: generated15, target_duration_seconds: 15, is_selected: true },
+        { generated: generated30, target_duration_seconds: 30, is_selected: false },
+      ].map(({ generated, target_duration_seconds, is_selected }) => ({
+        project_id: projectId,
+        analysis_id: analysis.id,
+        style: generated.style,
+        title: generated.title,
+        hook: generated.hook,
+        body: generated.body,
+        scene_descriptions: generated.scene_descriptions,
+        emotional_direction: generated.emotional_direction,
+        cta: generated.cta,
+        estimated_duration: generated.estimated_duration,
+        target_duration_seconds,
+        language: generated.language,
+        is_selected,
+      })),
+    )
+    .select();
   if (error) throw error;
 
-  return NextResponse.json({ script }, { status: 201 });
+  return NextResponse.json({ scripts }, { status: 201 });
 });

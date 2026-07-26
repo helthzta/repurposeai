@@ -18,12 +18,12 @@ export function IdeaStep({
   projectId,
   initialIdeas,
   onIdeasReady,
-  onScriptReady,
+  onScriptsReady,
 }: {
   projectId: string;
   initialIdeas: ScriptIdea[] | null;
   onIdeasReady: (ideas: ScriptIdea[]) => void;
-  onScriptReady: (script: Script) => void;
+  onScriptsReady: (scripts: Script[]) => void;
 }) {
   const [ideas, setIdeas] = useState<ScriptIdea[]>(initialIdeas ?? []);
   const [loading, setLoading] = useState(!initialIdeas?.length);
@@ -67,7 +67,7 @@ export function IdeaStep({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not write the script");
-      onScriptReady(data.script);
+      onScriptsReady(data.scripts);
     } catch (err) {
       toast.error("Script writing failed", {
         description: err instanceof Error ? err.message : undefined,
@@ -138,7 +138,7 @@ export function IdeaStep({
               ) : (
                 <Sparkles className="h-3.5 w-3.5" />
               )}
-              Write Full Script
+              Write Full Scripts
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </div>

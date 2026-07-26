@@ -4,13 +4,9 @@ import { Camera, Clock, Loader2, MonitorPlay, RectangleVertical, Sparkles } from
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { costForGeneration } from "@/lib/credits";
 import type { AspectRatio, Quality } from "@/lib/types";
-
-const MIN_DURATION_SECONDS = 10;
-const MAX_DURATION_SECONDS = 30;
 
 function OptionGroup<T extends string>({
   label,
@@ -66,20 +62,19 @@ function OptionGroup<T extends string>({
 export function GenerateStep({
   projectId,
   scriptId,
+  durationSeconds,
   onGenerate,
 }: {
   projectId: string;
   scriptId: string;
+  /** Fixed by which script variant (15s/30s) the user picked in the Script step. */
+  durationSeconds: number;
   onGenerate: (generationId: string) => void;
 }) {
-  const [length, setLength] = useState<"15" | "30" | "custom">("15");
-  const [customLength, setCustomLength] = useState(15);
   const [aspect, setAspect] = useState<AspectRatio>("9:16");
   const [quality, setQuality] = useState<Quality>("high");
   const [style, setStyle] = useState("original");
   const [submitting, setSubmitting] = useState(false);
-
-  const durationSeconds = length === "custom" ? customLength : Number(length);
 
   const handleGenerate = async () => {
     setSubmitting(true);
@@ -91,7 +86,6 @@ export function GenerateStep({
           projectId,
           scriptId,
           provider: "seedance",
-          durationSeconds,
           aspectRatio: aspect,
           quality,
           cameraStyle: style,
@@ -126,38 +120,13 @@ export function GenerateStep({
 
         <div className="mt-8 space-y-8">
           <div>
-            <OptionGroup
-              label="Video Length"
-              icon={Clock}
-              value={length}
-              onChange={setLength}
-              options={[
-                { value: "15", label: "15 seconds" },
-                { value: "30", label: "30 seconds" },
-                { value: "custom", label: "Custom" },
-              ]}
-            />
-            {length === "custom" && (
-              <div className="mt-3 flex items-center gap-2">
-                <Input
-                  type="number"
-                  min={MIN_DURATION_SECONDS}
-                  max={MAX_DURATION_SECONDS}
-                  className="h-10 w-28 rounded-xl"
-                  value={customLength}
-                  onChange={(e) => {
-                    const parsed = Number(e.target.value);
-                    if (!Number.isFinite(parsed)) return;
-                    setCustomLength(
-                      Math.min(MAX_DURATION_SECONDS, Math.max(MIN_DURATION_SECONDS, parsed)),
-                    );
-                  }}
-                />
-                <span className="text-xs text-muted-foreground">
-                  seconds ({MIN_DURATION_SECONDS}–{MAX_DURATION_SECONDS})
-                </span>
-              </div>
-            )}
+            <p className="flex items-center gap-2 text-sm font-bold">
+              <Clock className="h-4 w-4 text-primary" />
+              Video Length
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {durationSeconds}s — set by the script version you picked
+            </p>
           </div>
           <OptionGroup
             label="Aspect Ratio"
