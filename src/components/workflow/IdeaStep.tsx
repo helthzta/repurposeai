@@ -16,17 +16,22 @@ const BADGE_LABEL: Record<string, string> = {
 
 export function IdeaStep({
   projectId,
+  initialIdeas,
+  onIdeasReady,
   onScriptReady,
 }: {
   projectId: string;
+  initialIdeas: ScriptIdea[] | null;
+  onIdeasReady: (ideas: ScriptIdea[]) => void;
   onScriptReady: (script: Script) => void;
 }) {
-  const [ideas, setIdeas] = useState<ScriptIdea[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [ideas, setIdeas] = useState<ScriptIdea[]>(initialIdeas ?? []);
+  const [loading, setLoading] = useState(!initialIdeas?.length);
   const [writing, setWriting] = useState<number | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
+    if (initialIdeas?.length) return; // already cached — resuming here or navigating back, don't regenerate
     if (started.current) return;
     started.current = true;
 
@@ -40,6 +45,7 @@ export function IdeaStep({
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Idea generation failed");
         setIdeas(data.ideas);
+        onIdeasReady(data.ideas);
       } catch (err) {
         toast.error("Couldn't generate ideas", {
           description: err instanceof Error ? err.message : undefined,
@@ -48,6 +54,7 @@ export function IdeaStep({
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const chooseIdea = async (idea: ScriptIdea, index: number) => {

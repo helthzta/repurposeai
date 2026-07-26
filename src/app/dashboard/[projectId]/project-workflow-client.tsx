@@ -10,7 +10,7 @@ import { ScriptStep } from "@/components/workflow/ScriptStep";
 import { GenerateStep } from "@/components/workflow/GenerateStep";
 import { GenerationScreen } from "@/components/workflow/GenerationScreen";
 import { ResultStep } from "@/components/workflow/ResultStep";
-import type { Script } from "@/lib/types";
+import type { Script, ScriptIdea } from "@/lib/types";
 import type { WorkflowPhase } from "@/lib/projects";
 
 const phaseStep: Record<WorkflowPhase, number> = {
@@ -27,17 +27,20 @@ export function ProjectWorkflowClient({
   initialPhase,
   initialScript,
   initialGenerationId,
+  initialIdeas,
   initialError,
 }: {
   projectId: string;
   initialPhase: WorkflowPhase;
   initialScript: Script | null;
   initialGenerationId: string | null;
+  initialIdeas: ScriptIdea[] | null;
   initialError: string | null;
 }) {
   const [phase, setPhase] = useState<WorkflowPhase>(initialPhase);
   const [selectedScript, setSelectedScript] = useState<Script | null>(initialScript);
   const [generationId, setGenerationId] = useState<string | null>(initialGenerationId);
+  const [ideas, setIdeas] = useState<ScriptIdea[] | null>(initialIdeas);
 
   // Only set on load when resuming here because a past attempt failed — surfaces the
   // reason once instead of silently dropping the user back at settings unexplained.
@@ -59,6 +62,8 @@ export function ProjectWorkflowClient({
         {phase === "ideas" && (
           <IdeaStep
             projectId={projectId}
+            initialIdeas={ideas}
+            onIdeasReady={setIdeas}
             onScriptReady={(script) => {
               setSelectedScript(script);
               setPhase("script");

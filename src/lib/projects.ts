@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Generation, Project, Script, VideoAnalysis } from "@/lib/types";
+import type { Generation, Project, Script, ScriptIdea, VideoAnalysis } from "@/lib/types";
 
 export type ProjectDetail = Project & {
   video_analyses: VideoAnalysis[];
@@ -34,15 +34,18 @@ export interface WorkflowState {
   phase: WorkflowPhase;
   script: Script | null;
   generationId: string | null;
+  /** Cached ideas so the Ideas step can resume without regenerating a different set. */
+  ideas: ScriptIdea[] | null;
   /** Set only when resuming at "settings" because the last attempt failed — surfaced once so the reason isn't silently lost across a visit. */
   lastError: string | null;
 }
 
 /** Resumes a project at whichever step its DB state implies — no in-memory tracking needed. */
 export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
+  const ideas = project.script_ideas ?? null;
   const hasCompletedAnalysis = project.video_analyses?.some((a) => a.status === "completed");
   if (!hasCompletedAnalysis) {
-    return { phase: "analysis", script: null, generationId: null, lastError: null };
+    return { phase: "analysis", script: null, generationId: null, ideas: null, lastError: null };
   }
 
   const scripts = [...(project.scripts ?? [])].sort(
@@ -50,7 +53,7 @@ export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
   );
   const script = scripts.find((s) => s.is_selected) ?? scripts[0] ?? null;
   if (!script) {
-    return { phase: "ideas", script: null, generationId: null, lastError: null };
+    return { phase: "ideas", script: null, generationId: null, ideas, lastError: null };
   }
 
   const generations = [...(project.generations ?? [])].sort(
@@ -58,18 +61,19 @@ export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
   );
   const latest = generations[0];
   if (!latest) {
-    return { phase: "script", script, generationId: null, lastError: null };
+    return { phase: "script", script, generationId: null, ideas, lastError: null };
   }
   if (latest.status === "completed") {
-    return { phase: "result", script, generationId: latest.id, lastError: null };
+    return { phase: "result", script, generationId: latest.id, ideas, lastError: null };
   }
   if (latest.status === "failed") {
     return {
       phase: "settings",
       script,
       generationId: null,
+      ideas,
       lastError: latest.error_message ?? "Generation failed",
     };
   }
-  return { phase: "generating", script, generationId: latest.id, lastError: null };
+  return { phase: "generating", script, generationId: latest.id, ideas, lastError: null };
 }

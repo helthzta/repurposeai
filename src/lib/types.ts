@@ -9,6 +9,8 @@ export interface Project {
   user_id: string;
   name: string;
   status: ProjectStatus;
+  /** Cached output of the Ideas step, so navigating back to it doesn't regenerate different ideas. */
+  script_ideas: ScriptIdea[] | null;
   created_at: string;
   updated_at: string;
 }

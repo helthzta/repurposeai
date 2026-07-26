@@ -4,7 +4,7 @@ import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import type { VideoAnalysis } from "@/lib/types";
 
-/** Short, un-persisted concepts shown before committing to a full script — see IdeaStep.tsx. */
+/** Short concepts shown before committing to a full script — cached on the project, see IdeaStep.tsx. */
 export const POST = withLogger("scripts.ideas", async (req: NextRequest) => {
   const { supabase } = await requireUser();
   const { projectId } = await req.json();
@@ -28,6 +28,10 @@ export const POST = withLogger("scripts.ideas", async (req: NextRequest) => {
   if (brandError) throw brandError;
 
   const ideas = await generateScriptIdeas(analysis, brand);
+
+  // Cached on the project so navigating back to the Ideas step (or reloading) shows the
+  // same ideas instead of burning another Gemini call for a different set — see IdeaStep.tsx.
+  await supabase.from("projects").update({ script_ideas: ideas }).eq("id", projectId);
 
   return NextResponse.json({ ideas });
 });

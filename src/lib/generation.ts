@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { scoreGeneration } from "@/lib/ai/gemini";
-import { videoPrompt } from "@/lib/ai/prompts";
+import { captionFrame, scoreGeneration } from "@/lib/ai/gemini";
+import { continuationNote, scopeToSegment, videoPrompt } from "@/lib/ai/prompts";
 import { costForGeneration, refundCredits, spendCredits } from "@/lib/credits";
 import { logError } from "@/lib/errors";
 import { concatVideos, extractLastFrame } from "@/lib/ffmpeg";
@@ -71,13 +71,20 @@ export async function createGeneration(
     const chained = params.durationSeconds > providerImpl.maxClipDurationSeconds;
     const firstClipSeconds = chained ? providerImpl.maxClipDurationSeconds : params.durationSeconds;
 
+    // Chained clips each render only their slice of the script — an unscoped prompt makes
+    // every clip try to depict the whole script, which is why chained clips used to look
+    // like unrelated videos stitched together.
+    const submitPrompt = chained
+      ? scopeToSegment(prompt, 0, firstClipSeconds, params.durationSeconds)
+      : prompt;
+
     logger.info("generation", "submitting to provider", {
       provider: params.provider,
       durationSeconds: firstClipSeconds,
       chained,
     });
     const { jobId } = await providerImpl.submit({
-      prompt,
+      prompt: submitPrompt,
       durationSeconds: firstClipSeconds,
       aspectRatio: params.aspectRatio,
       quality: params.quality,
@@ -219,8 +226,28 @@ async function advanceChainToClip2(
     // needs to survive until the provider grabs it at job start, not the full render time.
     const seedUrl = await signUrl(client, "generated-videos", seedPath, 900);
 
+    // The seed image alone only anchors the opening visual — pairing it with a text
+    // description of that exact frame gives the model something concrete to hold onto for
+    // the rest of the clip. Best-effort: a failed caption shouldn't fail the whole chain.
+    let frameDescription = "matches the previous scene exactly";
+    try {
+      frameDescription = await captionFrame(frameBytes);
+    } catch (captionError) {
+      logger.error("generation.chain", "frame caption failed — continuing without it");
+      await logError("generation.chain.caption", captionError, {
+        userId,
+        metadata: { generationId: generation.id },
+      });
+    }
+
     const remainingSeconds = generation.duration_seconds - providerImpl.maxClipDurationSeconds;
-    const continuationPrompt = `${generation.prompt_used}\n\nThis is a direct continuation of the previous ${providerImpl.maxClipDurationSeconds}s scene — keep the same subject, setting, and visual style, picking up the action naturally from where it left off.`;
+    const continuationPrompt =
+      scopeToSegment(
+        generation.prompt_used!,
+        providerImpl.maxClipDurationSeconds,
+        generation.duration_seconds,
+        generation.duration_seconds,
+      ) + continuationNote(providerImpl.maxClipDurationSeconds, frameDescription);
 
     const { jobId } = await providerImpl.submit({
       prompt: continuationPrompt,
