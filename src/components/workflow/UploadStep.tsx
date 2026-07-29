@@ -1,4 +1,4 @@
-import { CloudUpload, FileVideo, ImageUp, Loader2, Palette, Upload, X } from "lucide-react";
+import { CloudUpload, FileVideo, ImageUp, Link2, Loader2, Palette, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,7 @@ function SecondaryUpload({
 }
 
 export function UploadStep({ onContinue }: { onContinue: (projectId: string) => void }) {
+  const [uploadMode, setUploadMode] = useState<"file" | "link">("file");
   const [dragging, setDragging] = useState(false);
   const [competitorFile, setCompetitorFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
@@ -105,6 +106,15 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
     if (!file) return;
     setCompetitorFile(file);
     toast.success("Video added", { description: file.name });
+  };
+
+  const switchToFile = () => {
+    setUploadMode("file");
+    setVideoLink("");
+  };
+  const switchToLink = () => {
+    setUploadMode("link");
+    setCompetitorFile(null);
   };
 
   const handleSubmit = async () => {
@@ -158,6 +168,7 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       {/* Drop zone */}
       <div
         onDragOver={(e) => {
+          if (uploadMode !== "file") return;
           e.preventDefault();
           setDragging(true);
         }}
@@ -165,44 +176,97 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
+          if (uploadMode !== "file") return;
           acceptFile(e.dataTransfer.files[0]);
         }}
         className={cn(
           "relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center transition-all duration-300 sm:py-20",
-          dragging ? "border-primary bg-accent shadow-glow" : "border-border shadow-card",
+          uploadMode === "file" && dragging
+            ? "border-primary bg-accent shadow-glow"
+            : "border-border shadow-card",
         )}
       >
-        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent animate-float">
-          {competitorFile ? (
-            <FileVideo className="h-7 w-7 text-primary" />
-          ) : (
-            <CloudUpload className="h-7 w-7 text-primary" />
-          )}
+        <div className="mb-7 inline-flex rounded-xl border bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={switchToFile}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors",
+              uploadMode === "file"
+                ? "bg-card text-foreground shadow-card"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload File
+          </button>
+          <button
+            type="button"
+            onClick={switchToLink}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors",
+              uploadMode === "link"
+                ? "bg-card text-foreground shadow-card"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            Paste Link
+          </button>
         </div>
-        <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
-          {competitorFile?.name ?? "Drag & drop your competitor's ad"}
-        </h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {competitorFile
-            ? "Ready for AI analysis"
-            : "Supports MP4, MOV and WebM up to 500 MB — or paste a Video Link below instead"}
-        </p>
-        <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
-          <label>
-            <input
-              type="file"
-              accept=".mp4,.mov,.webm"
-              className="sr-only"
-              onChange={(e) => acceptFile(e.target.files?.[0])}
+
+        {uploadMode === "file" ? (
+          <>
+            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent animate-float">
+              {competitorFile ? (
+                <FileVideo className="h-7 w-7 text-primary" />
+              ) : (
+                <CloudUpload className="h-7 w-7 text-primary" />
+              )}
+            </div>
+            <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
+              {competitorFile?.name ?? "Drag & drop your competitor's ad"}
+            </h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {competitorFile ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}
+            </p>
+            <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
+              <label>
+                <input
+                  type="file"
+                  accept=".mp4,.mov,.webm"
+                  className="sr-only"
+                  onChange={(e) => acceptFile(e.target.files?.[0])}
+                />
+                <Button asChild className="btn-glow rounded-xl font-semibold">
+                  <span className="cursor-pointer">
+                    <Upload className="h-4 w-4" />
+                    Browse Files
+                  </span>
+                </Button>
+              </label>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent">
+              <Link2 className="h-7 w-7 text-primary" />
+            </div>
+            <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
+              Paste a link to your competitor's ad
+            </h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              We'll fetch the video from the URL and analyze it the same way
+            </p>
+            <Input
+              type="url"
+              placeholder="https://..."
+              className="mt-7 h-11 w-full max-w-md rounded-xl text-center"
+              value={videoLink}
+              onChange={(e) => setVideoLink(e.target.value)}
             />
-            <Button asChild className="btn-glow rounded-xl font-semibold">
-              <span className="cursor-pointer">
-                <Upload className="h-4 w-4" />
-                Browse Files
-              </span>
-            </Button>
-          </label>
-        </div>
+          </>
+        )}
 
         <div className="mt-6 grid w-full max-w-lg gap-2.5 sm:grid-cols-2">
           <SecondaryUpload
@@ -265,17 +329,6 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
               className="h-11 rounded-xl"
               value={brandColors}
               onChange={(e) => setBrandColors(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="video-link">Video Link</Label>
-            <Input
-              id="video-link"
-              type="url"
-              placeholder="https://... (instead of uploading a file above)"
-              className="h-11 rounded-xl"
-              value={videoLink}
-              onChange={(e) => setVideoLink(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">

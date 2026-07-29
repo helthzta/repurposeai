@@ -40,9 +40,9 @@ D-008 · 2026-07-29 · Found middleware.ts's page-level auth gate not firing in 
   Why: predates this session (only `/admin`'s entry was added to `PROTECTED_PATHS`; the gating logic itself is untouched); out of scope for the feature work asked today, and no data actually leaks since every `/api/*` route independently calls `requireUser()`
   Rejected: fixing it inline — needs its own investigation (dev-server quirk vs. real gap, verify against a production build) rather than a quick patch bundled into this session's diff
 
-D-009 · 2026-07-29 · "Video Link" is an alternative to uploading the competitor-ad file specifically, not a field added for product/brand ads too · ACTIVE
-  Why: the competitor ad is the only required, analyzed source video; that's the obvious target when the request didn't say which
-  Rejected: adding link inputs for product/brand ads too — those are optional and rarely need this, scope-limited to what matters
+D-009 · 2026-07-29 · "Video Link" is an alternative to uploading the competitor-ad file specifically (not product/brand ads), and lives as a mode toggle on the dropzone itself, not a Brand Information field · ACTIVE
+  Why: the competitor ad is the only required, analyzed source video — that's the obvious target when the request didn't say which. Initially placed in Brand Information, moved to the dropzone (a "Upload File" / "Paste Link" toggle, mutually exclusive) per follow-up instruction — file and link are two modes of the same input, not two separate fields
+  Rejected: adding link inputs for product/brand ads too — those are optional and rarely need this, scope-limited to what matters. Also rejected: letting both a file and a link be set at once — switching modes clears the other's state so there's exactly one source of truth for the competitor video
 
 D-010 · 2026-07-29 · Website content is fetched once at project creation and cached as `brand_profiles.website_summary` (raw truncated text), not re-scanned or summarized via a separate Gemini call · ACTIVE
   Why: keeps this a zero-extra-AI-cost feature — the existing script-writing prompts already synthesize it in context via `brandBrief()`

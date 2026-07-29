@@ -53,6 +53,14 @@ export const POST = withLogger(
 
       const buffer = Buffer.from(await fileBytes.arrayBuffer());
       const mimeType = sourceVideo.mime_type || fileBytes.type || "video/mp4";
+      if (!mimeType.startsWith("video/")) {
+        throw new ApiError(
+          400,
+          `The uploaded source isn't a video file (detected "${mimeType}"). If you used a Video ` +
+            "Link, it likely pointed to a webpage instead of the video file itself — re-upload a " +
+            "file or use a direct link ending in the video file.",
+        );
+      }
 
       const result = await analyzeVideo(buffer, mimeType);
 

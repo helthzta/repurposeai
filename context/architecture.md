@@ -44,12 +44,13 @@ and src/lib/*. Citations inline. -->
   `/api/scripts/ideas` again — that route was never cache-checking, only the
   client's initial-mount effect was, so a fresh call always produces a fresh
   set (D-010's `website_summary` context can change what comes back too).
-- The Upload step's competitor ad can come from either a file upload
-  (`/api/uploads/sign` + `/api/uploads/confirm`) or a pasted "Video Link"
-  (`/api/uploads/from-link`, D-009) — the latter fetches the URL
-  server-side and lands it in `source-videos` exactly like a file upload
-  would, so everything downstream (analysis, etc.) doesn't know the
-  difference.
+- The Upload step's dropzone (`UploadStep.tsx`) has an "Upload File" /
+  "Paste Link" toggle for the competitor ad — mutually exclusive, switching
+  modes clears the other's state. A file goes through the existing
+  `/api/uploads/sign` + `/api/uploads/confirm`; a link goes through
+  `/api/uploads/from-link` (D-009), which fetches the URL server-side and
+  lands it in `source-videos` exactly like a file upload would, so
+  everything downstream (analysis, etc.) doesn't know the difference.
 - `src/lib/supabase/{client,server,admin}.ts` — three distinct Supabase
   clients: `client.ts` (browser, anon key), `server.ts` (server components/
   route handlers, cookie-scoped session, anon key + RLS), `admin.ts`

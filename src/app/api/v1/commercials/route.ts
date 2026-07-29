@@ -57,6 +57,13 @@ export const POST = withLogger(
     if (!videoRes.ok)
       throw new ApiError(400, `Could not download source_video: ${videoRes.status}`);
     const mimeType = videoRes.headers.get("content-type") || "video/mp4";
+    if (!mimeType.startsWith("video/")) {
+      throw new ApiError(
+        400,
+        `source_video didn't return a video file (got "${mimeType}") — it must be a direct link ` +
+          "to the video file itself, not a webpage.",
+      );
+    }
     const bytes = Buffer.from(await videoRes.arrayBuffer());
 
     const storagePath = `${userId}/${project.id}/competitor-${Date.now()}.mp4`;

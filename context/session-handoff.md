@@ -12,11 +12,12 @@ limiting, admin dashboard. See prior entries in `decision-log.md`
 
 This session added a smaller 3-part goal, all shipped:
 
-1. **Video Link** — the Upload step's competitor ad can now come from a
-   pasted URL instead of a file upload. New `/api/uploads/from-link` route
-   fetches the video server-side and lands it in `source-videos` exactly
-   like a file upload would (D-009) — `handleSubmit` in `UploadStep.tsx`
-   requires either a file or a link, prioritizing the file if both are set.
+1. **Video Link** — the Upload step's dropzone now has an "Upload File" /
+   "Paste Link" toggle for the competitor ad (mutually exclusive — switching
+   modes clears the other's state, per a follow-up instruction that moved
+   this off the Brand Information card and made it a true either/or). New
+   `/api/uploads/from-link` route fetches the video server-side and lands it
+   in `source-videos` exactly like a file upload would (D-009).
 2. **Website Link** — new optional field in Brand Information. Fetched
    once at project creation (`src/lib/website.ts` → `fetchWebsiteText`,
    best-effort, stripped/truncated HTML text, never blocks or fails project

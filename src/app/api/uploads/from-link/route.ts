@@ -34,6 +34,14 @@ export const POST = withLogger(
     if (!videoRes.ok) throw new ApiError(400, `Could not download video: ${videoRes.status}`);
 
     const mimeType = videoRes.headers.get("content-type") || "video/mp4";
+    if (!mimeType.startsWith("video/")) {
+      throw new ApiError(
+        400,
+        `That link didn't return a video file (got "${mimeType}"). Paste a direct link to the ` +
+          "video file itself (e.g. ending in .mp4), not a YouTube/webpage link.",
+      );
+    }
+
     const bytes = Buffer.from(await videoRes.arrayBuffer());
     if (bytes.length > MAX_BYTES) throw new ApiError(400, "Video is larger than the 500MB limit");
 
