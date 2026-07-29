@@ -30,4 +30,5 @@ export const POST = withLogger(
 
     return NextResponse.json({ script });
   },
+  { rateLimit: { limit: 10, windowMs: 60_000 } },
 );

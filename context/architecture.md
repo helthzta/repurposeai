@@ -61,17 +61,22 @@ and src/lib/*. Citations inline. -->
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`
-  (`supabase/migrations/0001`–`0013`). `generations.chain_stage`
+  (`supabase/migrations/0001`–`0016`). `generations.chain_stage`
   (`0012_generation_chaining.sql`) tracks in-flight multi-clip chaining.
   `video_analyses` was reworked around virality in `0013` — `company_does`
   (renamed from `business_category`), `viral_factor`, `relief`, `language`,
   `video_metrics` added; `marketing_strategy`, `offer`, `cta`,
   `narrative_structure` dropped; `tone_of_voice`/`visual_style` kept
   (load-bearing for auto-tone and "Original" camera style — see
-  `decision-log.md` D-002/D-004). `brand_profiles.tone`/`cta` still exist
+  `learned-rules.md` R-007/R-009). `brand_profiles.tone`/`cta` still exist
   as columns but are no longer written by any code path — CTA/tone are
-  fully AI-derived now (D-001). **Neither `0012` nor `0013` has been
-  applied to the live project** as of this note, see `progress-tracker.md`.
+  fully AI-derived now (R-005/R-006). `0014` adds `projects.script_ideas`
+  (idea-step cache), `0015` adds `scripts.target_duration_seconds`, `0016`
+  adds `profiles.username` (unique, required at signup) and
+  `profiles.is_admin` (gates `/admin`). **Applied state of `0012`–`0016`
+  against the live project is unverified as of this note** — apply in order
+  before testing anything analysis/generation/admin-related, see
+  `progress-tracker.md`.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):
@@ -96,10 +101,25 @@ and src/lib/*. Citations inline. -->
   `src/lib/auth.ts`, for the dashboard's own calls) and Bearer API key
   (`requireApiKey`, sha256-hashed token lookup against `api_keys.key_hash`,
   for `/api/v1/*`). Every `api_keys` row's `last_used_at` is bumped on use.
-- **Roles** — none beyond the implicit owner/authenticated split; `Profile.plan`
-  (`starter`/`pro`/`enterprise`) exists as a field but no plan-gated logic was
-  found in the routes scanned — {{TODO: confirm with a human whether plan
-  should gate any feature yet}}.
+- **Roles** — `profiles.is_admin` (added `0016`) gates `/admin` and the
+  `/api/admin/*` routes via `requireAdmin()` (`src/lib/admin.ts`): it checks
+  the caller's own row through the RLS-scoped client, then hands back the
+  service-role client for the cross-user queries the dashboard needs — a
+  non-admin can never reach another user's data this way. No user starts as
+  admin; flip a row manually after applying `0016` (see the migration's
+  trailing comment). Beyond that, still just the implicit owner/authenticated
+  split; `Profile.plan` (`starter`/`pro`/`enterprise`) exists as a field but
+  no plan-gated logic was found in the routes scanned — {{TODO: confirm with
+  a human whether plan should gate any feature yet}}.
+- **Rate limiting** — every route handler goes through `withLogger()`
+  (`src/lib/logger.ts`), which now applies an in-memory, per-process fixed-
+  window limit (`src/lib/rate-limit.ts`) before the handler runs — a
+  generous IP-keyed default (120 req/min) unless the route passes a tighter
+  `{ rateLimit }` option. AI-calling or otherwise costly routes (`analyze`,
+  `scripts/ideas`, `scripts/generate`, `scripts/[id]/assist`, `generations`
+  create/regenerate, `v1/commercials`) pass tighter limits. Single-process
+  only by design (see decision-log.md D-007) — swap for a Postgres- or
+  Redis-backed store if this ever runs behind more than one server process.
 - **Ownership/scoping rule** — every table with user data (`projects` and
   everything hung off `project_id`) is scoped by Postgres RLS policies
   keyed on `auth.uid()` (e.g. `projects_all_own`,

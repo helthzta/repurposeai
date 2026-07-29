@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { requireUser } from "@/lib/auth";
+import { withLogger } from "@/lib/logger";
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const DELETE = withLogger(
+  "api-keys.revoke",
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase, user } = await requireUser();
     const { id } = await params;
 
@@ -15,8 +16,5 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     if (error) throw error;
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    await logError("api-keys.revoke", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+);

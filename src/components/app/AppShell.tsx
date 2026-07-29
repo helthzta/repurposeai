@@ -11,8 +11,8 @@ import {
   History,
   LayoutDashboard,
   Menu,
-  Plug,
   Settings,
+  ShieldCheck,
   X,
   Zap,
 } from "lucide-react";
@@ -26,16 +26,21 @@ const navItems = [
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "History", url: "/history", icon: History },
   { title: "Credits", url: "/credits", icon: CreditCard },
-  { title: "API", url: "/api", icon: Plug },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "Help", url: "/help", icon: HelpCircle },
 ] as const;
 
 function useCurrentUser() {
-  const [state, setState] = useState<{ name: string; plan: string; credits: number | null }>({
+  const [state, setState] = useState<{
+    name: string;
+    plan: string;
+    credits: number | null;
+    isAdmin: boolean;
+  }>({
     name: "",
     plan: "starter",
     credits: null,
+    isAdmin: false,
   });
 
   useEffect(() => {
@@ -44,9 +49,10 @@ function useCurrentUser() {
       .then((data) => {
         if (!data.profile) return;
         setState({
-          name: data.profile.full_name || data.email || "Account",
+          name: data.profile.full_name || data.profile.username || "Account",
           plan: data.profile.plan,
           credits: data.profile.credits_balance,
+          isAdmin: !!data.profile.is_admin,
         });
       })
       .catch(() => undefined);
@@ -57,8 +63,11 @@ function useCurrentUser() {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { name, plan } = useCurrentUser();
+  const { name, plan, isAdmin } = useCurrentUser();
   const initials = name ? name.slice(0, 2).toUpperCase() : "•";
+  const items = isAdmin
+    ? [...navItems, { title: "Admin", url: "/admin", icon: ShieldCheck }]
+    : navItems;
 
   return (
     <div className="flex h-full flex-col">
@@ -70,7 +79,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const active = pathname === item.url || pathname.startsWith(`${item.url}/`);
           return (
             <Link

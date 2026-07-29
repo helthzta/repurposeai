@@ -3,7 +3,7 @@ contestable belong here. Anything PROMOTED or SUPERSEDED gets deleted
 once the promotion/supersession is itself stable — don't let this become
 a permanent record, that's what git and archive/ are for. -->
 
-_Last updated: 2026-07-21_
+_Last updated: 2026-07-29_
 
 ## Format
 
@@ -22,18 +22,20 @@ D-001 · {{DATE}} · Use X over Y for Z · ACTIVE
   Rejected: Y — overkill for this case
 -->
 
-D-001 · 2026-07-25 · Remove manual Tone/CTA input from Upload step; both auto-derived every time · ACTIVE
-  Why: user wants zero manual config where the analyzed video already implies the answer
-  Rejected: optional override (blank = auto) — user explicitly chose full automation over flexibility
+D-001 thru D-004 (2026-07-25 session: auto tone/CTA, viral-framed analysis fields, Ideas step, Original camera style) — all shipped and stable; compacted to learned-rules.md R-006–R-009 and deleted here per the ritual.
 
-D-002 · 2026-07-25 · Fully replace `video_analyses` fields per user's viral-framing list, except keep `tone_of_voice` and `visual_style` · ACTIVE
-  Why: those two are load-bearing for D-001 (auto-tone) and D-004 (Original camera style); dropping them would silently break both
-  Rejected: literal full replace (drop everything not in the note) — note was shorthand, not exhaustive; would break existing features
+D-005 · 2026-07-29 · Removed the API-keys UI (nav item, `/api` page, Settings section) but left the backend `api_keys` table/routes and `/api/v1/commercials` untouched · ACTIVE
+  Why: "not needed" read as no longer wanting the integration surface *exposed*, not deleting the public API outright
+  Rejected: deleting the backend entirely — bigger/riskier change than asked; nothing in the UI depended on it anyway
 
-D-003 · 2026-07-25 · New Ideas step (3 short concepts → pick one → 1 full script) replaces "3 full scripts, pick one" in the dashboard UI only · ACTIVE
-  Why: user explicitly wants "mini 3" before committing to a full script — cheaper/faster iteration
-  Rejected: renaming existing 3-script flow — user confirmed they want a real new step, not just relabeling
+D-006 · 2026-07-29 · Signup now requires a username, collected in the same unified sign-in/signup form rather than a separate signup screen · ACTIVE
+  Why: matches the existing "one form, auto-fallback to signup" design instead of introducing a new UX pattern
+  Rejected: splitting into distinct sign-in/sign-up forms — bigger scope than asked; returning users just ignore the extra field
 
-D-004 · 2026-07-25 · "Original" camera style pulls the analyzed video's `visual_style` text into the video-gen prompt, default-selected · ACTIVE
-  Why: matches "like uploaded Original camera style"; visual_style was already captured and unused
-  Rejected: generic "match the original" instruction with no real data — visual_style already exists, using it is strictly better
+D-007 · 2026-07-29 · Rate limiting is in-memory, per-process (`src/lib/rate-limit.ts`, keyed by user/IP + route scope) · ACTIVE
+  Why: no Redis/DB-backed limiter infra exists yet, and the hosting target is still unresolved (architecture.md)
+  Rejected: a Postgres-backed limiter table — more correct under multi-instance hosting, but adds a migration + DB round-trip per request for what's currently a single-instance app
+
+D-008 · 2026-07-29 · Found middleware.ts's page-level auth gate not firing in local dev (bare `/dashboard`, `/projects`, `/history`, `/credits`, `/settings` all return 200 for an unauthenticated request) — not fixed, only flagged · ACTIVE
+  Why: predates this session (only `/admin`'s entry was added to `PROTECTED_PATHS`; the gating logic itself is untouched); out of scope for the feature work asked today, and no data actually leaks since every `/api/*` route independently calls `requireUser()`
+  Rejected: fixing it inline — needs its own investigation (dev-server quirk vs. real gap, verify against a production build) rather than a quick patch bundled into this session's diff

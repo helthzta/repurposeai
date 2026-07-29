@@ -1,16 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
+import { ApiError, requireUser } from "@/lib/auth";
+import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 
 // Keep in sync with the Camera Style options in GenerateStep.tsx.
 const CAMERA_STYLES = ["original", "commercial", "luxury", "cinematic", "product", "ugc"] as const;
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const start = Date.now();
-  logger.info("generations.regenerate", `POST ${req.nextUrl.pathname}`);
-  try {
+export const POST = withLogger(
+  "generations.regenerate",
+  async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase, user } = await requireUser();
     const { id } = await params;
     const { variation } = (await req.json().catch(() => ({}))) as { variation?: boolean };
@@ -44,26 +42,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ? otherStyles[Math.floor(Math.random() * otherStyles.length)]
         : previous.camera_style;
 
-    const generation = await createGeneration(supabase, user.id, script, brand, {
-      projectId: previous.project_id,
-      scriptId: previous.script_id,
-      provider: previous.provider,
-      durationSeconds: previous.duration_seconds,
-      aspectRatio: previous.aspect_ratio,
-      quality: previous.quality,
-      cameraStyle,
-    });
-
-    logger.info("generations.regenerate", `201 created (${Date.now() - start}ms)`, {
-      id: generation.id,
-    });
-    return NextResponse.json({ generation }, { status: 201 });
-  } catch (error) {
-    logger.error("generations.regenerate", `failed (${Date.now() - start}ms)`);
-    if (error instanceof Error && error.message === "insufficient_credits") {
-      return NextResponse.json({ error: "Not enough credits to regenerate" }, { status: 402 });
+    let generation;
+    try {
+      generation = await createGeneration(supabase, user.id, script, brand, {
+        projectId: previous.project_id,
+        scriptId: previous.script_id,
+        provider: previous.provider,
+        durationSeconds: previous.duration_seconds,
+        aspectRatio: previous.aspect_ratio,
+        quality: previous.quality,
+        cameraStyle,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "insufficient_credits") {
+        throw new ApiError(402, "Not enough credits to regenerate");
+      }
+      throw error;
     }
-    await logError("generations.regenerate", error);
-    return apiErrorResponse(error);
-  }
-}
+
+    return NextResponse.json({ generation }, { status: 201 });
+  },
+  { rateLimit: { limit: 10, windowMs: 60_000 } },
+);

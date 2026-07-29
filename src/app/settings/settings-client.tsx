@@ -3,7 +3,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Globe, KeyRound, Palette, User, Zap } from "lucide-react";
+import { Bell, Globe, Palette, User, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -50,14 +50,12 @@ function Section({
 export function SettingsPageClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [email, setEmail] = useState("");
 
   useEffect(() => {
     fetch("/api/profile")
       .then((res) => res.json())
       .then((data) => {
         setProfile(data.profile);
-        setEmail(data.email ?? "");
       })
       .catch(() => toast.error("Could not load settings"));
   }, []);
@@ -119,12 +117,6 @@ export function SettingsPageClient() {
           </Select>
         </Section>
 
-        <Section icon={KeyRound} title="API Keys" desc="Manage keys for the integration API">
-          <Button variant="outline" className="rounded-xl font-semibold" asChild>
-            <a href="/api">Manage</a>
-          </Button>
-        </Section>
-
         <Section
           icon={Zap}
           title="Credits"
@@ -142,7 +134,7 @@ export function SettingsPageClient() {
           />
         </Section>
 
-        <Section icon={User} title="Account" desc={email}>
+        <Section icon={User} title="Account" desc={profile?.username ? `@${profile.username}` : ""}>
           <Button
             variant="outline"
             className="rounded-xl font-semibold text-destructive hover:text-destructive"

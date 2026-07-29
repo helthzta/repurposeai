@@ -1,4 +1,4 @@
-import { CloudUpload, FileVideo, Loader2, Palette, Upload } from "lucide-react";
+import { CloudUpload, FileVideo, ImageUp, Loader2, Palette, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { SourceVideoKind } from "@/lib/types";
 
-async function uploadSourceVideo(projectId: string, kind: SourceVideoKind, file: File) {
+type UploadKind = SourceVideoKind | "logo";
+
+async function uploadSourceVideo(projectId: string, kind: UploadKind, file: File) {
   const signRes = await fetch("/api/uploads/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -67,6 +69,8 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
   const [competitorFile, setCompetitorFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
   const [brandFile, setBrandFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [brandName, setBrandName] = useState("");
@@ -74,6 +78,14 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
   const [targetAudience, setTargetAudience] = useState("");
   const [description, setDescription] = useState("");
   const [brandColors, setBrandColors] = useState("");
+
+  const handleLogoChange = (file: File | null) => {
+    setLogoFile(file);
+    setLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  };
 
   const acceptFile = (file?: File) => {
     if (!file) return;
@@ -109,6 +121,7 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       await uploadSourceVideo(project.id, "competitor", competitorFile);
       if (productFile) await uploadSourceVideo(project.id, "product", productFile);
       if (brandFile) await uploadSourceVideo(project.id, "brand", brandFile);
+      if (logoFile) await uploadSourceVideo(project.id, "logo", logoFile);
 
       onContinue(project.id);
     } catch (error) {
@@ -241,6 +254,45 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="logo">Brand Logo</Label>
+            <div className="flex items-center gap-3">
+              {logoPreview ? (
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-muted">
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="h-full w-full object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleLogoChange(null)}
+                    aria-label="Remove logo"
+                    className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-foreground/70 text-background"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="logo"
+                  className="flex h-16 w-16 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                >
+                  <ImageUp className="h-5 w-5" />
+                </label>
+              )}
+              <input
+                id="logo"
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,.svg"
+                className="sr-only"
+                onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG, WebP or SVG, up to 10MB. Used in the generated commercial's branding.
+              </p>
+            </div>
           </div>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">

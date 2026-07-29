@@ -17,6 +17,19 @@ export const POST = withLogger("uploads.confirm", async (req: NextRequest) => {
   if (!projectId || !kind || !path)
     throw new ApiError(400, "projectId, kind and path are required");
 
+  // The logo isn't a source video — it updates the project's brand profile directly.
+  if (kind === "logo") {
+    const { data: brandProfile, error } = await supabase
+      .from("brand_profiles")
+      .update({ logo_path: path })
+      .eq("project_id", projectId)
+      .select()
+      .single();
+    if (error) throw error;
+
+    return NextResponse.json({ brandProfile });
+  }
+
   const { data: sourceVideo, error } = await supabase
     .from("source_videos")
     .insert({

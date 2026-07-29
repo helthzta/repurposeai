@@ -31,7 +31,7 @@ export async function requireUser() {
   return { supabase, user };
 }
 
-/** Bearer-token auth for the public /api/v1 surface (api-client.tsx's curl example). */
+/** Bearer-token auth for the public /api/v1 surface — no UI surface anymore, but the routes still work. */
 export async function requireApiKey(request: Request) {
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Copy, Download, Layers, Loader2, Play, Trash2 } from "lucide-react";
+import { Clock, Copy, Download, Layers, Loader2, Play, Trash2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ function formatDuration(seconds: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function ProjectGrid() {
+export function ProjectGrid({ mode }: { mode: "projects" | "history" }) {
   const [projects, setProjects] = useState<ProjectWithGenerations[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -93,9 +93,12 @@ export function ProjectGrid() {
   return (
     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {projects.map((project, i) => {
-        const latest = [...(project.generations ?? [])].sort(
+        const generations = project.generations ?? [];
+        const latest = [...generations].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         )[0];
+        const href = mode === "history" ? `/dashboard/${project.id}` : `/projects/${project.id}`;
+        const tokensUsed = generations.reduce((sum, g) => sum + (g.credits_charged ?? 0), 0);
 
         return (
           <div
@@ -103,10 +106,7 @@ export function ProjectGrid() {
             className="hover-lift animate-fade-up group overflow-hidden rounded-2xl border bg-card shadow-card"
             style={{ animationDelay: `${i * 60}ms` }}
           >
-            <Link
-              href={`/dashboard/${project.id}`}
-              className="relative block aspect-video overflow-hidden bg-muted"
-            >
+            <Link href={href} className="relative block aspect-video overflow-hidden bg-muted">
               {latest?.output_url ? (
                 <video src={latest.output_url} className="h-full w-full object-cover" muted />
               ) : (
@@ -123,7 +123,7 @@ export function ProjectGrid() {
             </Link>
             <div className="p-4">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                <Link href={`/dashboard/${project.id}`} className="min-w-0 hover:underline">
+                <Link href={href} className="min-w-0 hover:underline">
                   <h3 className="truncate text-sm font-bold">{project.name}</h3>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     {new Date(project.created_at).toLocaleDateString()}
@@ -132,6 +132,13 @@ export function ProjectGrid() {
                         <span className="text-border">·</span>
                         <Layers className="h-3 w-3" />
                         {latest.provider}
+                      </>
+                    )}
+                    {mode === "history" && tokensUsed > 0 && (
+                      <>
+                        <span className="text-border">·</span>
+                        <Zap className="h-3 w-3 text-warning" />
+                        {tokensUsed} tokens
                       </>
                     )}
                   </p>

@@ -22,7 +22,7 @@ export default function ProjectsPage() {
             </Link>
           </Button>
         </div>
-        <ProjectGrid />
+        <ProjectGrid mode="projects" />
       </div>
     </AppShell>
   );

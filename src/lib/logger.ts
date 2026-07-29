@@ -19,6 +19,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logError } from "@/lib/errors";
 import { ApiError, apiErrorResponse } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 type LoggerRouteCtx<T extends object = Record<string, never>> = T;
 type RouteHandler<T extends object = Record<string, never>> = (
@@ -36,8 +37,14 @@ function colorStatus(status: number) {
   return `\x1b[31m${status}\x1b[0m`;
 }
 
+/** Baseline per-IP rate limit applied to every route unless overridden — generous enough not to bother normal usage. */
+const DEFAULT_RATE_LIMIT = { limit: 120, windowMs: 60_000 };
+
 /**
- * Wraps a Next.js route handler with structured request/response logging.
+ * Wraps a Next.js route handler with structured request/response logging and
+ * a baseline rate limit (see src/lib/rate-limit.ts). Endpoints that call
+ * external AI/video APIs should pass a tighter `rateLimit` here, or call
+ * `rateLimit()` themselves after auth to key by user id instead of IP.
  *
  * @param scope   Human-readable name used in logs and error_logs.scope ("uploads.sign")
  * @param handler The actual async handler function.
@@ -45,6 +52,7 @@ function colorStatus(status: number) {
 export function withLogger<T extends object = object>(
   scope: string,
   handler: RouteHandler<T>,
+  options?: { rateLimit?: { limit: number; windowMs: number } },
 ): RouteHandler<T> {
   return async (req: NextRequest, ctx: T) => {
     const start = Date.now();
@@ -54,6 +62,7 @@ export function withLogger<T extends object = object>(
     console.log(`\x1b[36m→\x1b[0m [${timestamp()}] [${scope}] ${method} ${pathname}`);
 
     try {
+      rateLimit(req, scope, options?.rateLimit ?? DEFAULT_RATE_LIMIT);
       const response = await handler(req, ctx);
       const elapsed = Date.now() - start;
       const status = response.status;

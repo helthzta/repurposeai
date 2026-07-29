@@ -11,7 +11,7 @@ export default function HistoryPage() {
   return (
     <AppShell title="Project History">
       <div className="mx-auto max-w-6xl">
-        <ProjectGrid />
+        <ProjectGrid mode="history" />
       </div>
     </AppShell>
   );

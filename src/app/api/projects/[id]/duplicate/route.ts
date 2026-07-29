@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { requireUser } from "@/lib/auth";
+import { withLogger } from "@/lib/logger";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const POST = withLogger(
+  "projects.duplicate",
+  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
     const { supabase, user } = await requireUser();
     const { id } = await params;
 
@@ -33,12 +34,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
         description: brand.description,
         brand_colors: brand.brand_colors,
         cta: brand.cta,
+        logo_path: brand.logo_path,
       });
     }
 
     return NextResponse.json({ project });
-  } catch (error) {
-    await logError("projects.duplicate", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+  { rateLimit: { limit: 20, windowMs: 60_000 } },
+);

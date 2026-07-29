@@ -136,6 +136,7 @@ export interface Generation {
 export interface Profile {
   id: string;
   email: string;
+  username: string;
   full_name: string | null;
   avatar_url: string | null;
   plan: "starter" | "pro" | "enterprise";
@@ -143,6 +144,7 @@ export interface Profile {
   locale: string;
   theme: "light" | "system";
   notify_on_completion: boolean;
+  is_admin: boolean;
 }
 
 export interface ApiKey {

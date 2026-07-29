@@ -58,16 +58,25 @@ project — see the confidentiality notice at the top of `project_overview.md`.
 - Multi-source upload (competitor/product/brand), brand profile capture.
 
 ### Account / admin
-- Auth: Supabase Auth, email+password (auto-fallback to signup) and Google
-  OAuth (`src/app/login`).
+- Auth: Supabase Auth, email+password+username (auto-fallback to signup) and
+  Google OAuth (`src/app/login`). Username is required at signup and is the
+  identity shown throughout the UI — email is no longer displayed anywhere.
 - Credits: signup bonus (100, via `handle_new_user` trigger) + atomic
   spend/refund ledger (`spend_credits` Postgres function).
-- Project history (`src/app/history`, `src/app/projects`).
-- API keys: create/revoke in dashboard, authenticate the public
-  `POST/GET /api/v1/commercials` integration endpoints
-  (`src/app/api/api-keys`, `src/app/api/v1/commercials`).
+- Projects section (`src/app/projects`) shows, per project, every generated
+  video with a download link — no credit/token info shown here. Project
+  History (`src/app/history`) is unchanged and additionally shows token
+  (credit) usage per project.
+- Admin dashboard (`src/app/admin`, gated by `profiles.is_admin`): overview
+  stats plus a full user list/detail view (projects, generations, credit
+  activity) via `src/app/api/admin/*`.
+- API keys / third-party integration: the UI to manage keys was removed (no
+  longer a visible feature), but the backend (`src/app/api/api-keys`,
+  `src/app/api/v1/commercials`) is untouched and still functional.
 - Error logging: every route + client error boundary logs to `error_logs`
   (`src/lib/errors.ts`).
+- Rate limiting: every API route is limited (in-memory, per-process — see
+  `architecture.md`).
 - Settings, help, credits pages.
 
 ### Not yet implemented (planned in scope doc only)

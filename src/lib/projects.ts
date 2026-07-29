@@ -1,7 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Generation, Project, Script, ScriptIdea, VideoAnalysis } from "@/lib/types";
+import type {
+  BrandProfile,
+  Generation,
+  Project,
+  Script,
+  ScriptIdea,
+  VideoAnalysis,
+} from "@/lib/types";
 
 export type ProjectDetail = Project & {
+  brand_profiles: BrandProfile | null;
   video_analyses: VideoAnalysis[];
   scripts: Script[];
   generations: Generation[];

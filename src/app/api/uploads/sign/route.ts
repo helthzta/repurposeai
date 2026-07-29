@@ -6,6 +6,7 @@ const BUCKET_BY_KIND = {
   competitor: "source-videos",
   product: "source-videos",
   brand: "source-videos",
+  logo: "brand-logos",
 } as const;
 
 export const POST = withLogger("uploads.sign", async (req: NextRequest) => {

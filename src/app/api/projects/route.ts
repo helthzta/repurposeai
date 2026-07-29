@@ -7,7 +7,7 @@ export const GET = withLogger("projects.list", async () => {
   const { data: projects, error } = await supabase
     .from("projects")
     .select(
-      "*, brand_profiles(*), generations(id, output_url, output_path, status, duration_seconds, provider, created_at)",
+      "*, brand_profiles(*), generations(id, output_url, output_path, status, duration_seconds, provider, credits_charged, created_at)",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });

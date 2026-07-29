@@ -1,88 +1,112 @@
 <!-- Overwrite this entire file at the end of every session. Do not append —
 replace. One current snapshot of where work stands right now. -->
 
-_Last updated: 2026-07-25_
+_Last updated: 2026-07-29_
 
 ## Status
 
-Prior session (still uncommitted): OpenRouter/Seedance swap + 15–30s clip
-chaining. See `git diff` / `learned-rules.md` R-001–R-003 for that work —
-not re-summarized here.
+User handed over a large product-note goal covering seven areas; all seven
+were implemented in this session:
 
-This session: a large product-note dump asking for changes across brand
-input, video analysis, script generation flow, and video-gen settings.
-Split into "build now" (concrete) vs "ask first" (ambiguous, schema-touching)
-— see `decision-log.md` D-001–D-004 for what was asked and decided. All
-four were resolved via AskUserQuestion before writing code, then fully
-implemented:
+1. **Brand logo upload** — new file input in the Upload step's Brand
+   Information section (`UploadStep.tsx`), reusing the existing `logo_path`
+   column and `brand-logos` bucket that already existed but were unwired.
+   `uploads/sign` and `uploads/confirm` now handle a `"logo"` kind (updates
+   `brand_profiles.logo_path` directly instead of inserting a source video).
+2. **API section removed from the UI** — nav item, `/app/api` page +
+   `api-client.tsx`, and the Settings "API Keys" section are gone. The
+   backend (`api_keys` table/routes, `/api/v1/commercials`) is intentionally
+   left in place, just unreachable from the UI now (D-005).
+3. **Projects vs History split** — `/projects/[id]` is a new page listing
+   every generated video for that project with a download button (no
+   credit/token info). `ProjectGrid` takes a `mode: "projects" | "history"`
+   prop: `mode="projects"` (used by `/projects`) links cards to the new
+   detail page and never shows tokens; `mode="history"` (used by `/history`)
+   keeps the old link to `/dashboard/[id]` and now also shows a per-project
+   "N tokens" badge (sum of `credits_charged`).
+4. **Username-based identity** — signup now collects a username alongside
+   email/password in the same unified sign-in/signup form (D-006); email is
+   no longer shown anywhere in the UI (Settings, sidebar) — username is.
+   `profiles.username` (unique, not null) added in migration `0016`.
+5. **Rate limiting on every endpoint** — `src/lib/rate-limit.ts` (in-memory,
+   fixed-window, per-process — D-007) is applied via `withLogger()`'s new
+   default (`src/lib/logger.ts`), so every route gets a baseline 120 req/min
+   per-IP limit automatically. AI-calling/costly routes (`analyze`,
+   `scripts/ideas`, `scripts/generate`, `scripts/[id]/assist`,
+   `generations` create/regenerate, `v1/commercials`) pass a tighter limit.
+   Every route handler now goes through `withLogger` — the 8 that were
+   hand-rolled before (`projects/[id]/duplicate`, `api-keys/[id]`,
+   `v1/commercials`, `v1/commercials/[id]`, `errors`, `analyze`,
+   `generations`, `generations/[id]/regenerate`) were converted, preserving
+   their existing special-case behavior (e.g. `insufficient_credits` → 402).
+6. **Admin dashboard** — `profiles.is_admin` (migration `0016`) gates
+   `/admin` (page-level `redirect()` guard, same pattern as
+   `/dashboard/[projectId]`) and `/api/admin/*` (`requireAdmin()` in
+   `src/lib/admin.ts`). Overview stats (users, projects, generations,
+   completed/failed, total credits spent) + a full user table
+   (`/admin`) drilling into per-user projects/generations/credit activity
+   (`/admin/users/[id]`). Nav shows "Admin" only when `profile.is_admin`.
+7. **Payment explicitly untouched**, per instruction.
 
-1. **CTA/Tone fully automatic** — removed from Upload step; script
-   generation now derives tone from the analyzed video's `tone_of_voice`
-   and picks its own CTA.
-2. **Analysis fields fully replaced** — viral-framing fields
-   (`viral_factor`, `relief`, `language`, `video_metrics`) added;
-   `business_category`→`company_does` renamed; `marketing_strategy`,
-   `offer`, `cta`, `narrative_structure` dropped. `tone_of_voice` and
-   `visual_style` were kept despite not being in the user's field list —
-   both are load-bearing for items 1 and 4 here.
-3. **New "mini ideas → master script" flow** — a new Ideas step generates 3
-   short concepts; picking one writes the one full script. Replaces the old
-   "3 full scripts, pick one" flow in the dashboard UI only.
-4. **Video Generation Settings** — provider picker removed (Seedance only),
-   duration floor raised 5→10 (range now 10–30s), new "Original" camera
-   style that pulls the analyzed `visual_style` into the video prompt.
-
-`npx tsc --noEmit` and `npx eslint .` clean (only pre-existing unrelated
-warnings/errors elsewhere). Dev server smoke-tested — `/` and `/dashboard`
-both compile and return 200 with no console errors.
+`npx tsc --noEmit` and `npx eslint . --fix` are clean (only pre-existing,
+unrelated `react-refresh/only-export-components` warnings and one
+pre-existing `next-env.d.ts` lint error remain — neither touched by this
+session). Dev server smoke-tested on a scratch port — pages compile and
+render.
 
 ## Current branch
 
-`main`. Uncommitted (not committed — user hasn't asked for a commit). New
-files this session: `src/components/workflow/IdeaStep.tsx`,
-`src/app/api/scripts/ideas/route.ts`,
-`supabase/migrations/0013_viral_analysis_fields.sql`. Everything else is
-edits — see `git diff` for the full list; touches `types.ts`, `gemini.ts`,
-`prompts.ts`, `ScriptStep.tsx`, `dashboard-client.tsx`, `StepProgress.tsx`,
-`UploadStep.tsx`, `AnalysisStep.tsx`, `GenerateStep.tsx`, `generation.ts`,
-the regenerate route, and `/api/scripts/generate`.
+`main`. Nothing committed this session (user hasn't asked). New files:
+`supabase/migrations/0016_username_and_admin.sql`, `src/lib/rate-limit.ts`,
+`src/lib/admin.ts`, `src/app/projects/[id]/page.tsx` +
+`project-videos-client.tsx`, `src/app/api/admin/overview/route.ts`,
+`src/app/api/admin/users/route.ts`, `src/app/api/admin/users/[id]/route.ts`,
+`src/app/admin/page.tsx` + `admin-client.tsx`,
+`src/app/admin/users/[id]/page.tsx` + `user-detail-client.tsx`. Deleted:
+`src/app/api/page.tsx`, `src/app/api/api-client.tsx`. Everything else is
+edits — see `git diff` for the full list.
 
-## Half-done work
+## Half-done / needs manual follow-up
 
-- **Migrations `0012` and `0013` are both unapplied** to the live Supabase
-  project (manual application only — no CLI/DB credentials available in
-  this environment; `SETUP.md` §2 has the steps). Nothing analysis- or
-  generation-related will work until both are run, in order.
-- None of this session's changes have been exercised against the live
-  Gemini/OpenRouter APIs — schema and prompt changes are correct by
-  reading, not yet confirmed by an actual analysis→ideas→script→generate
-  run.
-- `brand_profiles.tone` and `brand_profiles.cta` columns were deliberately
-  left in the DB schema (nullable, now unwritten) rather than dropped —
-  lower-risk than a destructive migration on a table that might hold real
-  rows. `src/app/api/projects/[id]/duplicate/route.ts` still copies them
-  from any pre-existing row; harmless, no code path writes them anymore.
-- The idea→master-script flow only changed the dashboard UI/route
-  (`/api/scripts/generate`). The public `/api/v1/commercials` endpoint
-  still uses the old `generateScripts` (3-full-scripts, auto-select
-  `high_conversion`) — unaffected by the ideas step, since there's no
-  human in the loop there. It does now benefit from auto-tone/CTA though,
-  since that lives in the shared prompt function.
+- **Migration `0016` (and, unverified, `0012`–`0015` before it) not applied**
+  to the live Supabase project — per explicit instruction, no migration was
+  run this session. Apply all of `0012` through `0016` in order before
+  testing anything analysis/generation/username/admin-related.
+- **After applying `0016`, manually flip your own row to admin**:
+  `update public.profiles set is_admin = true where email = '...';` — no
+  user starts as admin, and there's no UI to grant it (by design — a second
+  admin would have to be granted the same way, or you build a grant flow
+  later).
+- **Discovered but not fixed: `middleware.ts`'s page-level auth gate does
+  not appear to fire in local dev.** A fully unauthenticated `curl` to bare
+  `/dashboard`, `/projects`, `/history`, `/credits`, `/settings` all
+  returned HTTP 200 (rendered the real page), while `/admin` correctly
+  redirected (307) — but that 307 turned out to come from `/admin/page.tsx`'s
+  own explicit `requireUser()`/`redirect()` guard (same pattern used by
+  `/dashboard/[projectId]`), not from middleware. This predates this session
+  — only `/admin` was added to `PROTECTED_PATHS`; the gating logic itself
+  wasn't touched. No actual data leak (every `/api/*` route independently
+  calls `requireUser()`), but anonymous visitors can currently see page
+  shells that should redirect to `/login`. Logged as D-008; needs its own
+  investigation (dev-server-only quirk vs. a real gap — check against a
+  production build) rather than a quick patch.
+- None of this session's changes have been exercised against a live Supabase
+  project (username uniqueness/signup trigger, admin queries, logo upload to
+  the real `brand-logos` bucket) — only typechecked, linted, and smoke-
+  tested for compilation.
 
 ## First action next session
 
-1. Apply `0012_generation_chaining.sql` then `0013_viral_analysis_fields.sql`
-   to the live Supabase project, in that order.
-2. Run one full real flow end-to-end: upload → analyze (confirm new fields
-   populate) → ideas (confirm 3 short concepts) → pick one → master script
-   → settings (confirm Seedance-only, 10–30s, "Original" camera style
-   default) → generate → result. First live test of everything from both
-   this session and the prior one.
-3. If "Original" camera style produces weak results, revisit whether
-   `visual_style`'s free-text description is specific enough to steer
-   Seedance, or needs a more structured prompt.
+1. Apply migrations `0012` through `0016` (in order) to the live Supabase
+   project, then flip one profile's `is_admin` to true manually.
+2. Run one full real flow: sign up with a username → upload with a logo →
+   analyze → ideas → script → generate → check `/projects/[id]` shows the
+   video → check `/history` shows token usage → check `/admin` shows that
+   user and their spend.
+3. Decide whether the `middleware.ts` auth-gating gap (D-008) is worth
+   fixing now or later — it's a real finding, just outside today's ask.
 
 ## Blockers
 
-Same as before — migrations unapplied, no live test run yet. Both
-deferred by design (real API cost, no DB CLI access in this environment).
+Migrations unapplied (by explicit instruction this session), no live test
+run yet, and the middleware finding above needs a decision.

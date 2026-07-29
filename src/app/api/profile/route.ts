@@ -1,8 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { apiErrorResponse, requireUser } from "@/lib/auth";
+import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 
-const EDITABLE_FIELDS = ["full_name", "theme", "locale", "notify_on_completion"] as const;
+const EDITABLE_FIELDS = [
+  "full_name",
+  "username",
+  "theme",
+  "locale",
+  "notify_on_completion",
+] as const;
 
 export const GET = withLogger("profile.get", async () => {
   const { supabase, user } = await requireUser();
@@ -31,7 +37,10 @@ export const PATCH = withLogger("profile.update", async (req: NextRequest) => {
     .eq("id", user.id)
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23505") throw new ApiError(409, "That username is already taken");
+    throw error;
+  }
 
   return NextResponse.json({ profile });
 });

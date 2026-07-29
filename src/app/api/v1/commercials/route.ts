@@ -1,20 +1,21 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { analyzeVideo, generateScripts } from "@/lib/ai/gemini";
-import { ApiError, apiErrorResponse, requireApiKey } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { ApiError, requireApiKey } from "@/lib/auth";
+import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
 
 /**
- * Public integration endpoint matching the curl example in the API-keys page
- * (src/app/api/api-client.tsx): POST /api/v1/commercials { source_video, brand, length, aspect_ratio, provider }.
+ * Public integration endpoint: POST /api/v1/commercials
+ * { source_video, brand, length, aspect_ratio, provider }.
  *
  * ponytail: this runs the whole analyze -> script -> generate pipeline synchronously
  * in one request. Fine for an MVP; move to a background queue if callers hit
  * request timeouts on longer videos.
  */
-export async function POST(request: Request) {
-  try {
+export const POST = withLogger(
+  "v1.commercials.create",
+  async (request: NextRequest) => {
     const { admin, userId } = await requireApiKey(request);
     const body = await request.json();
     const {
@@ -117,25 +118,25 @@ export async function POST(request: Request) {
     await admin.from("scripts").update({ is_selected: true }).eq("id", selected.id);
     await admin.from("projects").update({ status: "scripted" }).eq("id", project.id);
 
-    const generation = await createGeneration(admin, userId, selected, brandProfile, {
-      projectId: project.id,
-      scriptId: selected.id,
-      provider,
-      durationSeconds: length,
-      aspectRatio,
-      quality: "high",
-      cameraStyle: "commercial",
-    });
+    let generation;
+    try {
+      generation = await createGeneration(admin, userId, selected, brandProfile, {
+        projectId: project.id,
+        scriptId: selected.id,
+        provider,
+        durationSeconds: length,
+        aspectRatio,
+        quality: "high",
+        cameraStyle: "commercial",
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "insufficient_credits") {
+        throw new ApiError(402, "Not enough credits for this generation");
+      }
+      throw error;
+    }
 
     return NextResponse.json({ id: generation.id, status: generation.status });
-  } catch (error) {
-    if (error instanceof Error && error.message === "insufficient_credits") {
-      return NextResponse.json(
-        { error: "Not enough credits for this generation" },
-        { status: 402 },
-      );
-    }
-    await logError("v1.commercials.create", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+  { rateLimit: { limit: 5, windowMs: 60_000 } },
+);

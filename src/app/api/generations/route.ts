@@ -1,14 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
-import { logError } from "@/lib/errors";
-import { logger } from "@/lib/logger";
+import { ApiError, requireUser } from "@/lib/auth";
+import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
 
-export async function POST(req: NextRequest) {
-  const start = Date.now();
-  logger.info("generations.create", `POST ${req.nextUrl.pathname}`);
-  try {
+export const POST = withLogger(
+  "generations.create",
+  async (req: NextRequest) => {
     const { supabase, user } = await requireUser();
     const body = await req.json();
     const { projectId, scriptId, provider, aspectRatio, quality, cameraStyle } = body as {
@@ -48,29 +46,25 @@ export async function POST(req: NextRequest) {
       .single();
     if (brandError) throw brandError;
 
-    const generation = await createGeneration(supabase, user.id, script, brand, {
-      projectId,
-      scriptId,
-      provider,
-      durationSeconds,
-      aspectRatio,
-      quality,
-      cameraStyle,
-    });
-
-    logger.info("generations.create", `201 created (${Date.now() - start}ms)`, {
-      id: generation.id,
-    });
-    return NextResponse.json({ generation }, { status: 201 });
-  } catch (error) {
-    logger.error("generations.create", `failed (${Date.now() - start}ms)`);
-    if (error instanceof Error && error.message === "insufficient_credits") {
-      return NextResponse.json(
-        { error: "Not enough credits for this generation" },
-        { status: 402 },
-      );
+    let generation;
+    try {
+      generation = await createGeneration(supabase, user.id, script, brand, {
+        projectId,
+        scriptId,
+        provider,
+        durationSeconds,
+        aspectRatio,
+        quality,
+        cameraStyle,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "insufficient_credits") {
+        throw new ApiError(402, "Not enough credits for this generation");
+      }
+      throw error;
     }
-    await logError("generations.create", error);
-    return apiErrorResponse(error);
-  }
-}
+
+    return NextResponse.json({ generation }, { status: 201 });
+  },
+  { rateLimit: { limit: 10, windowMs: 60_000 } },
+);

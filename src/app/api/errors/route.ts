@@ -1,11 +1,14 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 /** Best-effort client-side error reporting (see src/app/error.tsx). Never fails the caller. */
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
+    rateLimit(req, "errors.client", { limit: 30, windowMs: 60_000 });
+
     const body = await req.json();
     const supabase = await createClient();
     const {

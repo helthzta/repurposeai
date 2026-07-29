@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
-import { ApiError, apiErrorResponse, requireApiKey } from "@/lib/auth";
-import { logError } from "@/lib/errors";
+import { type NextRequest, NextResponse } from "next/server";
+import { ApiError, requireApiKey } from "@/lib/auth";
+import { withLogger } from "@/lib/logger";
 import { pollAndFinalize } from "@/lib/generation";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
+export const GET = withLogger(
+  "v1.commercials.get",
+  async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { admin, userId } = await requireApiKey(request);
     const { id } = await params;
 
@@ -40,8 +41,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ai_insights: finalized.ai_insights,
       error_message: finalized.error_message,
     });
-  } catch (error) {
-    await logError("v1.commercials.get", error);
-    return apiErrorResponse(error);
-  }
-}
+  },
+  { rateLimit: { limit: 60, windowMs: 60_000 } },
+);

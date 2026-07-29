@@ -59,6 +59,7 @@ export function LoginPageClient() {
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email"));
     const password = String(form.get("password"));
+    const username = String(form.get("username") ?? "").trim();
 
     const supabase = createClient();
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -73,14 +74,22 @@ export function LoginPageClient() {
         return;
       }
 
+      if (!username) {
+        toast.error("Choose a username to create your account");
+        setLoading(false);
+        return;
+      }
+
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: { data: { username } },
       });
       if (signUpError) {
-        toast.error("Couldn't sign in", {
-          description: signUpError.message ?? signInError.message,
-        });
+        const description = signUpError.message.includes("profiles_username_key")
+          ? "That username is already taken — try another."
+          : (signUpError.message ?? signInError.message);
+        toast.error("Couldn't sign in", { description });
         setLoading(false);
         return;
       }
@@ -148,6 +157,20 @@ export function LoginPageClient() {
           </div>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-1.5">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                placeholder="janedoe"
+                className="h-11 rounded-xl"
+              />
+              <p className="text-xs text-muted-foreground">
+                Only needed the first time, to create your account.
+              </p>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
