@@ -35,6 +35,8 @@ export const POST = withLogger(
         brand_colors: brand.brand_colors,
         cta: brand.cta,
         logo_path: brand.logo_path,
+        website_url: brand.website_url,
+        website_summary: brand.website_summary,
       });
     }
 

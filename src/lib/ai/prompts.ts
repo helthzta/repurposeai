@@ -7,10 +7,13 @@ platitudes. "viral_factor" should be your single best explanation of the core re
 
 /** Shared brand-context block — used by every script-writing prompt below. */
 function brandBrief(brand: BrandProfile) {
+  const website = brand.website_summary
+    ? `\n- Brand website content (scanned from ${brand.website_url}):\n${brand.website_summary}`
+    : "";
   return `- Brand: ${brand.brand_name ?? "Unnamed brand"}
 - Product/Service: ${brand.product_service ?? "n/a"}
 - Target audience: ${brand.target_audience ?? "n/a"}
-- Brand description: ${brand.description ?? "n/a"}`;
+- Brand description: ${brand.description ?? "n/a"}${website}`;
 }
 
 /** Tone is never asked of the user — it's carried over from what the analyzed video actually did. */

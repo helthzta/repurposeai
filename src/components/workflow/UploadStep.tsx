@@ -41,6 +41,18 @@ async function uploadSourceVideo(projectId: string, kind: UploadKind, file: File
   if (!confirmRes.ok) throw new Error("Could not save the uploaded video");
 }
 
+async function uploadVideoFromLink(projectId: string, kind: SourceVideoKind, url: string) {
+  const res = await fetch("/api/uploads/from-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projectId, kind, url }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Could not fetch the video from that link");
+  }
+}
+
 function SecondaryUpload({
   label,
   file,
@@ -78,6 +90,8 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
   const [targetAudience, setTargetAudience] = useState("");
   const [description, setDescription] = useState("");
   const [brandColors, setBrandColors] = useState("");
+  const [videoLink, setVideoLink] = useState("");
+  const [websiteLink, setWebsiteLink] = useState("");
 
   const handleLogoChange = (file: File | null) => {
     setLogoFile(file);
@@ -94,8 +108,9 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
   };
 
   const handleSubmit = async () => {
-    if (!competitorFile) {
-      toast.error("Add your competitor's ad first");
+    const trimmedVideoLink = videoLink.trim();
+    if (!competitorFile && !trimmedVideoLink) {
+      toast.error("Add your competitor's ad — upload a file or paste a video link");
       return;
     }
 
@@ -109,6 +124,7 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
           productService,
           targetAudience,
           description,
+          websiteUrl: websiteLink.trim() || undefined,
           brandColors: brandColors
             .split(",")
             .map((c) => c.trim())
@@ -118,7 +134,11 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       if (!res.ok) throw new Error("Could not create the project");
       const { project } = await res.json();
 
-      await uploadSourceVideo(project.id, "competitor", competitorFile);
+      if (competitorFile) {
+        await uploadSourceVideo(project.id, "competitor", competitorFile);
+      } else {
+        await uploadVideoFromLink(project.id, "competitor", trimmedVideoLink);
+      }
       if (productFile) await uploadSourceVideo(project.id, "product", productFile);
       if (brandFile) await uploadSourceVideo(project.id, "brand", brandFile);
       if (logoFile) await uploadSourceVideo(project.id, "logo", logoFile);
@@ -163,7 +183,9 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
           {competitorFile?.name ?? "Drag & drop your competitor's ad"}
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          {competitorFile ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}
+          {competitorFile
+            ? "Ready for AI analysis"
+            : "Supports MP4, MOV and WebM up to 500 MB — or paste a Video Link below instead"}
         </p>
         <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
           <label>
@@ -244,6 +266,31 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
               value={brandColors}
               onChange={(e) => setBrandColors(e.target.value)}
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="video-link">Video Link</Label>
+            <Input
+              id="video-link"
+              type="url"
+              placeholder="https://... (instead of uploading a file above)"
+              className="h-11 rounded-xl"
+              value={videoLink}
+              onChange={(e) => setVideoLink(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="website-link">Website Link</Label>
+            <Input
+              id="website-link"
+              type="url"
+              placeholder="https://yourbrand.com"
+              className="h-11 rounded-xl"
+              value={websiteLink}
+              onChange={(e) => setWebsiteLink(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              We'll scan this for brand details to ground the scripts in.
+            </p>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="description">Brand Description</Label>

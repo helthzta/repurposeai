@@ -3,7 +3,7 @@ contestable belong here. Anything PROMOTED or SUPERSEDED gets deleted
 once the promotion/supersession is itself stable — don't let this become
 a permanent record, that's what git and archive/ are for. -->
 
-_Last updated: 2026-07-29_
+_Last updated: 2026-07-29 (later session)_
 
 ## Format
 
@@ -39,3 +39,11 @@ D-007 · 2026-07-29 · Rate limiting is in-memory, per-process (`src/lib/rate-li
 D-008 · 2026-07-29 · Found middleware.ts's page-level auth gate not firing in local dev (bare `/dashboard`, `/projects`, `/history`, `/credits`, `/settings` all return 200 for an unauthenticated request) — not fixed, only flagged · ACTIVE
   Why: predates this session (only `/admin`'s entry was added to `PROTECTED_PATHS`; the gating logic itself is untouched); out of scope for the feature work asked today, and no data actually leaks since every `/api/*` route independently calls `requireUser()`
   Rejected: fixing it inline — needs its own investigation (dev-server quirk vs. real gap, verify against a production build) rather than a quick patch bundled into this session's diff
+
+D-009 · 2026-07-29 · "Video Link" is an alternative to uploading the competitor-ad file specifically, not a field added for product/brand ads too · ACTIVE
+  Why: the competitor ad is the only required, analyzed source video; that's the obvious target when the request didn't say which
+  Rejected: adding link inputs for product/brand ads too — those are optional and rarely need this, scope-limited to what matters
+
+D-010 · 2026-07-29 · Website content is fetched once at project creation and cached as `brand_profiles.website_summary` (raw truncated text), not re-scanned or summarized via a separate Gemini call · ACTIVE
+  Why: keeps this a zero-extra-AI-cost feature — the existing script-writing prompts already synthesize it in context via `brandBrief()`
+  Rejected: a dedicated "summarize this website" Gemini call — extra cost/latency for marginal gain over raw text within a 4000-char budget

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2, Megaphone, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Megaphone, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,35 +27,50 @@ export function IdeaStep({
 }) {
   const [ideas, setIdeas] = useState<ScriptIdea[]>(initialIdeas ?? []);
   const [loading, setLoading] = useState(!initialIdeas?.length);
+  const [regenerating, setRegenerating] = useState(false);
   const [writing, setWriting] = useState<number | null>(null);
   const started = useRef(false);
+
+  const generateIdeas = async () => {
+    const res = await fetch("/api/scripts/ideas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Idea generation failed");
+    setIdeas(data.ideas);
+    onIdeasReady(data.ideas);
+  };
 
   useEffect(() => {
     if (initialIdeas?.length) return; // already cached — resuming here or navigating back, don't regenerate
     if (started.current) return;
     started.current = true;
 
-    (async () => {
-      try {
-        const res = await fetch("/api/scripts/ideas", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Idea generation failed");
-        setIdeas(data.ideas);
-        onIdeasReady(data.ideas);
-      } catch (err) {
+    generateIdeas()
+      .catch((err) => {
         toast.error("Couldn't generate ideas", {
           description: err instanceof Error ? err.message : undefined,
         });
-      } finally {
-        setLoading(false);
-      }
-    })();
+      })
+      .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    try {
+      await generateIdeas();
+      toast.success("New ideas ready");
+    } catch (err) {
+      toast.error("Couldn't regenerate ideas", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const chooseIdea = async (idea: ScriptIdea, index: number) => {
     setWriting(index);
@@ -93,9 +108,23 @@ export function IdeaStep({
         <p className="mt-1.5 text-sm text-muted-foreground">
           Three quick concepts — pick one to write the full script.
         </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4 rounded-lg text-xs"
+          onClick={handleRegenerate}
+          disabled={regenerating || writing !== null}
+        >
+          {regenerating ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          Don&apos;t like these? Regenerate
+        </Button>
       </div>
 
-      <div className="mt-8 grid gap-5 lg:grid-cols-3">
+      <div className={cn("mt-8 grid gap-5 lg:grid-cols-3", regenerating && "opacity-50")}>
         {ideas.map((idea, i) => (
           <div
             key={i}

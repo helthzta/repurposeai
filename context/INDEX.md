@@ -18,7 +18,8 @@ One line per file: what it owns, when to read it, when it was last true.
 ## Active decision areas (keeps decision-log.md from being read every session)
 
 - API surface (D-005), auth/signup (D-006), rate limiting (D-007), page-level
-  auth gating (D-008) — see `decision-log.md`.
+  auth gating (D-008), video-link scope (D-009), website-scan approach
+  (D-010) — see `decision-log.md`.
 
 ## Compaction thresholds
 

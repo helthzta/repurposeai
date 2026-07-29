@@ -26,6 +26,8 @@ export interface BrandProfile {
   brand_colors: string[] | null;
   cta: string | null;
   logo_path: string | null;
+  website_url: string | null;
+  website_summary: string | null;
 }
 
 export type SourceVideoKind = "competitor" | "product" | "brand";

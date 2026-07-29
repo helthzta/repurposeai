@@ -40,6 +40,16 @@ and src/lib/*. Citations inline. -->
   full script for whichever concept was picked — `/api/scripts/generate`).
   `generateScripts` (3 full scripts at once) is kept only for the
   synchronous public v1 API, which has no human in the loop to pick an idea.
+  `IdeaStep.tsx` has a Regenerate action that just calls
+  `/api/scripts/ideas` again — that route was never cache-checking, only the
+  client's initial-mount effect was, so a fresh call always produces a fresh
+  set (D-010's `website_summary` context can change what comes back too).
+- The Upload step's competitor ad can come from either a file upload
+  (`/api/uploads/sign` + `/api/uploads/confirm`) or a pasted "Video Link"
+  (`/api/uploads/from-link`, D-009) — the latter fetches the URL
+  server-side and lands it in `source-videos` exactly like a file upload
+  would, so everything downstream (analysis, etc.) doesn't know the
+  difference.
 - `src/lib/supabase/{client,server,admin}.ts` — three distinct Supabase
   clients: `client.ts` (browser, anon key), `server.ts` (server components/
   route handlers, cookie-scoped session, anon key + RLS), `admin.ts`
@@ -61,7 +71,7 @@ and src/lib/*. Citations inline. -->
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`
-  (`supabase/migrations/0001`–`0016`). `generations.chain_stage`
+  (`supabase/migrations/0001`–`0017`). `generations.chain_stage`
   (`0012_generation_chaining.sql`) tracks in-flight multi-clip chaining.
   `video_analyses` was reworked around virality in `0013` — `company_does`
   (renamed from `business_category`), `viral_factor`, `relief`, `language`,
@@ -73,9 +83,13 @@ and src/lib/*. Citations inline. -->
   fully AI-derived now (R-005/R-006). `0014` adds `projects.script_ideas`
   (idea-step cache), `0015` adds `scripts.target_duration_seconds`, `0016`
   adds `profiles.username` (unique, required at signup) and
-  `profiles.is_admin` (gates `/admin`). **Applied state of `0012`–`0016`
-  against the live project is unverified as of this note** — apply in order
-  before testing anything analysis/generation/admin-related, see
+  `profiles.is_admin` (gates `/admin`). `0017` adds
+  `brand_profiles.website_url`/`website_summary` — a brand's website is
+  fetched once at project creation (`src/lib/website.ts`, best-effort, never
+  blocks/fails project creation) and fed into every script-writing prompt via
+  `brandBrief()` in `prompts.ts`. **Applied state of `0012`–`0017` against
+  the live project is unverified as of this note** — apply in order before
+  testing anything analysis/generation/admin/website-related, see
   `progress-tracker.md`.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the

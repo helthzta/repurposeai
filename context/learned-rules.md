@@ -4,7 +4,7 @@ story. One line each: constraint + why, in under ~20 words if possible.
 No status field needed here — if it's here, it's active. If it stops being
 true, delete it or move it to archive with a note of what replaced it. -->
 
-_Last updated: 2026-07-29_
+_Last updated: 2026-07-29 (later session)_
 
 ## Rules learned so far
 
@@ -23,3 +23,5 @@ R-009 · "Original" camera style passes the analyzed `visual_style` text directl
 R-010 · `withLogger()` applies a baseline per-IP rate limit to every route by default; pass a tighter `{ rateLimit }` option for AI-calling/costly endpoints · keeps rate limiting enforceable in one place instead of per-file.
 R-011 · Admin cross-user queries must go through `requireAdmin()` (checks the caller's own `is_admin` via the RLS-scoped client, only then hands back the service-role client) · never let a non-admin session query other users' rows directly.
 R-012 · "Credits spent" in the admin dashboard sums `generations.credits_charged` for `completed` generations only, not `credit_transactions` net of refunds · simple and accurate for completed jobs; revisit if precise net-spend accounting matters later.
+R-013 · Website scanning (`fetchWebsiteText`) is best-effort and non-blocking — never throws, returns `null` on any failure · a dead/slow brand site must never block project creation.
+R-014 · Video-link ingestion (`/api/uploads/from-link`) uploads via the RLS-scoped session client, not the admin client · the path is under the user's own prefix, same ownership model as a normal file upload — no need for service-role here.

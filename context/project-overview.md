@@ -30,9 +30,11 @@ project — see the confidentiality notice at the top of `project_overview.md`.
 (`project_overview.md` Steps 1–6; implemented in
 `src/components/workflow/*` + `src/app/api/*`)
 
-1. **Upload** — competitor ad + product ad + brand ad (MP4/MOV/WebM) plus
-   brand profile fields (name, product/service, audience, tone, colors, CTA,
-   logo).
+1. **Upload** — competitor ad + product ad + brand ad (MP4/MOV/WebM, or a
+   pasted Video Link in place of the competitor file) plus brand profile
+   fields (name, product/service, audience, tone, colors, CTA, logo, and an
+   optional Website Link that's scanned server-side and fed into every
+   script-writing prompt as brand context).
 2. **Analyze** — Gemini extracts company/brand, business category, video
    duration, hook, audience, pain point, context, emotional trigger, hero,
    marketing strategy, offer, CTA, narrative structure, tone of voice, and
