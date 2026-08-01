@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { apiErrorResponse, requireUser } from "@/lib/auth";
+import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
-import { fetchWebsiteText } from "@/lib/website";
 
 export const GET = withLogger("projects.list", async () => {
   const { supabase, user } = await requireUser();
@@ -17,39 +16,31 @@ export const GET = withLogger("projects.list", async () => {
   return NextResponse.json({ projects });
 });
 
+/** Brand details now live on a reusable brand_profiles row (see /api/brand-profiles) — a project just picks one. */
 export const POST = withLogger("projects.create", async (req: NextRequest) => {
   const { supabase, user } = await requireUser();
   const body = await req.json();
-
-  const name = body.brandName?.trim() || "Untitled commercial";
-
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .insert({ user_id: user.id, name })
-    .select()
-    .single();
-  if (projectError) throw projectError;
-
-  const websiteUrl: string | undefined = body.websiteUrl?.trim() || undefined;
-  // Best-effort — a dead/slow site never fails project creation, it just leaves
-  // website_summary null and script prompts fall back to the other brand fields.
-  const websiteSummary = websiteUrl ? await fetchWebsiteText(websiteUrl) : null;
+  const brandProfileId: string | undefined = body.brandProfileId;
+  if (!brandProfileId) throw new ApiError(400, "brandProfileId is required");
 
   const { data: brandProfile, error: brandError } = await supabase
     .from("brand_profiles")
+    .select("*")
+    .eq("id", brandProfileId)
+    .eq("user_id", user.id)
+    .single();
+  if (brandError) throw new ApiError(404, "Brand profile not found");
+
+  const { data: project, error: projectError } = await supabase
+    .from("projects")
     .insert({
-      project_id: project.id,
-      brand_name: body.brandName ?? null,
-      product_service: body.productService ?? null,
-      target_audience: body.targetAudience ?? null,
-      description: body.description ?? null,
-      brand_colors: body.brandColors ?? null,
-      website_url: websiteUrl ?? null,
-      website_summary: websiteSummary,
+      user_id: user.id,
+      name: brandProfile.brand_name?.trim() || "Untitled commercial",
+      brand_profile_id: brandProfileId,
     })
     .select()
     .single();
-  if (brandError) throw brandError;
+  if (projectError) throw projectError;
 
   return NextResponse.json({ project, brandProfile }, { status: 201 });
 });

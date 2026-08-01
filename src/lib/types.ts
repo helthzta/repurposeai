@@ -9,15 +9,21 @@ export interface Project {
   user_id: string;
   name: string;
   status: ProjectStatus;
+  /** Which of the user's reusable brand profiles this project generates for. */
+  brand_profile_id: string | null;
   /** Cached output of the Ideas step, so navigating back to it doesn't regenerate different ideas. */
   script_ideas: ScriptIdea[] | null;
   created_at: string;
   updated_at: string;
 }
 
+/** Reusable, user-owned brand info — a user can have several, picked per project instead of re-entered each time. */
 export interface BrandProfile {
   id: string;
-  project_id: string;
+  user_id: string;
+  /** User-facing name for this profile, e.g. "Brand A" — distinct from brand_name, which is the actual brand's name. */
+  label: string;
+  is_default: boolean;
   brand_name: string | null;
   product_service: string | null;
   target_audience: string | null;
@@ -28,6 +34,8 @@ export interface BrandProfile {
   logo_path: string | null;
   website_url: string | null;
   website_summary: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type SourceVideoKind = "competitor" | "product" | "brand";
@@ -122,10 +130,6 @@ export interface Generation {
   status: GenerationStatus;
   prompt_used: string | null;
   provider_job_id: string | null;
-  /** Set while a >maxClipDurationSeconds request is being rendered as chained clips; null for a normal single-call generation. */
-  chain_stage: "clip1" | "clip2" | null;
-  /** clip1's provider_job_id, kept once provider_job_id is overwritten by clip2's — needed to re-fetch clip1 for the final stitch. */
-  chain_clip1_job_id: string | null;
   output_path: string | null;
   output_url: string | null;
   ai_insights: AiInsights | null;

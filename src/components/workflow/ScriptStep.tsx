@@ -13,7 +13,7 @@ export function ScriptStep({
   onBack,
   onContinue,
 }: {
-  /** The two duration variants (15s/30s) written for the picked idea. */
+  /** Only a 15s variant is written for now — see the disabled 30s "Coming Soon" button below. */
   scripts: Script[];
   onBack: () => void;
   onContinue: (script: Script) => void;
@@ -44,28 +44,36 @@ export function ScriptStep({
 
   return (
     <div className="animate-fade-up space-y-6">
-      {scripts.length > 1 && (
-        <div className="flex justify-center gap-2">
-          {scripts.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => pick(s)}
-              disabled={switching}
-              className={cn(
-                "rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200",
-                s.id === active.id
-                  ? "border-primary bg-accent text-accent-foreground shadow-glow"
-                  : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-              )}
-            >
-              {switching && s.id !== active.id ? (
-                <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
-              ) : null}
-              {s.target_duration_seconds ?? "?"}s version
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex justify-center gap-2">
+        {scripts.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => pick(s)}
+            disabled={switching}
+            className={cn(
+              "rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-200",
+              s.id === active.id
+                ? "border-primary bg-accent text-accent-foreground shadow-glow"
+                : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+            )}
+          >
+            {switching && s.id !== active.id ? (
+              <Loader2 className="mr-1.5 inline h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            {s.target_duration_seconds ?? "?"}s version
+          </button>
+        ))}
+        {/* Native 30s generation isn't wired up yet — kept visible so it reads as roadmapped, not missing. */}
+        <button
+          disabled
+          className="cursor-not-allowed rounded-xl border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground opacity-60"
+        >
+          30s version
+          <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+            Coming Soon
+          </span>
+        </button>
+      </div>
       <ScriptEditor
         key={active.id}
         script={active}

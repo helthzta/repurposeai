@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
 import { LoginPageClient } from "./login-client";
 
 export const metadata: Metadata = {
-  title: "Log in — Repurpose AI",
+  title: "Sign in — Repurpose AI",
   description: "Sign in to Repurpose AI and start turning ads into cinematic AI commercials.",
   openGraph: {
-    title: "Log in — Repurpose AI",
+    title: "Sign in — Repurpose AI",
     description: "Sign in to Repurpose AI and start creating AI commercials.",
   },
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // Already signed in — don't show the sign-in screen again, the session persists.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/dashboard");
+
   return (
     <Suspense>
       <LoginPageClient />

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { apiErrorResponse, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { pollAndFinalize } from "@/lib/generation";
+import { requireProjectBrand } from "@/lib/projects";
 
 export const GET = withLogger(
   "generations.get",
@@ -23,12 +24,7 @@ export const GET = withLogger(
       .single();
     if (scriptError) throw scriptError;
 
-    const { data: brand, error: brandError } = await supabase
-      .from("brand_profiles")
-      .select("*")
-      .eq("project_id", generation.project_id)
-      .single();
-    if (brandError) throw brandError;
+    const brand = await requireProjectBrand(supabase, generation.project_id);
 
     const finalized = await pollAndFinalize(supabase, user.id, generation, script, brand);
 

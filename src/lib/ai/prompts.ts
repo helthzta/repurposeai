@@ -127,21 +127,6 @@ Based on this script:
 ${scriptBody}`;
 }
 
-/** Scopes a chained clip's prompt to only the slice of the script it's rendering — without this, each clip tries to depict the whole script and drifts from the others. */
-export function scopeToSegment(
-  basePrompt: string,
-  startSeconds: number,
-  endSeconds: number,
-  totalSeconds: number,
-) {
-  return `${basePrompt}\n\nThis clip renders only ${startSeconds}s-${endSeconds}s of this ${totalSeconds}s script — depict only what happens in that time range, don't compress the whole script into this clip.`;
-}
-
-/** Grounds a continuation clip in the exact last frame of the clip before it, in words the seed image alone doesn't guarantee the model reads. */
-export function continuationNote(previousSegmentSeconds: number, frameDescription: string) {
-  return `\n\nThis is a direct continuation of the previous ${previousSegmentSeconds}s scene, picking up naturally from where it left off — not a new scene. The last frame of that scene: ${frameDescription}. Keep the exact same subject, wardrobe, setting, lighting, and visual style.`;
-}
-
 export function scorePrompt(scriptBody: string, brand: BrandProfile) {
   return `Score this commercial script for "${brand.brand_name ?? "the brand"}" on a 0-100 scale for each
 dimension, based on how well it's likely to perform:

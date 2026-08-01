@@ -10,35 +10,25 @@ export const POST = withLogger(
 
     const { data: source, error: sourceError } = await supabase
       .from("projects")
-      .select("*, brand_profiles(*)")
+      .select("*")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
     if (sourceError) throw sourceError;
 
+    // Brand profiles are reusable now — a duplicate just points at the same one,
+    // nothing to copy.
     const { data: project, error: projectError } = await supabase
       .from("projects")
-      .insert({ user_id: user.id, name: `${source.name} (copy)`, status: "draft" })
+      .insert({
+        user_id: user.id,
+        name: `${source.name} (copy)`,
+        status: "draft",
+        brand_profile_id: source.brand_profile_id,
+      })
       .select()
       .single();
     if (projectError) throw projectError;
-
-    const brand = source.brand_profiles;
-    if (brand) {
-      await supabase.from("brand_profiles").insert({
-        project_id: project.id,
-        brand_name: brand.brand_name,
-        product_service: brand.product_service,
-        target_audience: brand.target_audience,
-        tone: brand.tone,
-        description: brand.description,
-        brand_colors: brand.brand_colors,
-        cta: brand.cta,
-        logo_path: brand.logo_path,
-        website_url: brand.website_url,
-        website_summary: brand.website_summary,
-      });
-    }
 
     return NextResponse.json({ project });
   },

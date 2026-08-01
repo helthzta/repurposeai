@@ -5,8 +5,10 @@ import { withLogger } from "@/lib/logger";
 export const POST = withLogger("uploads.confirm", async (req: NextRequest) => {
   const { supabase } = await requireUser();
   const body = await req.json();
-  const { projectId, kind, path, filename, mimeType, fileSizeBytes } = body as {
+  const { projectId, brandProfileId, kind, path, filename, mimeType, fileSizeBytes } = body as {
     projectId?: string;
+    /** Scopes a "logo" confirm instead of projectId — a brand profile isn't tied to one project. */
+    brandProfileId?: string;
     kind?: string;
     path?: string;
     filename?: string;
@@ -14,21 +16,23 @@ export const POST = withLogger("uploads.confirm", async (req: NextRequest) => {
     fileSizeBytes?: number;
   };
 
-  if (!projectId || !kind || !path)
-    throw new ApiError(400, "projectId, kind and path are required");
+  if (!kind || !path) throw new ApiError(400, "kind and path are required");
 
-  // The logo isn't a source video — it updates the project's brand profile directly.
+  // The logo isn't a source video — it updates the brand profile directly.
   if (kind === "logo") {
+    if (!brandProfileId) throw new ApiError(400, "brandProfileId is required");
     const { data: brandProfile, error } = await supabase
       .from("brand_profiles")
       .update({ logo_path: path })
-      .eq("project_id", projectId)
+      .eq("id", brandProfileId)
       .select()
       .single();
     if (error) throw error;
 
     return NextResponse.json({ brandProfile });
   }
+
+  if (!projectId) throw new ApiError(400, "projectId is required");
 
   const { data: sourceVideo, error } = await supabase
     .from("source_videos")

@@ -4,12 +4,12 @@ One line per file: what it owns, when to read it, when it was last true.
 
 | File | Owns | Read when | Last verified |
 |---|---|---|---|
-| `session-handoff.md` | current session snapshot | every session | 2026-07-29 |
-| `progress-tracker.md` | current phase, open questions, next steps | every session | 2026-07-29 |
-| `learned-rules.md` | distilled permanent constraints | every session | 2026-07-29 |
-| `project-overview.md` | product definition, goals, scope | scope/priority questions | 2026-07-21 |
-| `decision-log.md` | still-active decisions with rationale | when touching an area listed below | 2026-07-29 |
-| `architecture.md` | stack, boundaries, storage, invariants | touching system structure | 2026-07-29 |
+| `session-handoff.md` | current session snapshot | every session | 2026-08-01 |
+| `progress-tracker.md` | current phase, open questions, next steps | every session | 2026-08-01 |
+| `learned-rules.md` | distilled permanent constraints | every session | 2026-08-01 |
+| `project-overview.md` | product definition, goals, scope | scope/priority questions | 2026-08-01 |
+| `decision-log.md` | still-active decisions with rationale | when touching an area listed below | 2026-08-01 |
+| `architecture.md` | stack, boundaries, storage, invariants | touching system structure | 2026-08-01 |
 | `ui-context.md` | design tokens, component conventions | touching UI | 2026-07-21 |
 | `code-standards.md` | implementation conventions | writing/reviewing code | 2026-07-21 |
 | `security-context.md` | threat model, hardening rules | touching auth/data/edge functions | 2026-07-21 |
@@ -17,9 +17,10 @@ One line per file: what it owns, when to read it, when it was last true.
 
 ## Active decision areas (keeps decision-log.md from being read every session)
 
-- API surface (D-005), auth/signup (D-006), rate limiting (D-007), page-level
-  auth gating (D-008), video-link scope (D-009), website-scan approach
-  (D-010) — see `decision-log.md`.
+- Rate limiting (D-007), page-level auth gating (D-008), duration/chaining
+  scope (D-011), v1 API brand handling (D-012), brand-profile migration
+  backfill (D-013), website-scan timing (D-014), brand-logo upload path
+  (D-015) — see `decision-log.md`.
 
 ## Compaction thresholds
 

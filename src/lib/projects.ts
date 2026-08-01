@@ -36,11 +36,27 @@ export async function getProjectDetail(
   return data as ProjectDetail | null;
 }
 
+/** A project's selected brand profile — shared by every route that needs brand context for AI calls. */
+export async function requireProjectBrand(
+  client: SupabaseClient,
+  projectId: string,
+): Promise<BrandProfile> {
+  const { data, error } = await client
+    .from("projects")
+    .select("brand_profiles(*)")
+    .eq("id", projectId)
+    .single();
+  if (error) throw error;
+  const brand = (data as unknown as { brand_profiles: BrandProfile | null }).brand_profiles;
+  if (!brand) throw new Error("Project has no brand profile selected");
+  return brand;
+}
+
 export type WorkflowPhase = "analysis" | "ideas" | "script" | "settings" | "generating" | "result";
 
 export interface WorkflowState {
   phase: WorkflowPhase;
-  /** The current 15s/30s pair written for the picked idea — what the Ideas->Script hand-off shows. */
+  /** The current script variant(s) written for the picked idea — what the Ideas->Script hand-off shows. Only 15s is written today; 30s reappears here once native 30s generation ships. */
   scripts: Script[];
   /** Whichever of `scripts` is active/selected — used once past the Script step. */
   script: Script | null;
@@ -49,9 +65,11 @@ export interface WorkflowState {
   ideas: ScriptIdea[] | null;
   /** Set only when resuming at "settings" because the last attempt failed — surfaced once so the reason isn't silently lost across a visit. */
   lastError: string | null;
+  /** The analyzed source video's tone_of_voice, surfaced on the Idea step — null if analysis hasn't completed or didn't detect one. */
+  originalTone: string | null;
 }
 
-/** Scripts are written in 15s/30s pairs per idea — keep only the newest of each duration, so an older idea's leftovers don't linger. */
+/** Keep only the newest script per duration, so an older idea's leftovers don't linger. */
 function currentScriptPair(scripts: Script[]): Script[] {
   const sorted = [...scripts].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -69,8 +87,11 @@ function currentScriptPair(scripts: Script[]): Script[] {
 /** Resumes a project at whichever step its DB state implies — no in-memory tracking needed. */
 export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
   const ideas = project.script_ideas ?? null;
-  const hasCompletedAnalysis = project.video_analyses?.some((a) => a.status === "completed");
-  if (!hasCompletedAnalysis) {
+  const completedAnalyses = [...(project.video_analyses ?? [])]
+    .filter((a) => a.status === "completed")
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const originalTone = completedAnalyses[0]?.tone_of_voice ?? null;
+  if (!completedAnalyses.length) {
     return {
       phase: "analysis",
       scripts: [],
@@ -78,13 +99,22 @@ export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
       generationId: null,
       ideas: null,
       lastError: null,
+      originalTone,
     };
   }
 
   const scripts = currentScriptPair(project.scripts ?? []);
   const script = scripts.find((s) => s.is_selected) ?? scripts[0] ?? null;
   if (!script) {
-    return { phase: "ideas", scripts, script: null, generationId: null, ideas, lastError: null };
+    return {
+      phase: "ideas",
+      scripts,
+      script: null,
+      generationId: null,
+      ideas,
+      lastError: null,
+      originalTone,
+    };
   }
 
   const generations = [...(project.generations ?? [])].sort(
@@ -92,10 +122,26 @@ export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
   );
   const latest = generations[0];
   if (!latest) {
-    return { phase: "script", scripts, script, generationId: null, ideas, lastError: null };
+    return {
+      phase: "script",
+      scripts,
+      script,
+      generationId: null,
+      ideas,
+      lastError: null,
+      originalTone,
+    };
   }
   if (latest.status === "completed") {
-    return { phase: "result", scripts, script, generationId: latest.id, ideas, lastError: null };
+    return {
+      phase: "result",
+      scripts,
+      script,
+      generationId: latest.id,
+      ideas,
+      lastError: null,
+      originalTone,
+    };
   }
   if (latest.status === "failed") {
     return {
@@ -105,7 +151,16 @@ export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
       generationId: null,
       ideas,
       lastError: latest.error_message ?? "Generation failed",
+      originalTone,
     };
   }
-  return { phase: "generating", scripts, script, generationId: latest.id, ideas, lastError: null };
+  return {
+    phase: "generating",
+    scripts,
+    script,
+    generationId: latest.id,
+    ideas,
+    lastError: null,
+    originalTone,
+  };
 }

@@ -18,7 +18,7 @@ alter table public.profiles
 create unique index profiles_username_key on public.profiles (username);
 
 -- Rebuild handle_new_user to also persist the username collected at signup
--- (passed as auth.signUp's options.data.username — see login-client.tsx).
+-- (passed as auth.signUp's options.data.username — see src/app/signup/signup-client.tsx).
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

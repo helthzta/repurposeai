@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2, Megaphone, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Megaphone, MicVocal, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,14 @@ const BADGE_LABEL: Record<string, string> = {
 export function IdeaStep({
   projectId,
   initialIdeas,
+  originalTone,
   onIdeasReady,
   onScriptsReady,
 }: {
   projectId: string;
   initialIdeas: ScriptIdea[] | null;
+  /** The analyzed source video's tone — null if analysis hasn't run yet or didn't detect one. */
+  originalTone: string | null;
   onIdeasReady: (ideas: ScriptIdea[]) => void;
   onScriptsReady: (scripts: Script[]) => void;
 }) {
@@ -108,6 +111,15 @@ export function IdeaStep({
         <p className="mt-1.5 text-sm text-muted-foreground">
           Three quick concepts — pick one to write the full script.
         </p>
+        {originalTone && (
+          <Badge
+            variant="secondary"
+            className="mt-3 gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold"
+          >
+            <MicVocal className="h-3 w-3" />
+            Original tone: {originalTone}
+          </Badge>
+        )}
         <Button
           variant="outline"
           size="sm"

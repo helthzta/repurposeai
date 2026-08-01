@@ -60,10 +60,12 @@ and src/lib/*. Citations inline. -->
   (`createGeneration`, `pollAndFinalize`) used by the dashboard's generate/
   regenerate routes and the public v1 API — the one place credit spend,
   provider submission, storage mirroring, and AI insight scoring are wired
-  together. Also owns clip-chaining: a duration past a provider's
-  `maxClipDurationSeconds` (Seedance: 15s) renders as an internal clip1 +
-  a last-frame-seeded continuation clip2, stitched with `src/lib/ffmpeg.ts`
-  into the single video that's actually delivered.
+  together. 15s is the only supported duration for now — a request past a
+  provider's `maxClipDurationSeconds` is rejected with a clear error rather
+  than chained into multiple clips (the old 15s+15s chaining — clip1 +
+  last-frame-seeded clip2 stitched via ffmpeg — was removed once it became
+  redundant; see `providers/seedance.ts`'s TODO for wiring up Seedance's
+  native 30s support as a clean drop-in later).
 - `middleware.ts` — page-level auth gate only. Explicitly does NOT gate
   `/api/*` — those routes handle their own auth (see comment in the file).
 
@@ -72,25 +74,33 @@ and src/lib/*. Citations inline. -->
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`
-  (`supabase/migrations/0001`–`0017`). `generations.chain_stage`
-  (`0012_generation_chaining.sql`) tracks in-flight multi-clip chaining.
-  `video_analyses` was reworked around virality in `0013` — `company_does`
-  (renamed from `business_category`), `viral_factor`, `relief`, `language`,
-  `video_metrics` added; `marketing_strategy`, `offer`, `cta`,
-  `narrative_structure` dropped; `tone_of_voice`/`visual_style` kept
-  (load-bearing for auto-tone and "Original" camera style — see
-  `learned-rules.md` R-007/R-009). `brand_profiles.tone`/`cta` still exist
-  as columns but are no longer written by any code path — CTA/tone are
-  fully AI-derived now (R-005/R-006). `0014` adds `projects.script_ideas`
-  (idea-step cache), `0015` adds `scripts.target_duration_seconds`, `0016`
-  adds `profiles.username` (unique, required at signup) and
-  `profiles.is_admin` (gates `/admin`). `0017` adds
-  `brand_profiles.website_url`/`website_summary` — a brand's website is
-  fetched once at project creation (`src/lib/website.ts`, best-effort, never
-  blocks/fails project creation) and fed into every script-writing prompt via
-  `brandBrief()` in `prompts.ts`. **Applied state of `0012`–`0017` against
-  the live project is unverified as of this note** — apply in order before
-  testing anything analysis/generation/admin/website-related, see
+  (`supabase/migrations/0001`–`0019`). `video_analyses` was reworked around
+  virality in `0013` — `company_does` (renamed from `business_category`),
+  `viral_factor`, `relief`, `language`, `video_metrics` added;
+  `marketing_strategy`, `offer`, `cta`, `narrative_structure` dropped;
+  `tone_of_voice`/`visual_style` kept (load-bearing for auto-tone, the
+  Idea-step tone chip, and "Original" camera style — see `learned-rules.md`
+  R-007/R-009). `brand_profiles.tone`/`cta` still exist as columns but are no
+  longer written by any code path — CTA/tone are fully AI-derived now
+  (R-005/R-006). `0014` adds `projects.script_ideas` (idea-step cache),
+  `0015` adds `scripts.target_duration_seconds`, `0016` adds
+  `profiles.username` (unique, required at signup) and `profiles.is_admin`
+  (gates `/admin`). `0017` adds `brand_profiles.website_url`/
+  `website_summary` — a brand's website is scanned best-effort
+  (`src/lib/website.ts`, never blocks/fails) and fed into every
+  script-writing prompt via `brandBrief()` in `prompts.ts`. `0018` drops
+  `generations.chain_stage`/`chain_clip1_job_id` (added by `0012`, chaining
+  removed — see the `generation.ts` note above). `0019` reshapes
+  `brand_profiles` from one-row-per-project into a reusable, user-owned
+  entity: adds `user_id`, `label`, `is_default`; drops `project_id` (was
+  `unique`); `projects` gains `brand_profile_id` (nullable FK, `on delete set
+  null`) to pick which of the user's profiles a project uses. RLS on
+  `brand_profiles` switched from joining through `projects` to a direct
+  `auth.uid() = user_id` check. "Only one default per user" is enforced in
+  application code (`src/app/api/brand-profiles/[id]/route.ts`), not a DB
+  constraint. **Applied state of `0012`–`0019` against the live project is
+  unverified as of this note** — apply in order before testing anything
+  analysis/generation/admin/website/brand-profile-related, see
   `progress-tracker.md`.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
@@ -101,17 +111,27 @@ and src/lib/*. Citations inline. -->
     headers (`PollResult.outputHeaders`) since not every provider's output
     URL is publicly fetchable — OpenRouter's video content endpoint requires
     the same bearer token used to poll it.
-  - `brand-logos` (public read, 10MB limit) — brand logo uploads.
+  - `brand-logos` (public read, 10MB limit) — brand logo uploads, path
+    `{user_id}/{brand_profile_id}/{filename}` (second segment is a brand
+    profile id, not a project id, since brand profiles aren't project-scoped
+    — the bucket's RLS only checks the first segment against `auth.uid()`,
+    so this doesn't need its own policy; see `uploads/sign`+`uploads/confirm`
+    routes, which accept either `projectId` or `brandProfileId` depending on
+    `kind`).
 - **No cache/ephemeral store** — polling for generation status is
   request-driven (client polls `GET /api/generations/[id]`, which calls
   `pollAndFinalize`), not backed by a queue or cache layer.
 
 ## Auth and access model
 
-- **Authentication** — Supabase Auth. Email/password (auto-fallback to
-  `signUp` if the email doesn't exist) and Google OAuth
-  (`src/app/login`, `src/app/auth/callback/route.ts`). Session held in
-  cookies, refreshed by `middleware.ts` on every non-`/api` request.
+- **Authentication** — Supabase Auth. Separate Sign In (`src/app/login`) and
+  Sign Up (`src/app/signup`) screens, each server-rendered with an
+  already-authenticated check that redirects straight to `/dashboard` (so a
+  logged-in visitor never sees either screen again — the session persists
+  via cookies). Both support email/password and Google OAuth
+  (`src/app/auth/callback/route.ts`); shared chrome lives in
+  `src/components/auth/`. Session held in cookies, refreshed by
+  `middleware.ts` on every non-`/api` request.
 - **Two auth modes for API access**: session cookie (`requireUser` in
   `src/lib/auth.ts`, for the dashboard's own calls) and Bearer API key
   (`requireApiKey`, sha256-hashed token lookup against `api_keys.key_hash`,
@@ -168,15 +188,11 @@ and src/lib/*. Citations inline. -->
 7. A failed/errored generation or provider submission must refund credits
    (`refundCredits` in `src/lib/generation.ts`) — never leave a charge
    standing against a failed job.
-8. A chained generation's intermediate clip1 video is never written to our
-   own storage at all — it's re-fetched from the provider at stitch time —
-   because `generated-videos`'s RLS policy (`generated_videos_owner_rw`)
-   lets the owner read/download anything under their own path prefix
-   directly via the Storage SDK, not just what the app links to; there's no
-   way to store it there and keep it truly non-downloadable. The one
-   exception is the last-frame seed image, which does sit at
-   `{user_id}/{project_id}/{generation_id}-seed.jpg` for the few minutes
-   clip2 takes to render (deleted immediately after the final merge) — a
-   deliberately accepted gap since it's a single frame, not the clip
-   itself. Only the merged output ever lands at the delivered
-   `output_path`.
+8. `generated-videos`'s RLS policy (`generated_videos_owner_rw`) lets the
+   owner read/download anything under their own path prefix directly via the
+   Storage SDK, not just what the app links to — never mirror an
+   intermediate/non-deliverable asset into that bucket under the user's own
+   path. (This was the reasoning behind never persisting a chained
+   generation's intermediate clip1 to storage; chaining itself was removed —
+   see the `generation.ts` note above — but the underlying RLS behavior and
+   the rule it implies are still true for any future non-deliverable asset.)

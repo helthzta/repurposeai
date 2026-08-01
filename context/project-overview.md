@@ -31,10 +31,11 @@ project — see the confidentiality notice at the top of `project_overview.md`.
 `src/components/workflow/*` + `src/app/api/*`)
 
 1. **Upload** — competitor ad + product ad + brand ad (MP4/MOV/WebM, or a
-   pasted Video Link in place of the competitor file) plus brand profile
-   fields (name, product/service, audience, tone, colors, CTA, logo, and an
-   optional Website Link that's scanned server-side and fed into every
-   script-writing prompt as brand context).
+   pasted Video Link in place of the competitor file) plus a brand profile
+   picked from the user's reusable, account-level brand profiles (name,
+   product/service, audience, colors, logo, Website Link that's scanned
+   server-side and fed into every script-writing prompt as brand context) —
+   an "Add new brand" shortcut creates one inline without leaving the flow.
 2. **Analyze** — Gemini extracts company/brand, business category, video
    duration, hook, audience, pain point, context, emotional trigger, hero,
    marketing strategy, offer, CTA, narrative structure, tone of voice, and
@@ -45,9 +46,12 @@ project — see the confidentiality notice at the top of `project_overview.md`.
 4. **Script editing** — user edits/rewrites, adds instructions, changes
    duration/tone/CTA; AI regenerates while preserving edits where possible
    (`src/app/api/scripts/[id]/assist/route.ts`).
-5. **Video generation** — user picks 15s / 30s / custom duration, aspect
-   ratio, quality; script becomes a provider prompt and is submitted
-   (`src/lib/generation.ts`, credits spent up front, refunded on failure).
+5. **Video generation** — 15s is the only active duration (30s shows a
+   "Coming Soon" badge — Seedance's old 15s+15s chaining was removed as
+   redundant now that native 30s is on their roadmap, see
+   `providers/seedance.ts`'s TODO); user picks aspect ratio and quality;
+   script becomes a provider prompt and is submitted (`src/lib/generation.ts`,
+   credits spent up front, refunded on failure).
 6. **Result** — generated video, download, prompt used, script used,
    regenerate option, AI insights scoring (marketing/creativity/brand-match/
    emotional-impact/predicted-conversion).
@@ -57,7 +61,10 @@ project — see the confidentiality notice at the top of `project_overview.md`.
 ### Core pipeline
 - Upload → Analyze → Script → Generate → Result, one `projects` row per run
   (`draft → analyzing → scripted → generating → completed/failed`).
-- Multi-source upload (competitor/product/brand), brand profile capture.
+- Multi-source upload (competitor/product/brand).
+- Brand profiles are reusable and account-level (`src/app/settings` →
+  create/edit/delete, multiple per user, one marked default) — picked per
+  project instead of re-entered each time (`src/app/api/brand-profiles/*`).
 
 ### Account / admin
 - Auth: Supabase Auth, email+password+username (auto-fallback to signup) and

@@ -1,10 +1,4 @@
-import {
-  createPartFromBase64,
-  createPartFromUri,
-  createUserContent,
-  GoogleGenAI,
-  Type,
-} from "@google/genai";
+import { createPartFromUri, createUserContent, GoogleGenAI, Type } from "@google/genai";
 import type { AiInsights, BrandProfile, ScriptIdea, ScriptStyle, VideoAnalysis } from "@/lib/types";
 import {
   ANALYSIS_SYSTEM_PROMPT,
@@ -219,22 +213,6 @@ const INSIGHTS_SCHEMA = {
     "predicted_conversion",
   ],
 };
-
-/** Describes a video frame in words a text-to-video prompt can use to ground a continuation clip. */
-export async function captionFrame(imageBytes: Buffer): Promise<string> {
-  const client = ai();
-  const response = await client.models.generateContent({
-    model: MODEL,
-    contents: createUserContent([
-      createPartFromBase64(imageBytes.toString("base64"), "image/jpeg"),
-      "Describe this video frame in one dense sentence for an AI video generator continuing the shot from " +
-        "here: the subject's exact appearance and pose, wardrobe, setting, lighting, and camera angle. Facts only, no commentary.",
-    ]),
-  });
-
-  if (!response.text) throw new Error("Gemini returned no frame caption");
-  return response.text.trim();
-}
 
 export async function scoreGeneration(
   scriptBody: string,

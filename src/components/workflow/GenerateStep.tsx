@@ -180,8 +180,7 @@ export function GenerateStep({
           Generate Commercial
         </Button>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Uses {costForGeneration(durationSeconds, quality, aspect)} credits · Estimated{" "}
-          {durationSeconds > 15 ? "4–8" : "2–4"} minutes
+          Uses {costForGeneration(durationSeconds, quality, aspect)} credits · Estimated 2–4 minutes
         </p>
       </div>
     </div>

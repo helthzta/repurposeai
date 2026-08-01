@@ -30,15 +30,18 @@ export function ProjectWorkflowClient({
   initialGenerationId,
   initialIdeas,
   initialError,
+  originalTone,
 }: {
   projectId: string;
   initialPhase: WorkflowPhase;
-  /** The 15s/30s pair for the Script step, once an idea's been picked. */
+  /** The script variant(s) for the Script step, once an idea's been picked. */
   initialScripts: Script[];
   initialScript: Script | null;
   initialGenerationId: string | null;
   initialIdeas: ScriptIdea[] | null;
   initialError: string | null;
+  /** The analyzed source video's tone, surfaced on the Idea step — null if not detected. */
+  originalTone: string | null;
 }) {
   const [phase, setPhase] = useState<WorkflowPhase>(initialPhase);
   const [scripts, setScripts] = useState<Script[]>(initialScripts);
@@ -67,6 +70,7 @@ export function ProjectWorkflowClient({
           <IdeaStep
             projectId={projectId}
             initialIdeas={ideas}
+            originalTone={originalTone}
             onIdeasReady={setIdeas}
             onScriptsReady={(scripts) => {
               setScripts(scripts);

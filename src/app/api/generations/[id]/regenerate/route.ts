@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
+import { requireProjectBrand } from "@/lib/projects";
 
 // Keep in sync with the Camera Style options in GenerateStep.tsx.
 const CAMERA_STYLES = ["original", "commercial", "luxury", "cinematic", "product", "ugc"] as const;
@@ -27,12 +28,7 @@ export const POST = withLogger(
       .single();
     if (scriptError) throw scriptError;
 
-    const { data: brand, error: brandError } = await supabase
-      .from("brand_profiles")
-      .select("*")
-      .eq("project_id", previous.project_id)
-      .single();
-    if (brandError) throw brandError;
+    const brand = await requireProjectBrand(supabase, previous.project_id);
 
     // "Variation" is only meaningfully different from "Regenerate" if something
     // about the request actually changes — otherwise they're the same call twice.

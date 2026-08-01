@@ -2,9 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { generateMasterScript } from "@/lib/ai/gemini";
 import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
+import { requireProjectBrand } from "@/lib/projects";
 import type { ScriptIdea, VideoAnalysis } from "@/lib/types";
 
-/** Writes both duration variants (15s and 30s) of the "master script" for whichever idea the user picked in IdeaStep. */
+/**
+ * Writes the "master script" for whichever idea the user picked in IdeaStep.
+ * 15s is the only active duration for now — see 30s "Coming Soon" state in ScriptStep.tsx.
+ */
 export const POST = withLogger(
   "scripts.generate",
   async (req: NextRequest) => {
@@ -22,40 +26,27 @@ export const POST = withLogger(
       .single<VideoAnalysis>();
     if (analysisError) throw new ApiError(400, "Run analysis before generating a script");
 
-    const { data: brand, error: brandError } = await supabase
-      .from("brand_profiles")
-      .select("*")
-      .eq("project_id", projectId)
-      .single();
-    if (brandError) throw brandError;
+    const brand = await requireProjectBrand(supabase, projectId);
 
-    const [generated15, generated30] = await Promise.all([
-      generateMasterScript(analysis, brand, idea, 15),
-      generateMasterScript(analysis, brand, idea, 30),
-    ]);
+    const generated = await generateMasterScript(analysis, brand, idea, 15);
 
     const { data: scripts, error } = await supabase
       .from("scripts")
-      .insert(
-        [
-          { generated: generated15, target_duration_seconds: 15, is_selected: true },
-          { generated: generated30, target_duration_seconds: 30, is_selected: false },
-        ].map(({ generated, target_duration_seconds, is_selected }) => ({
-          project_id: projectId,
-          analysis_id: analysis.id,
-          style: generated.style,
-          title: generated.title,
-          hook: generated.hook,
-          body: generated.body,
-          scene_descriptions: generated.scene_descriptions,
-          emotional_direction: generated.emotional_direction,
-          cta: generated.cta,
-          estimated_duration: generated.estimated_duration,
-          target_duration_seconds,
-          language: generated.language,
-          is_selected,
-        })),
-      )
+      .insert({
+        project_id: projectId,
+        analysis_id: analysis.id,
+        style: generated.style,
+        title: generated.title,
+        hook: generated.hook,
+        body: generated.body,
+        scene_descriptions: generated.scene_descriptions,
+        emotional_direction: generated.emotional_direction,
+        cta: generated.cta,
+        estimated_duration: generated.estimated_duration,
+        target_duration_seconds: 15,
+        language: generated.language,
+        is_selected: true,
+      })
       .select();
     if (error) throw error;
 

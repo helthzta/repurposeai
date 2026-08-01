@@ -16,8 +16,9 @@ const RESOLUTION_BY_QUALITY: Record<SubmitParams["quality"], "480p" | "720p"> = 
  * https://openrouter.ai/docs/guides/overview/multimodal/video-generation
  */
 class SeedanceProvider implements VideoProvider {
-  // ponytail: no single-call tier past 15s exists on this model yet — generation.ts
-  // chains two calls together for anything longer instead of failing the request.
+  // TODO(native-30s): Seedance now supports native 30s generation. Once we wire that up, bump
+  // this to 30 — submit() already forwards durationSeconds straight through as `duration` below,
+  // so this should be a one-line drop-in with no other changes needed.
   maxClipDurationSeconds = 15;
 
   private get mocked() {
@@ -48,15 +49,6 @@ class SeedanceProvider implements VideoProvider {
         duration: params.durationSeconds,
         resolution: RESOLUTION_BY_QUALITY[params.quality],
         aspect_ratio: params.aspectRatio,
-        ...(params.seedImageUrl && {
-          frame_images: [
-            {
-              type: "image_url",
-              image_url: { url: params.seedImageUrl },
-              frame_type: "first_frame",
-            },
-          ],
-        }),
       }),
     });
 

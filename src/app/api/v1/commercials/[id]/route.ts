@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, requireApiKey } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { pollAndFinalize } from "@/lib/generation";
+import { requireProjectBrand } from "@/lib/projects";
 
 export const GET = withLogger(
   "v1.commercials.get",
@@ -24,12 +25,7 @@ export const GET = withLogger(
       .single();
     if (scriptError) throw scriptError;
 
-    const { data: brand, error: brandError } = await admin
-      .from("brand_profiles")
-      .select("*")
-      .eq("project_id", generation.project_id)
-      .single();
-    if (brandError) throw brandError;
+    const brand = await requireProjectBrand(admin, generation.project_id);
 
     const finalized = await pollAndFinalize(admin, userId, generation, script, brand);
 

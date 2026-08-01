@@ -68,8 +68,8 @@ export default function Landing() {
               <Link href="/login">Log in</Link>
             </Button>
             <Button asChild className="btn-glow rounded-xl">
-              <Link href="/dashboard">
-                Start Repurposing
+              <Link href="/signup">
+                Sign up
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

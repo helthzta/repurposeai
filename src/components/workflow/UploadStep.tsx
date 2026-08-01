@@ -1,17 +1,21 @@
-import { CloudUpload, FileVideo, ImageUp, Link2, Loader2, Palette, Upload, X } from "lucide-react";
-import { useState } from "react";
+import { CloudUpload, FileVideo, Link2, Loader2, Palette, Plus, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BrandProfileDialog } from "@/components/brand/BrandProfileDialog";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import type { SourceVideoKind } from "@/lib/types";
+import type { BrandProfile, SourceVideoKind } from "@/lib/types";
 
-type UploadKind = SourceVideoKind | "logo";
-
-async function uploadSourceVideo(projectId: string, kind: UploadKind, file: File) {
+async function uploadSourceVideo(projectId: string, kind: SourceVideoKind, file: File) {
   const signRes = await fetch("/api/uploads/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,24 +86,29 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
   const [competitorFile, setCompetitorFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
   const [brandFile, setBrandFile] = useState<File | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [brandName, setBrandName] = useState("");
-  const [productService, setProductService] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [description, setDescription] = useState("");
-  const [brandColors, setBrandColors] = useState("");
   const [videoLink, setVideoLink] = useState("");
-  const [websiteLink, setWebsiteLink] = useState("");
 
-  const handleLogoChange = (file: File | null) => {
-    setLogoFile(file);
-    setLogoPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return file ? URL.createObjectURL(file) : null;
-    });
+  const [brandProfiles, setBrandProfiles] = useState<BrandProfile[]>([]);
+  const [brandProfileId, setBrandProfileId] = useState<string | null>(null);
+  const [brandDialogOpen, setBrandDialogOpen] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/brand-profiles")
+      .then((res) => res.json())
+      .then((data) => {
+        const profiles = (data.brandProfiles ?? []) as BrandProfile[];
+        setBrandProfiles(profiles);
+        // Default to the user's default brand, else whichever's newest.
+        setBrandProfileId((profiles.find((p) => p.is_default) ?? profiles[0])?.id ?? null);
+      })
+      .catch(() => toast.error("Could not load brand profiles"));
+  }, []);
+
+  const handleBrandCreated = (profile: BrandProfile) => {
+    setBrandProfiles((prev) => [profile, ...prev]);
+    setBrandProfileId(profile.id);
   };
 
   const acceptFile = (file?: File) => {
@@ -123,23 +132,17 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       toast.error("Add your competitor's ad — upload a file or paste a video link");
       return;
     }
+    if (!brandProfileId) {
+      toast.error("Pick a brand profile — or add a new one — before starting analysis");
+      return;
+    }
 
     setSubmitting(true);
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brandName,
-          productService,
-          targetAudience,
-          description,
-          websiteUrl: websiteLink.trim() || undefined,
-          brandColors: brandColors
-            .split(",")
-            .map((c) => c.trim())
-            .filter(Boolean),
-        }),
+        body: JSON.stringify({ brandProfileId }),
       });
       if (!res.ok) throw new Error("Could not create the project");
       const { project } = await res.json();
@@ -151,7 +154,6 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       }
       if (productFile) await uploadSourceVideo(project.id, "product", productFile);
       if (brandFile) await uploadSourceVideo(project.id, "brand", brandFile);
-      if (logoFile) await uploadSourceVideo(project.id, "logo", logoFile);
 
       onContinue(project.id);
     } catch (error) {
@@ -278,123 +280,50 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
         </div>
       </div>
 
-      {/* Brand info */}
+      {/* Brand profile */}
       <div className="rounded-3xl border bg-card p-6 shadow-card sm:p-8">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent">
             <Palette className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-[15px] font-bold">Brand Information</h3>
+            <h3 className="text-[15px] font-bold">Brand Profile</h3>
             <p className="text-xs text-muted-foreground">Tell the AI who it's writing for</p>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="brand-name">Brand Name</Label>
-            <Input
-              id="brand-name"
-              placeholder="Lumière Fragrance Co."
-              className="h-11 rounded-xl"
-              value={brandName}
-              onChange={(e) => setBrandName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="service">Service / Product</Label>
-            <Input
-              id="service"
-              placeholder="Premium D2C perfume"
-              className="h-11 rounded-xl"
-              value={productService}
-              onChange={(e) => setProductService(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="audience">Target Audience</Label>
-            <Input
-              id="audience"
-              placeholder="Women 24–38, urban, aspirational"
-              className="h-11 rounded-xl"
-              value={targetAudience}
-              onChange={(e) => setTargetAudience(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="colors">Brand Colors</Label>
-            <Input
-              id="colors"
-              placeholder="#2563EB, #F8FAFC"
-              className="h-11 rounded-xl"
-              value={brandColors}
-              onChange={(e) => setBrandColors(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="website-link">Website Link</Label>
-            <Input
-              id="website-link"
-              type="url"
-              placeholder="https://yourbrand.com"
-              className="h-11 rounded-xl"
-              value={websiteLink}
-              onChange={(e) => setWebsiteLink(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              We'll scan this for brand details to ground the scripts in.
-            </p>
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="description">Brand Description</Label>
-            <Textarea
-              id="description"
-              placeholder="What makes your brand different?"
-              className="min-h-24 rounded-xl"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="logo">Brand Logo</Label>
-            <div className="flex items-center gap-3">
-              {logoPreview ? (
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-muted">
-                  <img
-                    src={logoPreview}
-                    alt="Logo preview"
-                    className="h-full w-full object-contain"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleLogoChange(null)}
-                    aria-label="Remove logo"
-                    className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-foreground/70 text-background"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
-                <label
-                  htmlFor="logo"
-                  className="flex h-16 w-16 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-                >
-                  <ImageUp className="h-5 w-5" />
-                </label>
-              )}
-              <input
-                id="logo"
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp,.svg"
-                className="sr-only"
-                onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)}
-              />
-              <p className="text-xs text-muted-foreground">
-                PNG, JPG, WebP or SVG, up to 10MB. Used in the generated commercial's branding.
-              </p>
-            </div>
-          </div>
+        <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+          {brandProfiles.length > 0 && (
+            <Select value={brandProfileId ?? undefined} onValueChange={setBrandProfileId}>
+              <SelectTrigger className="h-11 flex-1 rounded-xl">
+                <SelectValue placeholder="Pick a brand profile" />
+              </SelectTrigger>
+              <SelectContent>
+                {brandProfiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                    {p.brand_name ? ` — ${p.brand_name}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 shrink-0 rounded-xl font-semibold"
+            onClick={() => setBrandDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Add new brand
+          </Button>
         </div>
+        {brandProfiles.length === 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            No brand profiles yet — add one to get started. It's saved to your account for reuse
+            next time.
+          </p>
+        )}
         <p className="mt-3 text-xs text-muted-foreground">
           Tone and CTA aren't set here — they're picked automatically to match what made the
           uploaded video work.
@@ -412,6 +341,13 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
           </Button>
         </div>
       </div>
+
+      <BrandProfileDialog
+        open={brandDialogOpen}
+        onOpenChange={setBrandDialogOpen}
+        editing={null}
+        onSaved={handleBrandCreated}
+      />
     </div>
   );
 }

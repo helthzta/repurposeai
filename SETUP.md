@@ -14,14 +14,17 @@ No payment/billing is included in this pass — credits exist as a ledger (with 
 
 ## 2. Run the database migrations
 
-The SQL files in `supabase/migrations/` were written but **not applied** (no Supabase MCP/CLI was used to run them against a live project). Apply them yourself, in order, using either:
+Apply the SQL files in `supabase/migrations/`, in order, using either:
 
 - **Supabase CLI** (recommended):
   ```bash
   supabase link --project-ref <your-project-ref>
   supabase db push
   ```
-- **SQL Editor** in the Supabase dashboard: open each file in `supabase/migrations/` in numeric order (`0001_...` through `0011_...`) and run it.
+- **SQL Editor** in the Supabase dashboard: open each file in `supabase/migrations/` in numeric order and run it.
+- **Supabase MCP** (if connected): apply each file's contents in order via the migration tool.
+
+New migration files land here as the product grows — always check `supabase/migrations/` for anything newer than what your project has applied (the CLI's `supabase migration list` compares local files against the project's tracked history; note that history can drift from the real schema if a migration was ever applied by hand instead of through the CLI/MCP — when in doubt, diff against the actual table/column list, not just the history table).
 
 This creates every table (`profiles`, `projects`, `brand_profiles`, `source_videos`, `video_analyses`, `scripts`, `generations`, `credit_transactions`, `api_keys`, `error_logs`), the `spend_credits` function, the new-user trigger that grants a 100-credit signup bonus, RLS policies, and the three storage buckets (`source-videos`, `generated-videos`, `brand-logos`).
 
@@ -32,7 +35,7 @@ The login page's "Continue with Google" button uses Supabase Auth's OAuth flow:
 1. In Supabase: **Authentication → Providers → Google**, enable it and fill in your Google OAuth client ID/secret (create one in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)).
 2. In **Authentication → URL Configuration**, add `http://localhost:3000/auth/callback` (and your production URL's equivalent) to the redirect allow-list.
 
-Email/password sign-in works out of the box with no extra config — the login form falls back to `signUp` automatically if the email doesn't exist yet.
+Email/password auth works out of the box with no extra config — Sign In (`/login`) and Sign Up (`/signup`) are separate screens, both wired to Google OAuth too.
 
 ## 4. Get a Gemini API key
 

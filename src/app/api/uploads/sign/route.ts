@@ -12,18 +12,27 @@ const BUCKET_BY_KIND = {
 export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
   const { supabase, user } = await requireUser();
   const body = await req.json();
-  const { projectId, kind, filename } = body as {
+  const { projectId, brandProfileId, kind, filename } = body as {
     projectId?: string;
+    /** Scopes a "logo" upload instead of projectId — a brand profile isn't tied to one project. */
+    brandProfileId?: string;
     kind?: string;
     filename?: string;
   };
 
-  if (!projectId || !kind || !filename)
-    throw new ApiError(400, "projectId, kind and filename are required");
+  if (!kind || !filename) throw new ApiError(400, "kind and filename are required");
   if (!(kind in BUCKET_BY_KIND)) throw new ApiError(400, `Unsupported kind: ${kind}`);
 
+  const scopeId = kind === "logo" ? brandProfileId : projectId;
+  if (!scopeId) {
+    throw new ApiError(
+      400,
+      kind === "logo" ? "brandProfileId is required" : "projectId is required",
+    );
+  }
+
   const bucket = BUCKET_BY_KIND[kind as keyof typeof BUCKET_BY_KIND];
-  const path = `${user.id}/${projectId}/${kind}-${Date.now()}-${filename}`;
+  const path = `${user.id}/${scopeId}/${kind}-${Date.now()}-${filename}`;
 
   const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(path);
   if (error) throw error;

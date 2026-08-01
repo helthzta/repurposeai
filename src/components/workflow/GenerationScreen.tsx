@@ -19,7 +19,6 @@ export function GenerationScreen({
 }) {
   const [stage, setStage] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [longRunning, setLongRunning] = useState(false);
   const stopped = useRef(false);
 
   useEffect(() => {
@@ -34,9 +33,6 @@ export function GenerationScreen({
         const res = await fetch(`/api/generations/${generationId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Generation status check failed");
-
-        // 30s renders as two chained clips stitched together, so it takes roughly twice as long.
-        if (data.generation.duration_seconds > 15) setLongRunning(true);
 
         if (data.generation.status === "completed") {
           stopped.current = true;
@@ -95,9 +91,7 @@ export function GenerationScreen({
         </div>
 
         <h2 className="mt-8 text-xl font-extrabold tracking-tight">Creating your commercial</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          This usually takes {longRunning ? "4–8" : "2–4"} minutes
-        </p>
+        <p className="mt-1.5 text-sm text-muted-foreground">This usually takes 2–4 minutes</p>
 
         <ol className="mx-auto mt-10 max-w-xs space-y-3 text-left">
           {generationStages.map((label, i) => {

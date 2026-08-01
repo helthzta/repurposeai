@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { generateScriptIdeas } from "@/lib/ai/gemini";
 import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
+import { requireProjectBrand } from "@/lib/projects";
 import type { VideoAnalysis } from "@/lib/types";
 
 /** Short concepts shown before committing to a full script — cached on the project, see IdeaStep.tsx. */
@@ -22,12 +23,7 @@ export const POST = withLogger(
       .single<VideoAnalysis>();
     if (analysisError) throw new ApiError(400, "Run analysis before generating ideas");
 
-    const { data: brand, error: brandError } = await supabase
-      .from("brand_profiles")
-      .select("*")
-      .eq("project_id", projectId)
-      .single();
-    if (brandError) throw brandError;
+    const brand = await requireProjectBrand(supabase, projectId);
 
     const ideas = await generateScriptIdeas(analysis, brand);
 

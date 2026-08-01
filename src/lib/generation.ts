@@ -1,13 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { captionFrame, scoreGeneration } from "@/lib/ai/gemini";
-import { continuationNote, scopeToSegment, videoPrompt } from "@/lib/ai/prompts";
+import { scoreGeneration } from "@/lib/ai/gemini";
+import { videoPrompt } from "@/lib/ai/prompts";
+import { ApiError } from "@/lib/auth";
 import { costForGeneration, refundCredits, spendCredits } from "@/lib/credits";
 import { logError } from "@/lib/errors";
-import { concatVideos, extractLastFrame } from "@/lib/ffmpeg";
 import { logger } from "@/lib/logger";
 import { getProvider } from "@/lib/providers";
-import type { PollResult, VideoProvider } from "@/lib/providers/types";
-import { mirrorToStorage, signUrl, uploadToStorage } from "@/lib/storage";
+import { mirrorToStorage, signUrl } from "@/lib/storage";
 import type {
   AspectRatio,
   BrandProfile,
@@ -66,26 +65,23 @@ export async function createGeneration(
 
   try {
     const providerImpl = getProvider(params.provider);
-    // Durations past the provider's single-call cap render as an internal clip1,
-    // continued by clip2, and stitched together — see pollAndFinalize below.
-    const chained = params.durationSeconds > providerImpl.maxClipDurationSeconds;
-    const firstClipSeconds = chained ? providerImpl.maxClipDurationSeconds : params.durationSeconds;
-
-    // Chained clips each render only their slice of the script — an unscoped prompt makes
-    // every clip try to depict the whole script, which is why chained clips used to look
-    // like unrelated videos stitched together.
-    const submitPrompt = chained
-      ? scopeToSegment(prompt, 0, firstClipSeconds, params.durationSeconds)
-      : prompt;
+    // 15s is the only supported duration for now (native 30s isn't wired up yet — see
+    // maxClipDurationSeconds in providers/types.ts). This should never actually trigger since
+    // the UI only offers 15s, but guards against a stale 30s script row reaching generation.
+    if (params.durationSeconds > providerImpl.maxClipDurationSeconds) {
+      throw new ApiError(
+        400,
+        `${params.durationSeconds}s generation isn't available yet — pick the 15s version`,
+      );
+    }
 
     logger.info("generation", "submitting to provider", {
       provider: params.provider,
-      durationSeconds: firstClipSeconds,
-      chained,
+      durationSeconds: params.durationSeconds,
     });
     const { jobId } = await providerImpl.submit({
-      prompt: submitPrompt,
-      durationSeconds: firstClipSeconds,
+      prompt,
+      durationSeconds: params.durationSeconds,
       aspectRatio: params.aspectRatio,
       quality: params.quality,
     });
@@ -104,7 +100,6 @@ export async function createGeneration(
         status: "processing",
         prompt_used: prompt,
         provider_job_id: jobId,
-        chain_stage: chained ? "clip1" : null,
         credits_charged: cost,
       })
       .select()
@@ -160,24 +155,7 @@ export async function pollAndFinalize(
     return failGeneration(client, userId, generation, "Provider returned no video output");
   }
 
-  if (generation.chain_stage === "clip1") {
-    return advanceChainToClip2(client, userId, generation, result, providerImpl);
-  }
-
   const output_path = `${userId}/${generation.project_id}/${generation.id}.mp4`;
-
-  if (generation.chain_stage === "clip2") {
-    return finalizeChain(
-      client,
-      userId,
-      generation,
-      result,
-      providerImpl,
-      output_path,
-      script,
-      brand,
-    );
-  }
 
   logger.info("generation.mirror", "mirroring video to storage", { output_path });
   try {
@@ -201,150 +179,7 @@ export async function pollAndFinalize(
   return finishAfterUpload(client, userId, generation, output_path, script, brand);
 }
 
-/**
- * clip1 just completed. Seeds clip2 as a continuation from clip1's last frame and submits it —
- * the generation stays "processing" until clip2 also completes and gets stitched in finalizeChain.
- */
-async function advanceChainToClip2(
-  client: SupabaseClient,
-  userId: string,
-  generation: Generation,
-  clip1Result: PollResult,
-  providerImpl: VideoProvider,
-): Promise<Generation> {
-  logger.info("generation.chain", "clip1 complete, seeding clip2", { generationId: generation.id });
-
-  try {
-    const clip1Res = await fetch(clip1Result.outputUrl!, { headers: clip1Result.outputHeaders });
-    if (!clip1Res.ok) throw new Error(`Failed to fetch first clip: ${clip1Res.status}`);
-    const clip1Bytes = new Uint8Array(await clip1Res.arrayBuffer());
-
-    const frameBytes = await extractLastFrame(clip1Bytes);
-    const seedPath = `${userId}/${generation.project_id}/${generation.id}-seed.jpg`;
-    await uploadToStorage(client, "generated-videos", seedPath, frameBytes, "image/jpeg");
-    // Signed so the provider can fetch it without cookies/auth; short-lived since it only
-    // needs to survive until the provider grabs it at job start, not the full render time.
-    const seedUrl = await signUrl(client, "generated-videos", seedPath, 900);
-
-    // The seed image alone only anchors the opening visual — pairing it with a text
-    // description of that exact frame gives the model something concrete to hold onto for
-    // the rest of the clip. Best-effort: a failed caption shouldn't fail the whole chain.
-    let frameDescription = "matches the previous scene exactly";
-    try {
-      frameDescription = await captionFrame(frameBytes);
-    } catch (captionError) {
-      logger.error("generation.chain", "frame caption failed — continuing without it");
-      await logError("generation.chain.caption", captionError, {
-        userId,
-        metadata: { generationId: generation.id },
-      });
-    }
-
-    const remainingSeconds = generation.duration_seconds - providerImpl.maxClipDurationSeconds;
-    const continuationPrompt =
-      scopeToSegment(
-        generation.prompt_used!,
-        providerImpl.maxClipDurationSeconds,
-        generation.duration_seconds,
-        generation.duration_seconds,
-      ) + continuationNote(providerImpl.maxClipDurationSeconds, frameDescription);
-
-    const { jobId } = await providerImpl.submit({
-      prompt: continuationPrompt,
-      durationSeconds: remainingSeconds,
-      aspectRatio: generation.aspect_ratio,
-      quality: generation.quality,
-      seedImageUrl: seedUrl,
-    });
-    logger.info("generation.chain", "clip2 submitted", { generationId: generation.id, jobId });
-
-    const { data: updated, error } = await client
-      .from("generations")
-      .update({
-        chain_stage: "clip2",
-        chain_clip1_job_id: generation.provider_job_id,
-        provider_job_id: jobId,
-      })
-      .eq("id", generation.id)
-      .select()
-      .single();
-    if (error) throw error;
-
-    return updated as Generation;
-  } catch (chainError) {
-    logger.error("generation.chain", "failed to advance to clip2");
-    await logError("generation.chain", chainError, {
-      userId,
-      metadata: { generationId: generation.id },
-    });
-    return failGeneration(
-      client,
-      userId,
-      generation,
-      "Failed to continue the second half of the video",
-    );
-  }
-}
-
-/**
- * clip2 just completed. Re-fetches clip1 from the provider (never persisted to our own
- * storage — see the ponytail note below), stitches both, and delivers only the merged video.
- */
-async function finalizeChain(
-  client: SupabaseClient,
-  userId: string,
-  generation: Generation,
-  clip2Result: PollResult,
-  providerImpl: VideoProvider,
-  output_path: string,
-  script: Script,
-  brand: BrandProfile,
-): Promise<Generation> {
-  // ponytail: re-fetching clip1 from the provider (rather than mirroring it into our own
-  // storage at clip1-time) means the intermediate clip is never independently reachable
-  // through the user's own storage RLS. Relies on the provider keeping a completed job's
-  // output downloadable for as long as clip2 takes to render (a few minutes); if that
-  // retention ever proves too short, mirror clip1 into a service-role-only bucket instead.
-  const clip1Poll = await providerImpl.poll(generation.chain_clip1_job_id!);
-  if (clip1Poll.status !== "completed" || !clip1Poll.outputUrl) {
-    return failGeneration(
-      client,
-      userId,
-      generation,
-      "Could not retrieve the first clip to finish assembling the video",
-    );
-  }
-
-  try {
-    const [clip1Res, clip2Res] = await Promise.all([
-      fetch(clip1Poll.outputUrl, { headers: clip1Poll.outputHeaders }),
-      fetch(clip2Result.outputUrl!, { headers: clip2Result.outputHeaders }),
-    ]);
-    if (!clip1Res.ok || !clip2Res.ok) throw new Error("Failed to download one of the clips");
-
-    const [clip1Bytes, clip2Bytes] = await Promise.all([
-      clip1Res.arrayBuffer().then((b) => new Uint8Array(b)),
-      clip2Res.arrayBuffer().then((b) => new Uint8Array(b)),
-    ]);
-
-    const merged = await concatVideos([clip1Bytes, clip2Bytes]);
-    await uploadToStorage(client, "generated-videos", output_path, merged);
-    await client.storage
-      .from("generated-videos")
-      .remove([`${userId}/${generation.project_id}/${generation.id}-seed.jpg`]);
-  } catch (stitchError) {
-    logger.error("generation.chain.stitch", "failed to assemble final video");
-    await logError("generation.chain.stitch", stitchError, {
-      userId,
-      metadata: { generationId: generation.id },
-    });
-    return failGeneration(client, userId, generation, "Failed to assemble the final video");
-  }
-
-  return finishAfterUpload(client, userId, generation, output_path, script, brand);
-}
-
-/** Shared tail once a video (single-call or stitched) is uploaded to output_path: score + mark completed. */
+/** Shared tail once a video is uploaded to output_path: score + mark completed. */
 async function finishAfterUpload(
   client: SupabaseClient,
   userId: string,
@@ -372,7 +207,6 @@ async function finishAfterUpload(
       status: "completed",
       output_path,
       ai_insights,
-      chain_stage: null,
       completed_at: new Date().toISOString(),
     })
     .eq("id", generation.id)

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
+import { requireProjectBrand } from "@/lib/projects";
 import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
 
 export const POST = withLogger(
@@ -36,15 +37,10 @@ export const POST = withLogger(
     // timestamps were actually written to fit, not whatever a client might send.
     const durationSeconds = script.target_duration_seconds;
     if (!durationSeconds) {
-      throw new ApiError(400, "This script has no target duration — pick a 15s or 30s version");
+      throw new ApiError(400, "This script has no target duration");
     }
 
-    const { data: brand, error: brandError } = await supabase
-      .from("brand_profiles")
-      .select("*")
-      .eq("project_id", projectId)
-      .single();
-    if (brandError) throw brandError;
+    const brand = await requireProjectBrand(supabase, projectId);
 
     let generation;
     try {

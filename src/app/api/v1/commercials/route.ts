@@ -39,19 +39,26 @@ export const POST = withLogger(
       );
     }
 
-    const { data: project, error: projectError } = await admin
-      .from("projects")
-      .insert({ user_id: userId, name: brand, status: "analyzing" })
-      .select()
-      .single();
-    if (projectError) throw projectError;
-
+    // v1 callers don't manage reusable brand profiles the dashboard does — each call gets its
+    // own one-off profile (not marked default, so it doesn't affect the caller's dashboard picks).
     const { data: brandProfile, error: brandError } = await admin
       .from("brand_profiles")
-      .insert({ project_id: project.id, brand_name: brand })
+      .insert({ user_id: userId, label: brand, brand_name: brand })
       .select()
       .single();
     if (brandError) throw brandError;
+
+    const { data: project, error: projectError } = await admin
+      .from("projects")
+      .insert({
+        user_id: userId,
+        name: brand,
+        status: "analyzing",
+        brand_profile_id: brandProfile.id,
+      })
+      .select()
+      .single();
+    if (projectError) throw projectError;
 
     const videoRes = await fetch(sourceVideoUrl);
     if (!videoRes.ok)
