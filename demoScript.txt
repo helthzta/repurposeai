@@ -1,0 +1,419 @@
+Final Demo Script structure 
+
+( Demo Final Prompt script structure for genration ) 
+FASTGROCERY – EXAM NIGHT SAVER
+
+TOTAL DURATION: 20 SECONDS
+
+
+CONTINUITY LOCK (APPLIES TO ENTIRE VIDEO)
+
+STUDENT:
+Male, 21 years old.
+Medium brown Indian skin tone.
+Slim build.
+Messy black hair.
+Rectangular black-rim glasses.
+Navy blue hoodie with visible wrinkles.
+
+The glasses remain on his face throughout the entire commercial.
+
+FRIEND 1:
+Male, 22 years old.
+Medium brown Indian skin tone.
+Average build.
+Messy hair.
+Oversized grey graphic t-shirt.
+Energetic body language.
+
+FRIEND 2:
+Male, 23 years old.
+Medium brown Indian skin tone.
+Clean haircut.
+Black polo shirt.
+Calm posture.
+
+LOCATION:
+Small Indian dorm room.
+Grey walls.
+Engineering textbooks.
+Notebooks.
+Loose papers.
+Pens.
+Single study lamp.
+Messy study desk.
+
+FIRST HALF COLOR:
+Cold.
+Grey.
+Desaturated.
+
+SECOND HALF COLOR:
+Warm.
+Vibrant.
+Yellow highlights.
+
+---
+
+SCENE 1 (0-4s)
+
+CAMERA:
+Handheld extreme close-up on Student.
+
+ACTION:
+
+Student studies intensely.
+
+He flips pages rapidly.
+
+Eyes appear tired.
+
+His stomach contracts slightly.
+
+Hands grip study notes.
+
+Only Student is visible.
+
+No other character appears in frame.
+
+AUDIO:
+
+Loud stomach rumble.
+
+DIALOGUE:
+
+Student speaks clearly while visible on screen:
+
+"Bhai, bhook lagi hai!"
+
+LIP-SYNC RULE:
+
+Only Student delivers this line.
+No other voice overlaps.
+
+---
+
+SCENE 2 (4-7s)
+
+CAMERA:
+Quick pull-back to medium shot.
+
+ACTION:
+
+Friend 1 enters rapidly from frame left.
+
+He throws three separate objects one after another:
+
+FIRST:
+Small flour bag.
+
+SECOND:
+Metal salt canister.
+
+THIRD:
+Raw potato.
+
+PHYSICS RULES:
+
+Flour bag strikes desk first.
+
+Bag partially tears open on impact.
+
+Flour bursts upward.
+
+Fine flour particles spread naturally.
+
+Salt canister lands second.
+
+Metal canister bounces once.
+
+Rolls across desk.
+
+Gradually slows from friction.
+
+Potato lands last.
+
+Potato slides across papers.
+
+Stops against Student's notes.
+
+Objects must obey realistic gravity and momentum.
+
+Student remains seated.
+
+Student flinches naturally.
+
+Glasses remain secure.
+
+AUDIO:
+
+Whoosh.
+Desk impact.
+Metal clang.
+Paper rustling.
+
+DIALOGUE:
+
+Friend 1 only:
+
+"Aata le! Namak le! Bana le kuch!"
+
+LIP-SYNC RULE:
+
+Only Friend 1 speaks.
+Student remains silent.
+
+---
+
+SCENE 3 (7-10s)
+
+CAMERA:
+Medium shot.
+
+ACTION:
+
+Flour particles continue drifting.
+
+Student now has light flour dust on:
+
+Hair.
+Shoulders.
+Sleeves.
+Desk surface.
+
+Student picks up the raw potato using his right hand.
+
+Friend 1 stands beside desk.
+
+Student looks exhausted.
+
+DIALOGUE:
+
+Student only:
+
+"Abe! Exam hai, 40 min ka time nahi hai!"
+
+LIP-SYNC RULE:
+
+Only Student speaks.
+Friend 1 remains silent.
+
+---
+
+
+Student seated.
+Potato in right hand.
+Glasses worn.
+Navy hoodie unchanged.
+
+Flour visible on:
+
+Hair.
+Shoulders.
+Desk.
+
+Flour particles remain suspended.
+
+Friend 1 stands left side.
+
+Salt canister lies on desk.
+
+Cold grey lighting.
+
+No phone visible.
+
+No delivery agent visible.
+
+No FastGrocery branding visible.
+
+---
+
+SCENE 4 (10-14s)
+
+START FROM EXACT CONTINUITY FRAME ABOVE.
+
+CAMERA:
+Medium handheld shot.
+
+ACTION:
+
+Student lowers potato slightly.
+
+Friend 1 shrugs.
+
+Flour particles continue drifting naturally.
+
+No props change position suddenly.
+
+Room remains cold and grey.
+
+DIALOGUE:
+
+Student only:
+
+"Abe! Exam hai, 40 min ka time nahi hai!"
+
+Friend 1 remains silent.
+
+---
+
+SCENE 5 (14-18s)
+
+CAMERA:
+Medium shot.
+
+ACTION:
+
+Friend 2 enters from frame right.
+
+Friend 2 raises smartphone.
+
+Phone screen clearly shows FastGrocery app.
+
+Brand colors:
+
+Yellow #FFD700.
+Black #000000.
+
+As phone rises:
+
+A warm yellow light spreads gradually.
+
+Transition duration:
+1 second.
+
+Lighting transformation begins from phone screen.
+
+Cold room slowly becomes warm.
+
+Books remain stationary.
+
+Desk remains stationary.
+
+Potato remains in Student's hand.
+
+Flour remains on desk and clothing.
+
+Floating flour particles become illuminated by warm light.
+
+AUDIO:
+
+Digital notification ding.
+
+DIALOGUE:
+
+Friend 2 only:
+
+"FastGrocery se noodles kar, 10 min mein haath mein!"
+
+LIP-SYNC RULE:
+
+Only Friend 2 speaks.
+
+---
+
+SCENE 6 (18-20s)
+
+CAMERA:
+Slight push-in.
+
+ACTION:
+
+Dorm room door opens.
+
+Delivery Agent enters.
+
+Official FastGrocery uniform:
+
+Bright yellow vest.
+Black t-shirt.
+FastGrocery logo visible.
+
+Agent carries steaming cup noodles.
+
+Visible steam rises naturally.
+
+Student stands slightly.
+
+Receives noodles.
+
+Immediately takes one bite.
+
+Visible relief.
+
+Friend 1 remains left side.
+
+Friend 2 remains right side.
+
+Warm yellow lighting fills room.
+
+---
+
+FINAL FRAME (20.0s)
+
+Student holding steaming noodles.
+
+Glasses still worn.
+
+Navy hoodie unchanged.
+
+Friend 1 visible on left.
+
+Friend 2 visible on right.
+
+Delivery agent near open door.
+
+Warm vibrant room.
+
+FastGrocery branding visible.
+
+Centered text:
+
+FASTGROCERY
+
+Yellow #FFD700
+Black #000000
+
+AUDIO:
+
+Single satisfying noodle slurp.
+
+Upbeat music sting.
+
+
+For 20 second video
+
+VIDEO STYLE:
+Photorealistic live-action commercial.
+Natural facial animation.
+Realistic object physics.
+Accurate lip-sync.
+Consistent character identity.
+No character swapping.
+No wardrobe changes.
+No prop teleportation.
+No environment resets.
+
+Middle 10 second one
+MANDATORY CONTINUITY FRAME (10.0s)
+
+Freeze-like continuity state:
+
+
+END FRAME LOCK:
+
+Preserve exact character appearance.
+Preserve environment all objects
+Preserve lighting.
+Preserve branding.
+No character changes.
+No prop changes.
+No environment reset. )
+
+Idea Prompt to generate
+
+" Beta, chai ke saath biscuit missing hain aur mehmaan aa gaye...
+
+A heartwarming scene where a grandmother realizes she is out of key ingredients right as family guests arrive unexpectedly. Her grandchild quickly opens FastGrocery and orders everything in seconds, saving her hospitality and pride. This mirrors the original's warm family bond while highlighting 10-minute grocery rescue "
+
+Turn this prompt as per Demo structure i shared  for 15 second prompt highly detailed video with subtitles

@@ -1,20 +1,25 @@
 "use client";
 
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, MicVocal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Script } from "@/lib/types";
 import { ScriptEditor } from "./ScriptEditor";
 
 export function ScriptStep({
   scripts: initialScripts,
+  originalTone,
   onBack,
   onContinue,
 }: {
   /** Only a 15s variant is written for now — see the disabled 30s "Coming Soon" button below. */
   scripts: Script[];
+  /** The analyzed source video's tone — same value shown on the Idea step, carried forward so it's
+   * still visible while reviewing/editing the full script. */
+  originalTone: string | null;
   onBack: () => void;
   onContinue: (script: Script) => void;
 }) {
@@ -44,6 +49,17 @@ export function ScriptStep({
 
   return (
     <div className="animate-fade-up space-y-6">
+      {originalTone && (
+        <div className="flex justify-center">
+          <Badge
+            variant="secondary"
+            className="gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold"
+          >
+            <MicVocal className="h-3 w-3" />
+            Original tone: {originalTone}
+          </Badge>
+        </div>
+      )}
       <div className="flex justify-center gap-2">
         {scripts.map((s) => (
           <button

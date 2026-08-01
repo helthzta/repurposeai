@@ -10,8 +10,12 @@ Seedance 15s+15s chaining, 15s is now the sole active duration with a 30s
 "Coming Soon" state; (2) surfaced the analyzed video's tone as a chip on the
 Idea step; (3) turned brand details from per-project into reusable,
 account-level brand profiles; (4) split login into separate Sign In/Sign Up
-screens with a redirect-if-already-authenticated check on both. Payment
-intentionally still not built.
+screens with a redirect-if-already-authenticated check on both; (5) rewrote
+`masterScriptPrompt()` (`src/lib/ai/prompts.ts`) so Gemini writes `script.body`
+directly in the detailed continuity-lock/scene/subtitle structure the user
+was previously hand-pasting before generation — it flows verbatim through
+`videoPrompt()` into the Seedance prompt, no other pipeline change needed.
+Payment intentionally still not built.
 
 **Migrations `0012`–`0019` are now applied to the live Supabase project**
 (via the Supabase MCP, this session) — the live schema is fully current.
@@ -41,6 +45,13 @@ verified so far only by `tsc`/`eslint`/`next build`.
 - Is there a deploy target/hosting provider yet? Matters for whether the
   in-memory rate limiter needs to become distributed (D-007).
 - Are tests planned? No test runner/config exists yet.
+- The new `masterScriptPrompt()` asks the model to include `SUBTITLE:` lines
+  as a burnt-in-caption hint, but Seedance's API has no caption/subtitle
+  parameter (`src/lib/providers/seedance.ts`) and the prior `ffmpeg.ts`
+  post-processing file is deleted with nothing replacing it — so subtitles
+  are best-effort (model may render them, may not), not guaranteed. A real
+  fix needs either an ffmpeg burn-in step or a provider that supports it
+  natively.
 
 ## Next steps (max ~5)
 

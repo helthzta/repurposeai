@@ -162,6 +162,7 @@ function BrandProfilesSection() {
       </div>
 
       <BrandProfileDialog
+        key={editing?.id ?? "new"}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={editing}

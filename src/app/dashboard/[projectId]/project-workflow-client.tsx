@@ -81,6 +81,7 @@ export function ProjectWorkflowClient({
         {phase === "script" && scripts.length > 0 && (
           <ScriptStep
             scripts={scripts}
+            originalTone={originalTone}
             onBack={() => setPhase("ideas")}
             onContinue={(script) => {
               setSelectedScript(script);

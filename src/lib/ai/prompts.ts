@@ -61,6 +61,7 @@ export function masterScriptPrompt(
   idea: ScriptIdea,
   durationSeconds: number,
 ) {
+  const midpoint = Math.round(durationSeconds / 2);
   return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}
 
@@ -76,15 +77,46 @@ ${brandBrief(brand)}
 ${toneNote(analysis)}
 
 Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
-entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't
-ask the user for one. Return one script with: the title and hook above (refine them if it makes the script
-stronger), a full timestamped scene-by-scene script (dialogue + visual direction), scene descriptions, emotional
-direction, and a CTA.
+entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.
+
+"body" is fed directly into an AI video generator as its shot-by-shot prompt, so write it in this EXACT
+structure — precision here is what determines shot quality, continuity, and lip-sync accuracy:
+
+${idea.title.toUpperCase()} – ${idea.hook.toUpperCase()}
+TOTAL DURATION: ${durationSeconds} SECONDS
+
+CONTINUITY LOCK (APPLIES TO ENTIRE VIDEO)
+Name every character in caps (e.g. "MOTHER:", "DELIVERY AGENT:") with age, build, skin tone, hair, and exact wardrobe (colors, fabric details) plus any signature prop that must never disappear, swap, or change mid-video.
+Then LOCATION: every static object in frame. Then FIRST HALF COLOR / SECOND HALF COLOR: the lighting mood
+before and after the brand's "relief" moment — cold/desaturated before, warm/vibrant after.
+
+Then one "---"-separated SCENE block per beat, timestamped (e.g. "SCENE 1 (0-3s)"), each containing:
+CAMERA: shot type and movement
+ACTION: physically plausible blocking — objects obey gravity and momentum, no prop teleportation
+AUDIO: sound effects only, no music
+DIALOGUE: the line(s), attributed to exactly one character
+SUBTITLE: the exact same line verbatim, for on-screen burnt-in captions
+LIP-SYNC RULE: name the one character whose mouth moves; every other character stays silent in that shot
+
+Roughly at the ${midpoint}s mark, insert a MANDATORY CONTINUITY FRAME: a freeze-frame description of exact
+character poses, props, and lighting at that instant, followed by an END FRAME LOCK list (preserve character
+appearance / environment / lighting, no resets) that the next scene must continue from exactly.
+
+Close with a FINAL FRAME section: state of every character and prop at ${durationSeconds}.0s, centered
+on-screen brand text using the brand's colors (${brand.brand_colors?.join(", ") ?? "brand default"}), and a
+final AUDIO cue.
+
+End with a VIDEO STYLE block: photorealistic live-action, natural facial animation, realistic object physics,
+accurate lip-sync, consistent character identity, no character swapping, no wardrobe changes, no prop
+teleportation, no environment resets, burnt-in subtitles matching every spoken line.
 
 This script will be rendered as exactly a ${durationSeconds}-second video — pace the scene timestamps so they
-literally span 0:00 to ${durationSeconds}s, the last scene must end at ${durationSeconds}s exactly, not before
-or after. Fit the hook-to-CTA arc naturally into that runtime rather than padding or rushing it. Set
-estimated_duration to "${durationSeconds}s" and return the ISO 639-1 language code the script is written in.`;
+literally span 0:00 to ${durationSeconds}s, the last scene ending at ${durationSeconds}s exactly. Fit the
+hook-to-CTA arc naturally into that runtime rather than padding or rushing it.
+
+Return "scene_descriptions" as a short plain-English beat summary (for the UI list view, separate from "body"),
+"emotional_direction" as the emotional arc in one sentence, "cta" as the one-line call to action, set
+estimated_duration to "${durationSeconds}s", and return the ISO 639-1 language code the script is written in.`;
 }
 
 export function scriptAssistPrompt(currentBody: string, instruction: string) {
