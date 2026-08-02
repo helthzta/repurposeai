@@ -1,68 +1,54 @@
 <!-- Soft cap ~50 lines. Completed work lives in git history, not here.
 Compact at the end of every session per CLAUDE.md ritual. -->
 
-_Last updated: 2026-08-01 (later session)_
+_Last updated: 2026-08-02_
 
 ## Current phase
 
-Core pipeline fully implemented. Same-day sessions shipped: (1) removed
-Seedance 15s+15s chaining, 15s is now the sole active duration with a 30s
-"Coming Soon" state; (2) surfaced the analyzed video's tone as a chip on the
-Idea step; (3) turned brand details from per-project into reusable,
-account-level brand profiles; (4) split login into separate Sign In/Sign Up
-screens with a redirect-if-already-authenticated check on both; (5) rewrote
-`masterScriptPrompt()` (`src/lib/ai/prompts.ts`) so Gemini writes `script.body`
-directly in the detailed continuity-lock/scene/subtitle structure the user
-was previously hand-pasting before generation — it flows verbatim through
-`videoPrompt()` into the Seedance prompt, no other pipeline change needed.
-Payment intentionally still not built.
+Core pipeline fully implemented. This session shipped 3 UI/UX tickets plus
+follow-ups found while live-testing them: polished the Add/Edit Brand modal
+(inline validation), renamed Settings → Profile (removed Theme/Language/
+Notifications end to end, incl. DB columns), fixed Download buttons to
+actually download instead of opening the CDN link, added real captured-
+frame video thumbnails (`VideoThumbnail.tsx`), found and fixed a real bug
+where `generations.output_url` was never signed server-side (so every
+project/video list showed no thumbnail and a disabled Download — see
+R-027), and — per explicit follow-up requests — replaced the "View Result"
+popup with an always-visible inline result panel (video, Download,
+Prompt Used, Script Used, AI Insights) on `/projects/[id]`, then fixed that
+panel's Download button (was stretching to the video's full height).
 
-**Migrations `0012`–`0019` are now applied to the live Supabase project**
-(via the Supabase MCP, this session) — the live schema is fully current.
-There are 3 real users / 26 real projects on this project; the `0019`
-brand-profile backfill has already run against that real data (verified: one
-default per user, zero projects left without a `brand_profile_id`). App code
-itself still hasn't been exercised end-to-end against this live project —
-verified so far only by `tsc`/`eslint`/`next build`.
+**All migrations `0001`–`0020` are applied to the live Supabase project**
+(`0020` applied this session via the Supabase MCP once it became
+available — confirmed via `list_migrations`/`list_tables`). Schema is fully
+current, nothing pending.
 
 ## In progress
 
-- None — migrations are unblocked. Next real task is a live manual run of
-  the app (see Next steps).
+- None. `npx tsc --noEmit` and `npm run lint` pass. `next build` is
+  intentionally no longer run for verification (see R-028) — the user's
+  live dev server should pick up all changes via hot reload; not yet
+  visually re-confirmed in the browser this session past the last
+  screenshot (which was the Download-button layout bug, now fixed).
 
 ## Open questions
 
 - `middleware.ts`'s page-level auth gate still appears not to fire for bare
-  `/dashboard`, `/projects`, `/history`, `/credits`, `/settings` (D-008) —
-  still unresolved, needs a decision.
-- Migration history bookkeeping: `0012`–`0017` are live on the schema but
-  were never recorded in Supabase's tracked migration history (applied
-  manually outside the CLI at some point) — only `0001`–`0011` and now
-  `0018`–`0019` show as tracked. Not a functional problem (schema is
-  correct), but could confuse future CLI-based migration workflows.
-- Is Veo still a planned third video provider, or has the plan settled on
-  Seedance + Higgsfield? (`project-overview.md`)
-- Is there a deploy target/hosting provider yet? Matters for whether the
-  in-memory rate limiter needs to become distributed (D-007).
+  protected paths in local dev (D-008) — still unresolved, needs a decision.
+- Migration history bookkeeping drift (`0012`–`0017` untracked) — see
+  `learned-rules.md` R-024, not yet reconciled.
+- Is Veo still a planned third video provider? (`project-overview.md`)
+- Is there a deploy target/hosting provider yet? (D-007)
 - Are tests planned? No test runner/config exists yet.
-- The new `masterScriptPrompt()` asks the model to include `SUBTITLE:` lines
-  as a burnt-in-caption hint, but Seedance's API has no caption/subtitle
-  parameter (`src/lib/providers/seedance.ts`) and the prior `ffmpeg.ts`
-  post-processing file is deleted with nothing replacing it — so subtitles
-  are best-effort (model may render them, may not), not guaranteed. A real
-  fix needs either an ffmpeg burn-in step or a provider that supports it
-  natively.
+- Avatar is currently a raw URL field (D-018) — revisit if users actually
+  need to upload a photo file instead of linking one.
 
 ## Next steps (max ~5)
 
-1. Grant yourself `is_admin` (`update public.profiles set is_admin = true
-   where email = '...'`) if not already done.
-2. Run one full real flow against the live project: sign up via `/signup`,
-   create a brand profile, start a project against it, confirm 15s
-   generation works and 30s shows "Coming Soon", confirm the Idea step shows
-   the detected tone. Also confirm `/login`/`/signup` redirect straight to
-   `/dashboard` when already signed in.
-3. Spot-check a couple of the 3 pre-existing users' inherited default brand
-   profile (from the `0019` backfill) — confirm it's a reasonable pick.
-4. Decide on the middleware auth-gating finding (D-008).
-5. Resolve hosting target.
+1. Live-confirm in the browser: `/projects` thumbnails render and Download
+   works; `/projects/[id]`'s inline result panel looks right (Download
+   button no longer oversized) and shows correct prompt/script/AI Insights.
+2. Load `/profile`: confirm nav says "Profile", personal info saves, brand
+   profile add/edit still works pre-filled.
+3. Decide on the middleware auth-gating finding (D-008).
+4. Resolve hosting target.

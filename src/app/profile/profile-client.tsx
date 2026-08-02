@@ -3,18 +3,12 @@
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Globe, Palette, Pencil, Plus, Star, Trash2, User, Zap } from "lucide-react";
+import { Loader2, LogOut, Palette, Pencil, Plus, Star, Trash2, User, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { BrandProfileDialog } from "@/components/brand/BrandProfileDialog";
 import { createClient } from "@/lib/supabase/client";
 import type { BrandProfile, Profile } from "@/lib/types";
@@ -43,6 +37,152 @@ function Section({
           </div>
         </div>
         <div className="shrink-0">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function PersonalInfoSection({
+  profile,
+  email,
+  onSaved,
+}: {
+  profile: Profile | null;
+  email: string;
+  onSaved: (profile: Profile) => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setFullName(profile?.full_name ?? "");
+    setUsername(profile?.username ?? "");
+    setAvatarUrl(profile?.avatar_url ?? "");
+  }, [profile]);
+
+  const dirty =
+    profile &&
+    (fullName !== (profile.full_name ?? "") ||
+      username !== profile.username ||
+      avatarUrl !== (profile.avatar_url ?? ""));
+
+  const handleSave = async () => {
+    if (!username.trim()) {
+      setUsernameError("Username can't be empty");
+      return;
+    }
+    setUsernameError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: fullName.trim() || null,
+          username: username.trim(),
+          avatar_url: avatarUrl.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) setUsernameError(data.error ?? "That username is already taken");
+        else toast.error("Could not save your info");
+        return;
+      }
+      onSaved(data.profile);
+      toast.success("Profile updated");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const initials = (profile?.full_name || profile?.username || "•").slice(0, 2).toUpperCase();
+
+  return (
+    <div className="rounded-3xl border bg-card p-6 shadow-card">
+      <div className="flex items-center gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent">
+          <User className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-sm font-bold">Personal Info</h2>
+          <p className="text-xs text-muted-foreground">Your name, username, and avatar</p>
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-center gap-4">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-full border object-cover"
+          />
+        ) : (
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full gradient-primary text-sm font-bold text-primary-foreground">
+            {initials}
+          </div>
+        )}
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Label htmlFor="profile-avatar">Avatar URL</Label>
+          <Input
+            id="profile-avatar"
+            type="url"
+            placeholder="https://…/photo.jpg"
+            className="h-10 rounded-xl"
+            value={avatarUrl}
+            onChange={(e) => setAvatarUrl(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="profile-name">Full Name</Label>
+          <Input
+            id="profile-name"
+            placeholder="Jane Doe"
+            className="h-11 rounded-xl"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="profile-username">Username</Label>
+          <Input
+            id="profile-username"
+            placeholder="janedoe"
+            className={`h-11 rounded-xl ${usernameError ? "border-destructive" : ""}`}
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setUsernameError(null);
+            }}
+          />
+          {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="profile-email">Email</Label>
+          <Input
+            id="profile-email"
+            disabled
+            className="h-11 rounded-xl text-muted-foreground"
+            value={email}
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 flex justify-end">
+        <Button
+          className="rounded-xl font-semibold"
+          onClick={handleSave}
+          disabled={!dirty || saving}
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          Save changes
+        </Button>
       </div>
     </div>
   );
@@ -172,32 +312,20 @@ function BrandProfilesSection() {
   );
 }
 
-export function SettingsPageClient() {
+export function ProfilePageClient() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     fetch("/api/profile")
       .then((res) => res.json())
       .then((data) => {
         setProfile(data.profile);
+        setEmail(data.email ?? data.profile?.email ?? "");
       })
-      .catch(() => toast.error("Could not load settings"));
+      .catch(() => toast.error("Could not load your profile"));
   }, []);
-
-  const patch = async (body: Partial<Profile>) => {
-    const res = await fetch("/api/profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error("Could not save setting");
-      return;
-    }
-    setProfile(data.profile);
-  };
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -207,40 +335,11 @@ export function SettingsPageClient() {
   };
 
   return (
-    <AppShell title="Settings">
+    <AppShell title="Profile">
       <div className="mx-auto max-w-3xl space-y-4">
-        <Section
-          icon={Palette}
-          title="Theme"
-          desc={profile?.theme === "system" ? "Follows system" : "Light mode is active"}
-        >
-          <Select
-            value={profile?.theme ?? "light"}
-            onValueChange={(theme) => patch({ theme: theme as Profile["theme"] })}
-          >
-            <SelectTrigger className="w-32 rounded-xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="system">System</SelectItem>
-            </SelectContent>
-          </Select>
-        </Section>
+        <PersonalInfoSection profile={profile} email={email} onSaved={setProfile} />
 
-        <Section icon={Globe} title="Language" desc="Interface language">
-          <Select value={profile?.locale ?? "en"} onValueChange={(locale) => patch({ locale })}>
-            <SelectTrigger className="w-32 rounded-xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="de">Deutsch</SelectItem>
-              <SelectItem value="fr">Français</SelectItem>
-              <SelectItem value="es">Español</SelectItem>
-            </SelectContent>
-          </Select>
-        </Section>
+        <BrandProfilesSection />
 
         <Section
           icon={Zap}
@@ -252,16 +351,7 @@ export function SettingsPageClient() {
           </Button>
         </Section>
 
-        <BrandProfilesSection />
-
-        <Section icon={Bell} title="Notifications" desc="Email me when generations finish">
-          <Switch
-            checked={profile?.notify_on_completion ?? true}
-            onCheckedChange={(v) => patch({ notify_on_completion: v })}
-          />
-        </Section>
-
-        <Section icon={User} title="Account" desc={profile?.username ? `@${profile.username}` : ""}>
+        <Section icon={LogOut} title="Account" desc="Sign out of Repurpose AI on this device">
           <Button
             variant="outline"
             className="rounded-xl font-semibold text-destructive hover:text-destructive"

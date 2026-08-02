@@ -42,7 +42,7 @@ async function uploadLogo(brandProfileId: string, file: File): Promise<string> {
   return brandProfile.logo_path as string;
 }
 
-/** Shared Add/Edit brand profile modal — used from Settings and inline from the Upload step. */
+/** Shared Add/Edit brand profile modal — used from Profile and inline from the Upload step. */
 export function BrandProfileDialog({
   open,
   onOpenChange,
@@ -65,6 +65,7 @@ export function BrandProfileDialog({
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [labelError, setLabelError] = useState<string | null>(null);
 
   const handleLogoChange = (file: File | null) => {
     setLogoFile(file);
@@ -76,9 +77,10 @@ export function BrandProfileDialog({
 
   const handleSubmit = async () => {
     if (!label.trim()) {
-      toast.error('Give this brand profile a name, e.g. "Brand A"');
+      setLabelError('Give this brand profile a name, e.g. "Brand A"');
       return;
     }
+    setLabelError(null);
     setSaving(true);
     try {
       const payload = {
@@ -135,10 +137,14 @@ export function BrandProfileDialog({
             <Input
               id="bp-label"
               placeholder="e.g. Brand A"
-              className="h-11 rounded-xl"
+              className={`h-11 rounded-xl ${labelError ? "border-destructive" : ""}`}
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => {
+                setLabel(e.target.value);
+                if (labelError) setLabelError(null);
+              }}
             />
+            {labelError && <p className="text-xs text-destructive">{labelError}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bp-brand-name">Brand Name</Label>

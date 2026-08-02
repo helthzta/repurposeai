@@ -15,6 +15,36 @@ export type ProjectDetail = Project & {
   generations: Generation[];
 };
 
+/**
+ * `generations.output_url` isn't persisted — it's a private-bucket signed URL that expires, so
+ * it has to be (re)signed on every read from `output_path`, never trusted from the DB column
+ * (which stays null). Signs every completed generation's path in a single batch call.
+ */
+export async function signGenerationOutputs<
+  T extends Pick<Generation, "id" | "output_path" | "status" | "output_url">,
+>(supabase: SupabaseClient, generations: T[]): Promise<T[]> {
+  const paths = generations
+    .filter((g) => g.status === "completed" && g.output_path)
+    .map((g) => g.output_path as string);
+  if (paths.length === 0) return generations;
+
+  const { data: signed, error } = await supabase.storage
+    .from("generated-videos")
+    .createSignedUrls(paths, 3600);
+  if (error) throw error;
+
+  const urlByPath = new Map(
+    (signed ?? [])
+      .filter((s) => s.path && s.signedUrl)
+      .map((s) => [s.path as string, s.signedUrl as string]),
+  );
+  return generations.map((g) =>
+    g.output_path && urlByPath.has(g.output_path)
+      ? { ...g, output_url: urlByPath.get(g.output_path)! }
+      : g,
+  );
+}
+
 /** Shared by GET /api/projects/[id] and the /dashboard/[projectId] page. */
 export async function getProjectDetail(
   supabase: SupabaseClient,
@@ -33,7 +63,11 @@ export async function getProjectDetail(
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  return data as ProjectDetail | null;
+  if (!data) return null;
+
+  const project = data as ProjectDetail;
+  project.generations = await signGenerationOutputs(supabase, project.generations ?? []);
+  return project;
 }
 
 /** A project's selected brand profile — shared by every route that needs brand context for AI calls. */

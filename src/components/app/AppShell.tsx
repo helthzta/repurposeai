@@ -11,8 +11,8 @@ import {
   History,
   LayoutDashboard,
   Menu,
-  Settings,
   ShieldCheck,
+  User,
   X,
   Zap,
 } from "lucide-react";
@@ -26,7 +26,7 @@ const navItems = [
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "History", url: "/history", icon: History },
   { title: "Credits", url: "/credits", icon: CreditCard },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Profile", url: "/profile", icon: User },
   { title: "Help", url: "/help", icon: HelpCircle },
 ] as const;
 

@@ -4,16 +4,9 @@ import { Copy, Download, FileText, Loader2, RefreshCw, Sparkles, Terminal } from
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { AiInsights, Generation, Script } from "@/lib/types";
-import { cn } from "@/lib/utils";
-
-const INSIGHT_LABELS: { key: keyof AiInsights; label: string }[] = [
-  { key: "marketing_score", label: "Marketing Score" },
-  { key: "creativity_score", label: "Creativity Score" },
-  { key: "brand_match_score", label: "Brand Match Score" },
-  { key: "emotional_impact", label: "Emotional Impact" },
-  { key: "predicted_conversion", label: "Predicted Conversion" },
-];
+import { AiInsightsList, ExpandableTextCard } from "@/components/generation/GenerationDetails";
+import type { Generation, Script } from "@/lib/types";
+import { downloadFile } from "@/lib/utils";
 
 export function ResultStep({
   generationId,
@@ -25,9 +18,20 @@ export function ResultStep({
   onRegenerate: (newGenerationId: string) => void;
 }) {
   const [generation, setGeneration] = useState<Generation | null>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [showScript, setShowScript] = useState(false);
   const [regenerating, setRegenerating] = useState<"regenerate" | "variation" | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!generation?.output_url) return;
+    setDownloading(true);
+    try {
+      await downloadFile(generation.output_url, `${generation.id}.mp4`);
+    } catch {
+      toast.error("Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/generations/${generationId}`)
@@ -83,20 +87,15 @@ export function ResultStep({
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <Button
               className="btn-glow rounded-xl font-semibold"
-              disabled={!generation?.output_url}
-              asChild={!!generation?.output_url}
+              disabled={!generation?.output_url || downloading}
+              onClick={handleDownload}
             >
-              {generation?.output_url ? (
-                <a href={generation.output_url} download>
-                  <Download className="h-4 w-4" />
-                  Download
-                </a>
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <span>
-                  <Download className="h-4 w-4" />
-                  Download
-                </span>
+                <Download className="h-4 w-4" />
               )}
+              Download
             </Button>
             <Button
               variant="outline"
@@ -128,48 +127,19 @@ export function ResultStep({
 
           {/* Prompt & script */}
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border bg-card p-5 shadow-card">
-              <div className="flex items-center justify-between">
-                <p className="flex items-center gap-2 text-sm font-bold">
-                  <Terminal className="h-4 w-4 text-primary" />
-                  Prompt Used
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-lg text-xs"
-                  onClick={() => setShowPrompt(!showPrompt)}
-                >
-                  {showPrompt ? "Hide" : "View Prompt"}
-                </Button>
-              </div>
-              {showPrompt && (
-                <p className="animate-fade-up mt-3 rounded-xl bg-muted/60 p-3.5 text-xs leading-relaxed text-muted-foreground">
-                  {generation?.prompt_used ?? "No prompt recorded."}
-                </p>
-              )}
-            </div>
-            <div className="rounded-2xl border bg-card p-5 shadow-card">
-              <div className="flex items-center justify-between">
-                <p className="flex items-center gap-2 text-sm font-bold">
-                  <FileText className="h-4 w-4 text-primary" />
-                  Script Used
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-lg text-xs"
-                  onClick={() => setShowScript(!showScript)}
-                >
-                  {showScript ? "Hide" : "View Script"}
-                </Button>
-              </div>
-              {showScript && (
-                <pre className="animate-fade-up mt-3 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-xl bg-muted/60 p-3.5 font-sans text-xs leading-relaxed text-muted-foreground">
-                  {script?.body ?? "No script selected."}
-                </pre>
-              )}
-            </div>
+            <ExpandableTextCard
+              icon={Terminal}
+              title="Prompt Used"
+              content={generation?.prompt_used ?? null}
+              emptyText="No prompt recorded."
+              mono
+            />
+            <ExpandableTextCard
+              icon={FileText}
+              title="Script Used"
+              content={script?.body ?? null}
+              emptyText="No script selected."
+            />
           </div>
         </div>
 
@@ -181,44 +151,8 @@ export function ResultStep({
             </span>
             <h3 className="text-[15px] font-bold">AI Insights</h3>
           </div>
-          <div className="mt-6 space-y-5">
-            {generation?.ai_insights ? (
-              INSIGHT_LABELS.map((insight, i) => {
-                const value = generation.ai_insights![insight.key];
-                return (
-                  <div
-                    key={insight.key}
-                    className="animate-fade-up"
-                    style={{ animationDelay: `${i * 80}ms` }}
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-muted-foreground">{insight.label}</span>
-                      <span
-                        className={cn(
-                          "font-bold",
-                          value >= 90 ? "text-success" : "text-foreground",
-                        )}
-                      >
-                        {Math.round(value)}
-                      </span>
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-700",
-                          value >= 90 ? "bg-success" : "gradient-primary",
-                        )}
-                        style={{ width: `${Math.min(100, value)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Scoring not available for this generation.
-              </p>
-            )}
+          <div className="mt-6">
+            <AiInsightsList insights={generation?.ai_insights ?? null} />
           </div>
         </div>
       </div>

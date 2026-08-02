@@ -98,10 +98,14 @@ and src/lib/*. Citations inline. -->
   `brand_profiles` switched from joining through `projects` to a direct
   `auth.uid() = user_id` check. "Only one default per user" is enforced in
   application code (`src/app/api/brand-profiles/[id]/route.ts`), not a DB
-  constraint. **Applied state of `0012`–`0019` against the live project is
-  unverified as of this note** — apply in order before testing anything
-  analysis/generation/admin/website/brand-profile-related, see
-  `progress-tracker.md`.
+  constraint. `0020` drops `profiles.theme`/`locale`/`notify_on_completion` —
+  the Settings page (renamed Profile, `/profile`, D-017) dropped Theme/
+  Language/Notifications as features, not just UI (D-018); `profiles.avatar_url`
+  (already existed, previously write-only via direct DB access) is now
+  editable through `/api/profile`. **`0001`–`0020` are all applied to the
+  live project** (`0020` applied via the Supabase MCP on 2026-08-02,
+  confirmed via `list_migrations` + `list_tables`) — the schema is fully
+  current as of this note.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):

@@ -59,3 +59,11 @@ D-015 · 2026-08-01 · Brand logo uploads reuse the existing `/api/uploads/sign`
 D-016 · 2026-08-01 · Split the unified sign-in/signup form (D-006) into two separate screens, `/login` and `/signup` · ACTIVE
   Why: explicit user request ("add a sign in and sign up screen") — overrides D-006's earlier "one form" rationale, which was itself only a default absent a stated preference
   Rejected: keeping one form with a mode toggle — closer to the old design, but the user asked for distinct screens
+
+D-017 · 2026-08-02 · Settings page renamed to Profile with a route change (`/settings` → `/profile`, `src/app/settings` → `src/app/profile`), not just a label swap · ACTIVE
+  Why: ticket said "update label, route path if needed, and any internal references" — a page now scoped to personal info + brand profiles reads as stale under a `/settings` URL
+  Rejected: keeping the `/settings` URL and only renaming the nav label — smaller diff, but leaves a mismatched route for what's now a profile hub
+
+D-018 · 2026-08-02 · Theme/Language/Notifications removed from Profile: `profiles.theme`/`locale`/`notify_on_completion` dropped via a real migration (`0020`, written but not yet applied), and `avatar_url` added to `/api/profile`'s `EDITABLE_FIELDS` as a plain URL input (no new upload endpoint) · ACTIVE
+  Why: these were being actively removed as a feature (not deprioritized data), so the `0018` chaining-column-drop precedent applies, not R-005's "leave column unused" one (that was for data that might still be reused). Avatar reuses the existing plain-URL-field pattern (like `website_url`) instead of building dedicated avatar upload/storage infra for one field
+  Rejected: leaving `theme`/`locale`/`notify_on_completion` as unused columns (R-005's usual pattern) — doesn't fit here since the feature itself, not just its usage, is gone; a dedicated avatar upload endpoint — more correct long-term but disproportionate for a field with no other consumer yet

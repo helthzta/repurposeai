@@ -147,9 +147,6 @@ export interface Profile {
   avatar_url: string | null;
   plan: "starter" | "pro" | "enterprise";
   credits_balance: number;
-  locale: string;
-  theme: "light" | "system";
-  notify_on_completion: boolean;
   is_admin: boolean;
 }
 

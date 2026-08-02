@@ -1,10 +1,25 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
+import { signGenerationOutputs } from "@/lib/projects";
+import type { Generation, Project } from "@/lib/types";
+
+type ProjectListGeneration = Pick<
+  Generation,
+  | "id"
+  | "output_url"
+  | "output_path"
+  | "status"
+  | "duration_seconds"
+  | "provider"
+  | "credits_charged"
+  | "created_at"
+>;
+type ProjectListRow = Project & { generations: ProjectListGeneration[] };
 
 export const GET = withLogger("projects.list", async () => {
   const { supabase, user } = await requireUser();
-  const { data: projects, error } = await supabase
+  const { data, error } = await supabase
     .from("projects")
     .select(
       "*, brand_profiles(*), generations(id, output_url, output_path, status, duration_seconds, provider, credits_charged, created_at)",
@@ -13,7 +28,21 @@ export const GET = withLogger("projects.list", async () => {
     .order("created_at", { ascending: false });
   if (error) throw error;
 
-  return NextResponse.json({ projects });
+  const projects = (data ?? []) as ProjectListRow[];
+
+  // output_url isn't a persisted column (signed URLs expire) — sign every project's
+  // generations in one batch call rather than one round trip per project.
+  const signed = await signGenerationOutputs(
+    supabase,
+    projects.flatMap((p) => p.generations ?? []),
+  );
+  const signedById = new Map(signed.map((g) => [g.id, g]));
+  const withSignedUrls = projects.map((p) => ({
+    ...p,
+    generations: (p.generations ?? []).map((g) => signedById.get(g.id) ?? g),
+  }));
+
+  return NextResponse.json({ projects: withSignedUrls });
 });
 
 /** Brand details now live on a reusable brand_profiles row (see /api/brand-profiles) — a project just picks one. */

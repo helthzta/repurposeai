@@ -6,7 +6,7 @@ const PROTECTED_PATHS = [
   "/projects",
   "/history",
   "/credits",
-  "/settings",
+  "/profile",
   "/admin",
   "/api",
 ];
@@ -17,7 +17,7 @@ function isProtected(pathname: string) {
 
 export async function middleware(request: NextRequest) {
   // /api/* route handlers manage their own auth (session or API key) — only
-  // gate the "/api" settings page itself, not the backend endpoints under it.
+  // gate the "/api" page itself, not the backend endpoints under it.
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.next();
   }

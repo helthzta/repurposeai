@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { VideoThumbnail } from "@/components/app/VideoThumbnail";
 import type { Generation, Project } from "@/lib/types";
+import { downloadFile } from "@/lib/utils";
 
 type ProjectWithGenerations = Project & { generations: Generation[] };
 
@@ -19,6 +21,18 @@ export function ProjectGrid({ mode }: { mode: "projects" | "history" }) {
   const [projects, setProjects] = useState<ProjectWithGenerations[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownload = async (project: ProjectWithGenerations, url: string) => {
+    setDownloadingId(project.id);
+    try {
+      await downloadFile(url, `${project.name.replace(/[^\w-]+/g, "_")}.mp4`);
+    } catch {
+      toast.error("Download failed");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -108,7 +122,7 @@ export function ProjectGrid({ mode }: { mode: "projects" | "history" }) {
           >
             <Link href={href} className="relative block aspect-video overflow-hidden bg-muted">
               {latest?.output_url ? (
-                <video src={latest.output_url} className="h-full w-full object-cover" muted />
+                <VideoThumbnail src={latest.output_url} className="h-full w-full object-cover" />
               ) : (
                 <div className="grid h-full place-items-center">
                   <Play className="h-8 w-8 text-muted-foreground" />
@@ -149,20 +163,15 @@ export function ProjectGrid({ mode }: { mode: "projects" | "history" }) {
                   variant="outline"
                   size="sm"
                   className="flex-1 rounded-lg text-xs"
-                  disabled={!latest?.output_url}
-                  asChild={!!latest?.output_url}
+                  disabled={!latest?.output_url || downloadingId === project.id}
+                  onClick={() => latest?.output_url && handleDownload(project, latest.output_url)}
                 >
-                  {latest?.output_url ? (
-                    <a href={latest.output_url} download>
-                      <Download className="h-3.5 w-3.5" />
-                      Download
-                    </a>
+                  {downloadingId === project.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <span>
-                      <Download className="h-3.5 w-3.5" />
-                      Download
-                    </span>
+                    <Download className="h-3.5 w-3.5" />
                   )}
+                  Download
                 </Button>
                 <Button
                   variant="outline"

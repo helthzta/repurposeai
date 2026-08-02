@@ -2,13 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, apiErrorResponse, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 
-const EDITABLE_FIELDS = [
-  "full_name",
-  "username",
-  "theme",
-  "locale",
-  "notify_on_completion",
-] as const;
+const EDITABLE_FIELDS = ["full_name", "username", "avatar_url"] as const;
 
 export const GET = withLogger("profile.get", async () => {
   const { supabase, user } = await requireUser();
