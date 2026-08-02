@@ -3,14 +3,27 @@
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut, Palette, Pencil, Plus, Star, Trash2, User, Zap } from "lucide-react";
+import {
+  Camera,
+  Loader2,
+  LogOut,
+  Palette,
+  Pencil,
+  Plus,
+  Star,
+  Trash2,
+  User,
+  Zap,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandProfileDialog } from "@/components/brand/BrandProfileDialog";
+import { useProfile, useUpdateProfileCache } from "@/hooks/use-profile";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import type { BrandProfile, Profile } from "@/lib/types";
 
 function Section({
@@ -42,6 +55,105 @@ function Section({
   );
 }
 
+/** Drag-and-drop (or click-to-browse) profile photo upload — saves immediately on drop. */
+function AvatarDropzone({
+  profile,
+  onUploaded,
+}: {
+  profile: Profile | null;
+  onUploaded: (profile: Profile) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const signRes = await fetch("/api/uploads/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "avatar", filename: file.name }),
+      });
+      if (!signRes.ok) throw new Error("Could not prepare upload");
+      const { bucket, path, token } = await signRes.json();
+
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .uploadToSignedUrl(path, token, file);
+      if (uploadError) throw uploadError;
+
+      const confirmRes = await fetch("/api/uploads/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "avatar", path, filename: file.name }),
+      });
+      if (!confirmRes.ok) throw new Error("Could not save your photo");
+      const { profile: updated } = await confirmRes.json();
+      onUploaded(updated);
+      toast.success("Profile photo updated");
+    } catch (err) {
+      toast.error("Couldn't upload photo", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const initials = (profile?.full_name || profile?.username || "•").slice(0, 2).toUpperCase();
+
+  return (
+    <div className="flex items-center gap-4">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          handleFile(e.dataTransfer.files[0]);
+        }}
+        className={cn(
+          "group relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-dashed transition-colors",
+          dragging ? "border-primary bg-accent" : "border-border",
+        )}
+      >
+        <label htmlFor="profile-avatar-file" className="absolute inset-0 block cursor-pointer">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center gradient-primary text-sm font-bold text-primary-foreground">
+              {initials}
+            </div>
+          )}
+          <div className="absolute inset-0 grid place-items-center bg-foreground/0 text-transparent transition-colors group-hover:bg-foreground/40 group-hover:text-background">
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Camera className="h-4 w-4" />
+            )}
+          </div>
+        </label>
+        <input
+          id="profile-avatar-file"
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold">Profile photo</p>
+        <p className="text-xs text-muted-foreground">Drag and drop an image, or click to browse.</p>
+      </div>
+    </div>
+  );
+}
+
 function PersonalInfoSection({
   profile,
   email,
@@ -53,21 +165,16 @@ function PersonalInfoSection({
 }) {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setFullName(profile?.full_name ?? "");
     setUsername(profile?.username ?? "");
-    setAvatarUrl(profile?.avatar_url ?? "");
   }, [profile]);
 
   const dirty =
-    profile &&
-    (fullName !== (profile.full_name ?? "") ||
-      username !== profile.username ||
-      avatarUrl !== (profile.avatar_url ?? ""));
+    profile && (fullName !== (profile.full_name ?? "") || username !== profile.username);
 
   const handleSave = async () => {
     if (!username.trim()) {
@@ -83,7 +190,6 @@ function PersonalInfoSection({
         body: JSON.stringify({
           full_name: fullName.trim() || null,
           username: username.trim(),
-          avatar_url: avatarUrl.trim() || null,
         }),
       });
       const data = await res.json();
@@ -99,8 +205,6 @@ function PersonalInfoSection({
     }
   };
 
-  const initials = (profile?.full_name || profile?.username || "•").slice(0, 2).toUpperCase();
-
   return (
     <div className="rounded-3xl border bg-card p-6 shadow-card">
       <div className="flex items-center gap-3">
@@ -113,29 +217,8 @@ function PersonalInfoSection({
         </div>
       </div>
 
-      <div className="mt-5 flex items-center gap-4">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt=""
-            className="h-14 w-14 shrink-0 rounded-full border object-cover"
-          />
-        ) : (
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full gradient-primary text-sm font-bold text-primary-foreground">
-            {initials}
-          </div>
-        )}
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor="profile-avatar">Avatar URL</Label>
-          <Input
-            id="profile-avatar"
-            type="url"
-            placeholder="https://…/photo.jpg"
-            className="h-10 rounded-xl"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-          />
-        </div>
+      <div className="mt-5">
+        <AvatarDropzone profile={profile} onUploaded={onSaved} />
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -314,18 +397,10 @@ function BrandProfilesSection() {
 
 export function ProfilePageClient() {
   const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        setProfile(data.profile);
-        setEmail(data.email ?? data.profile?.email ?? "");
-      })
-      .catch(() => toast.error("Could not load your profile"));
-  }, []);
+  const { data } = useProfile();
+  const updateProfileCache = useUpdateProfileCache();
+  const profile = data?.profile ?? null;
+  const email = data?.email ?? profile?.email ?? "";
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -337,7 +412,7 @@ export function ProfilePageClient() {
   return (
     <AppShell title="Profile">
       <div className="mx-auto max-w-3xl space-y-4">
-        <PersonalInfoSection profile={profile} email={email} onSaved={setProfile} />
+        <PersonalInfoSection profile={profile} email={email} onSaved={updateProfileCache} />
 
         <BrandProfilesSection />
 

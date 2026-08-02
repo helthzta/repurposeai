@@ -16,9 +16,10 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -31,40 +32,45 @@ const navItems = [
 ] as const;
 
 function useCurrentUser() {
-  const [state, setState] = useState<{
-    name: string;
-    plan: string;
-    credits: number | null;
-    isAdmin: boolean;
-  }>({
-    name: "",
-    plan: "starter",
-    credits: null,
-    isAdmin: false,
-  });
+  const { data } = useProfile();
+  const profile = data?.profile;
+  return {
+    name: profile?.full_name || profile?.username || "",
+    plan: profile?.plan ?? "starter",
+    credits: profile?.credits_balance ?? null,
+    isAdmin: !!profile?.is_admin,
+    avatarUrl: profile?.avatar_url ?? null,
+  };
+}
 
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.profile) return;
-        setState({
-          name: data.profile.full_name || data.profile.username || "Account",
-          plan: data.profile.plan,
-          credits: data.profile.credits_balance,
-          isAdmin: !!data.profile.is_admin,
-        });
-      })
-      .catch(() => undefined);
-  }, []);
-
-  return state;
+function Avatar({
+  name,
+  avatarUrl,
+  className,
+}: {
+  name: string;
+  avatarUrl: string | null;
+  className: string;
+}) {
+  const initials = name ? name.slice(0, 2).toUpperCase() : "•";
+  if (avatarUrl) {
+    return <img src={avatarUrl} alt="" className={cn(className, "rounded-full object-cover")} />;
+  }
+  return (
+    <div
+      className={cn(
+        className,
+        "grid place-items-center rounded-full gradient-primary font-bold text-primary-foreground",
+      )}
+    >
+      {initials}
+    </div>
+  );
 }
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { name, plan, isAdmin } = useCurrentUser();
-  const initials = name ? name.slice(0, 2).toUpperCase() : "•";
+  const { name, plan, isAdmin, avatarUrl } = useCurrentUser();
   const items = isAdmin
     ? [...navItems, { title: "Admin", url: "/admin", icon: ShieldCheck }]
     : navItems;
@@ -102,9 +108,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t p-4">
         <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full gradient-primary text-xs font-bold text-primary-foreground">
-            {initials}
-          </div>
+          <Avatar name={name} avatarUrl={avatarUrl} className="h-9 w-9 shrink-0 text-xs" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{name || "Loading…"}</p>
             <p className="truncate text-xs capitalize text-muted-foreground">{plan} plan</p>
@@ -117,8 +121,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ title, children }: { title: string; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { name, credits } = useCurrentUser();
-  const initials = name ? name.slice(0, 2).toUpperCase() : "•";
+  const { name, credits, avatarUrl } = useCurrentUser();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -186,9 +189,7 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
                   You&apos;re all caught up — no notifications yet.
                 </PopoverContent>
               </Popover>
-              <div className="grid h-8.5 w-8.5 place-items-center rounded-full gradient-primary text-[11px] font-bold text-primary-foreground">
-                {initials}
-              </div>
+              <Avatar name={name} avatarUrl={avatarUrl} className="h-8.5 w-8.5 text-[11px]" />
             </div>
           </div>
         </header>

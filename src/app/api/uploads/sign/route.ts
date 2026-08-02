@@ -7,6 +7,7 @@ const BUCKET_BY_KIND = {
   product: "source-videos",
   brand: "source-videos",
   logo: "brand-logos",
+  avatar: "brand-logos",
 } as const;
 
 export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
@@ -23,16 +24,22 @@ export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
   if (!kind || !filename) throw new ApiError(400, "kind and filename are required");
   if (!(kind in BUCKET_BY_KIND)) throw new ApiError(400, `Unsupported kind: ${kind}`);
 
-  const scopeId = kind === "logo" ? brandProfileId : projectId;
-  if (!scopeId) {
-    throw new ApiError(
-      400,
-      kind === "logo" ? "brandProfileId is required" : "projectId is required",
-    );
-  }
-
   const bucket = BUCKET_BY_KIND[kind as keyof typeof BUCKET_BY_KIND];
-  const path = `${user.id}/${scopeId}/${kind}-${Date.now()}-${filename}`;
+
+  // Avatars are scoped to the user themselves — no project/brand-profile id to pass.
+  let path: string;
+  if (kind === "avatar") {
+    path = `${user.id}/avatar/${Date.now()}-${filename}`;
+  } else {
+    const scopeId = kind === "logo" ? brandProfileId : projectId;
+    if (!scopeId) {
+      throw new ApiError(
+        400,
+        kind === "logo" ? "brandProfileId is required" : "projectId is required",
+      );
+    }
+    path = `${user.id}/${scopeId}/${kind}-${Date.now()}-${filename}`;
+  }
 
   const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(path);
   if (error) throw error;
