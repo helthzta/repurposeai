@@ -4,9 +4,9 @@ One line per file: what it owns, when to read it, when it was last true.
 
 | File | Owns | Read when | Last verified |
 |---|---|---|---|
-| `session-handoff.md` | current session snapshot | every session | 2026-08-02 |
-| `progress-tracker.md` | current phase, open questions, next steps | every session | 2026-08-02 |
-| `learned-rules.md` | distilled permanent constraints | every session | 2026-08-02 |
+| `session-handoff.md` | current session snapshot | every session | 2026-08-04 |
+| `progress-tracker.md` | current phase, open questions, next steps | every session | 2026-08-04 |
+| `learned-rules.md` | distilled permanent constraints | every session | 2026-08-04 |
 | `project-overview.md` | product definition, goals, scope | scope/priority questions | 2026-08-01 |
 | `decision-log.md` | still-active decisions with rationale | when touching an area listed below | 2026-08-02 |
 | `architecture.md` | stack, boundaries, storage, invariants | touching system structure | 2026-08-02 |

@@ -4,7 +4,7 @@ story. One line each: constraint + why, in under ~20 words if possible.
 No status field needed here — if it's here, it's active. If it stops being
 true, delete it or move it to archive with a note of what replaced it. -->
 
-_Last updated: 2026-07-29 (later session)_
+_Last updated: 2026-08-04_
 
 ## Rules learned so far
 
@@ -41,3 +41,5 @@ R-027 · `generations.output_url` is never actually persisted — it's a private
 R-028 · Never run `next build` for local verification — use `tsc --noEmit` + `eslint` only · `next build` shares `.next` with a running `next dev` server and corrupts its cache/manifests, forcing a manual `.next` wipe to recover (this is what was happening to the user repeatedly before this rule).
 R-029 · Any client data shown in more than one independently-mounted component (e.g. `AppShell`'s sidebar/header + a page's own display) must go through the shared `@tanstack/react-query` cache (`src/hooks/use-profile.ts`'s `useProfile`/`useUpdateProfileCache` pattern), not a per-component `useState` + `fetch` · two independent copies only sync on their own next mount (looked like "have to navigate away and back" to the user) — react-query's shared cache key updates every subscriber immediately. `react-query` was already an installed dependency with a `QueryClientProvider` at the root but unused until this.
 R-030 · Avatar photos upload through `/api/uploads/sign` + `/api/uploads/confirm` with `kind: "avatar"`, reusing the `brand-logos` bucket at path `{user_id}/avatar/{timestamp}-{filename}` — no new bucket/migration · that bucket's RLS only checks the first path segment (`auth.uid()`), same reasoning as brand-logo/R-018; `confirm` writes the public URL straight to `profiles.avatar_url`.
+R-031 · Every full-script write (first-time `/api/scripts/generate`, `/api/scripts/[id]/regenerate` for plain Regenerate + language/subtitle changes) must go through `writeScript()` (`src/lib/scripts.ts`), never call `generateMasterScript`/`masterScriptPrompt` directly from a route · a prior direct call in `generate/route.ts` had drifted from `regenerate`'s prompt, so first-time scripts came back without the structured scene-by-scene format regeneration produced — `writeScript()` is now the sole call site, so both paths are byte-for-byte identical by construction, not by convention.
+R-032 · A custom (user-typed) idea keeps `style: "custom"` all the way into the `scripts.style` column instead of being overwritten by whatever style Gemini's response classified the body as · lets `regenerate/route.ts` correctly reconstruct the original idea shape from the stored row on a later regenerate.
