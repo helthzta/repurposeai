@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, FileText, Loader2, RefreshCw, Sparkles, Terminal } from "lucide-react";
+import { Copy, Download, FileText, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -125,22 +125,13 @@ export function ResultStep({
             </Button>
           </div>
 
-          {/* Prompt & script */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ExpandableTextCard
-              icon={Terminal}
-              title="Prompt Used"
-              content={generation?.prompt_used ?? null}
-              emptyText="No prompt recorded."
-              mono
-            />
-            <ExpandableTextCard
-              icon={FileText}
-              title="Script Used"
-              content={script?.body ?? null}
-              emptyText="No script selected."
-            />
-          </div>
+          {/* Script */}
+          <ExpandableTextCard
+            icon={FileText}
+            title="Script Used"
+            content={script?.body ?? null}
+            emptyText="No script selected."
+          />
         </div>
 
         {/* AI Insights */}

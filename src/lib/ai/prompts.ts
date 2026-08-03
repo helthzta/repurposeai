@@ -87,8 +87,13 @@ ${brandBrief(brand)}
 
 ${toneNote(analysis)}
 
-Write every spoken line, on-screen title, and CTA in ${SCRIPT_LANGUAGE_LABELS[language]} (${language}) — the
-whole script, not just the dialogue.
+Write this ENTIRE script in ${SCRIPT_LANGUAGE_LABELS[language]} (${language}) — "title", "hook", "cta",
+"scene_descriptions", "emotional_direction", and every DIALOGUE/SUBTITLE line inside "body" must ALL be in
+${SCRIPT_LANGUAGE_LABELS[language]}, never left in English (translate the concept above, don't just echo its
+English title/hook back). The only exceptions are the structural section labels and physical/camera
+directions described below (CONTINUITY LOCK, character/location descriptions, CAMERA/ACTION/AUDIO lines,
+section headers like SCENE/FINAL FRAME/VIDEO STYLE) — those stay in English exactly as instructed, since
+they're director's notes for the video generator, not spoken or on-screen content a viewer reads.
 
 Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
 entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.
@@ -96,8 +101,8 @@ entirely for this brand — never mention the original brand or reuse its exact 
 "body" is fed directly into an AI video generator as its shot-by-shot prompt, so write it in this EXACT
 structure — precision here is what determines shot quality, continuity, and lip-sync accuracy:
 
-${idea.title.toUpperCase()} – ${idea.hook.toUpperCase()}
-TOTAL DURATION: ${durationSeconds} SECONDS
+Start with a header line: your translated "title" and "hook" (see above), both in ALL CAPS, separated by " – ".
+On the next line: TOTAL DURATION: ${durationSeconds} SECONDS
 
 CONTINUITY LOCK (APPLIES TO ENTIRE VIDEO)
 Name every character in caps (e.g. "MOTHER:", "DELIVERY AGENT:") with age, build, skin tone, hair, and exact wardrobe (colors, fabric details) plus any signature prop that must never disappear, swap, or change mid-video.
@@ -129,7 +134,7 @@ This script will be rendered as exactly a ${durationSeconds}-second video — pa
 literally span 0:00 to ${durationSeconds}s, the last scene ending at ${durationSeconds}s exactly. Fit the
 hook-to-CTA arc naturally into that runtime rather than padding or rushing it.
 
-Return "scene_descriptions" as a short plain-English beat summary (for the UI list view, separate from "body"),
+Return "scene_descriptions" as a short plain-language beat summary (for the UI list view, separate from "body"),
 "emotional_direction" as the emotional arc in one sentence, "cta" as the one-line call to action, set
 estimated_duration to "${durationSeconds}s", and set "language" to "${language}".`;
 }

@@ -11,7 +11,6 @@ import {
   Play,
   RectangleVertical,
   Sparkles,
-  Terminal,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -200,14 +199,7 @@ export function ProjectVideosClient({ project }: { project: ProjectDetail }) {
                         </Button>
                       </div>
 
-                      <div className="grid gap-4 self-start sm:grid-cols-2">
-                        <ExpandableTextCard
-                          icon={Terminal}
-                          title="Prompt Used"
-                          content={generation.prompt_used}
-                          emptyText="No prompt recorded."
-                          mono
-                        />
+                      <div className="self-start">
                         <ExpandableTextCard
                           icon={FileText}
                           title="Script Used"
