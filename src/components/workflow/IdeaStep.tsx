@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, Loader2, Megaphone, MicVocal, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Megaphone, MicVocal, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import type { Script, ScriptIdea } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ const BADGE_LABEL: Record<string, string> = {
   emotional: "Emotional",
   humorous: "Humorous",
   high_conversion: "High Conversion",
+  custom: "Your Idea",
 };
 
 export function IdeaStep({
@@ -31,7 +33,9 @@ export function IdeaStep({
   const [ideas, setIdeas] = useState<ScriptIdea[]>(initialIdeas ?? []);
   const [loading, setLoading] = useState(!initialIdeas?.length);
   const [regenerating, setRegenerating] = useState(false);
-  const [writing, setWriting] = useState<number | null>(null);
+  const [writing, setWriting] = useState<number | "custom" | null>(null);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customPitch, setCustomPitch] = useState("");
   const started = useRef(false);
 
   const generateIdeas = async () => {
@@ -75,8 +79,8 @@ export function IdeaStep({
     }
   };
 
-  const chooseIdea = async (idea: ScriptIdea, index: number) => {
-    setWriting(index);
+  const chooseIdea = async (idea: ScriptIdea, key: number | "custom") => {
+    setWriting(key);
     try {
       const res = await fetch("/api/scripts/generate", {
         method: "POST",
@@ -93,6 +97,12 @@ export function IdeaStep({
     } finally {
       setWriting(null);
     }
+  };
+
+  const submitCustomIdea = () => {
+    const pitch = customPitch.trim();
+    if (!pitch) return;
+    chooseIdea({ style: "custom", title: "Your Idea", hook: pitch, pitch }, "custom");
   };
 
   if (loading) {
@@ -184,6 +194,58 @@ export function IdeaStep({
             </Button>
           </div>
         ))}
+      </div>
+
+      <div className="mt-5 animate-fade-up rounded-3xl border border-dashed bg-card/50 p-6">
+        {showCustomForm ? (
+          <div className="flex flex-col gap-3">
+            <Textarea
+              autoFocus
+              placeholder="Describe your own idea for the script — a hook, an angle, a story beat, anything…"
+              value={customPitch}
+              onChange={(e) => setCustomPitch(e.target.value)}
+              disabled={writing !== null}
+              className="min-h-24 rounded-xl"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-lg text-xs"
+                onClick={() => {
+                  setShowCustomForm(false);
+                  setCustomPitch("");
+                }}
+                disabled={writing !== null}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="btn-glow rounded-lg text-xs font-semibold"
+                onClick={submitCustomIdea}
+                disabled={writing !== null || !customPitch.trim()}
+              >
+                {writing === "custom" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Write Full Script
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowCustomForm(true)}
+            disabled={writing !== null}
+            className="flex w-full items-center justify-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            Add Your Own Idea
+          </button>
+        )}
       </div>
     </div>
   );

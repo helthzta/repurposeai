@@ -1,4 +1,12 @@
-import type { AspectRatio, BrandProfile, ScriptIdea, Quality, VideoAnalysis } from "@/lib/types";
+import type {
+  AspectRatio,
+  BrandProfile,
+  Quality,
+  ScriptIdea,
+  ScriptLanguage,
+  VideoAnalysis,
+} from "@/lib/types";
+import { SCRIPT_LANGUAGE_LABELS } from "@/lib/types";
 
 export const ANALYSIS_SYSTEM_PROMPT = `You are a viral video analyst. Watch the uploaded video and figure out
 exactly why it went viral — the hook, the pacing, the emotional arc, the pain it names and the relief it offers.
@@ -60,7 +68,10 @@ export function masterScriptPrompt(
   brand: BrandProfile,
   idea: ScriptIdea,
   durationSeconds: number,
+  options?: { language?: ScriptLanguage; subtitles?: boolean },
 ) {
+  const language = options?.language ?? "en";
+  const subtitles = options?.subtitles ?? true;
   const midpoint = Math.round(durationSeconds / 2);
   return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}
@@ -75,6 +86,9 @@ Write the full script for this brand:
 ${brandBrief(brand)}
 
 ${toneNote(analysis)}
+
+Write every spoken line, on-screen title, and CTA in ${SCRIPT_LANGUAGE_LABELS[language]} (${language}) — the
+whole script, not just the dialogue.
 
 Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
 entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.
@@ -94,8 +108,9 @@ Then one "---"-separated SCENE block per beat, timestamped (e.g. "SCENE 1 (0-3s)
 CAMERA: shot type and movement
 ACTION: physically plausible blocking — objects obey gravity and momentum, no prop teleportation
 AUDIO: sound effects only, no music
-DIALOGUE: the line(s), attributed to exactly one character
-SUBTITLE: the exact same line verbatim, for on-screen burnt-in captions
+DIALOGUE: the line(s), attributed to exactly one character${
+    subtitles ? "\nSUBTITLE: the exact same line verbatim, for on-screen burnt-in captions" : ""
+  }
 LIP-SYNC RULE: name the one character whose mouth moves; every other character stays silent in that shot
 
 Roughly at the ${midpoint}s mark, insert a MANDATORY CONTINUITY FRAME: a freeze-frame description of exact
@@ -108,7 +123,7 @@ final AUDIO cue.
 
 End with a VIDEO STYLE block: photorealistic live-action, natural facial animation, realistic object physics,
 accurate lip-sync, consistent character identity, no character swapping, no wardrobe changes, no prop
-teleportation, no environment resets, burnt-in subtitles matching every spoken line.
+teleportation, no environment resets${subtitles ? ", burnt-in subtitles matching every spoken line" : ""}.
 
 This script will be rendered as exactly a ${durationSeconds}-second video — pace the scene timestamps so they
 literally span 0:00 to ${durationSeconds}s, the last scene ending at ${durationSeconds}s exactly. Fit the
@@ -116,7 +131,7 @@ hook-to-CTA arc naturally into that runtime rather than padding or rushing it.
 
 Return "scene_descriptions" as a short plain-English beat summary (for the UI list view, separate from "body"),
 "emotional_direction" as the emotional arc in one sentence, "cta" as the one-line call to action, set
-estimated_duration to "${durationSeconds}s", and return the ISO 639-1 language code the script is written in.`;
+estimated_duration to "${durationSeconds}s", and set "language" to "${language}".`;
 }
 
 export function scriptAssistPrompt(currentBody: string, instruction: string) {

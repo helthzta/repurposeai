@@ -85,6 +85,14 @@ export interface ScriptIdea {
   pitch: string;
 }
 
+export type ScriptLanguage = "en" | "bn" | "hi";
+
+export const SCRIPT_LANGUAGE_LABELS: Record<ScriptLanguage, string> = {
+  en: "English",
+  bn: "Bengali",
+  hi: "Hindi",
+};
+
 export interface Script {
   id: string;
   project_id: string;
@@ -100,6 +108,7 @@ export interface Script {
   /** The exact runtime this variant's scenes were written to fit — 15 or 30. Null for scripts written before this existed. */
   target_duration_seconds: 15 | 30 | null;
   language: string;
+  subtitles: boolean;
   is_selected: boolean;
   created_at: string;
   updated_at: string;

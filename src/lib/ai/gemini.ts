@@ -1,5 +1,12 @@
 import { createPartFromUri, createUserContent, GoogleGenAI, Type } from "@google/genai";
-import type { AiInsights, BrandProfile, ScriptIdea, ScriptStyle, VideoAnalysis } from "@/lib/types";
+import type {
+  AiInsights,
+  BrandProfile,
+  ScriptIdea,
+  ScriptLanguage,
+  ScriptStyle,
+  VideoAnalysis,
+} from "@/lib/types";
 import {
   ANALYSIS_SYSTEM_PROMPT,
   masterScriptPrompt,
@@ -167,22 +174,27 @@ export async function generateScriptIdeas(
   return JSON.parse(response.text);
 }
 
-/** The one full script written once a user commits to a specific idea. */
+/** The one full script written once a user commits to a specific idea — also the sole path for any
+ * later regenerate/language/subtitle change (see src/lib/scripts.ts), so every call to this function
+ * enforces the identical structured prompt. */
 export async function generateMasterScript(
   analysis: VideoAnalysis,
   brand: BrandProfile,
   idea: ScriptIdea,
   durationSeconds: 15 | 30,
+  options?: { language?: ScriptLanguage; subtitles?: boolean },
 ): Promise<GeneratedScript> {
   const client = ai();
   const response = await client.models.generateContent({
     model: MODEL,
-    contents: masterScriptPrompt(analysis, brand, idea, durationSeconds),
+    contents: masterScriptPrompt(analysis, brand, idea, durationSeconds, options),
     config: { responseMimeType: "application/json", responseSchema: SCRIPT_ITEM_SCHEMA },
   });
 
   if (!response.text) throw new Error("Gemini returned no script");
-  return JSON.parse(response.text);
+  const generated = JSON.parse(response.text) as GeneratedScript;
+  // The requested language is authoritative — don't trust Gemini's self-reported code over it.
+  return { ...generated, language: options?.language ?? generated.language };
 }
 
 export async function editScript(currentBody: string, instruction: string): Promise<string> {

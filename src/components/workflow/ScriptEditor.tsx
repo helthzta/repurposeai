@@ -68,6 +68,31 @@ export function ScriptEditor({
     }
   };
 
+  // A from-scratch rewrite — unlike the quick actions above, this goes through the same
+  // structured script prompt as first-time generation (not the free-text /assist edit path),
+  // so a regenerate can never come back in a different format than the original.
+  const handleRegenerate = async () => {
+    setApplying("Regenerate");
+    try {
+      const res = await fetch(`/api/scripts/${script.id}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Regenerate failed");
+      setText(data.script.body);
+      onSync(data.script);
+      toast.success("Regenerate", { description: "Wrote a fresh version of this script" });
+    } catch (err) {
+      toast.error("Regenerate failed", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setApplying(null);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -158,9 +183,7 @@ export function ScriptEditor({
               variant="secondary"
               size="sm"
               className="mt-3 w-full rounded-lg font-semibold"
-              onClick={() =>
-                applyAction("Regenerate", "Rewrite this script with a fresh creative take")
-              }
+              onClick={handleRegenerate}
               disabled={applying !== null}
             >
               {applying === "Regenerate" ? (

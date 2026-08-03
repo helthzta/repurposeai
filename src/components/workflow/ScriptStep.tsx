@@ -5,8 +5,17 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import type { Script } from "@/lib/types";
+import { SCRIPT_LANGUAGE_LABELS, type Script, type ScriptLanguage } from "@/lib/types";
 import { ScriptEditor } from "./ScriptEditor";
 
 export function ScriptStep({
@@ -25,6 +34,7 @@ export function ScriptStep({
 }) {
   const [scripts, setScripts] = useState(initialScripts);
   const [switching, setSwitching] = useState(false);
+  const [applyingSettings, setApplyingSettings] = useState(false);
   const active = scripts.find((s) => s.is_selected) ?? scripts[0];
 
   const pick = async (target: Script) => {
@@ -46,6 +56,29 @@ export function ScriptStep({
 
   const updateActive = (updated: Script) =>
     setScripts((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+
+  // Changing language or subtitles re-writes this script's body from scratch through the same
+  // structured prompt as first-time generation — never a translation-in-place of the old text.
+  const updateSettings = async (patch: { language?: ScriptLanguage; subtitles?: boolean }) => {
+    setApplyingSettings(true);
+    try {
+      const res = await fetch(`/api/scripts/${active.id}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not regenerate the script");
+      updateActive(data.script);
+      toast.success("Script updated");
+    } catch (err) {
+      toast.error("Couldn't update script", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setApplyingSettings(false);
+    }
+  };
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -90,6 +123,43 @@ export function ScriptStep({
           </span>
         </button>
       </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-5 rounded-2xl border bg-card px-4 py-3 shadow-card">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="script-language" className="text-xs font-semibold text-muted-foreground">
+            Language
+          </Label>
+          <Select
+            value={active.language}
+            onValueChange={(value) => updateSettings({ language: value as ScriptLanguage })}
+            disabled={applyingSettings}
+          >
+            <SelectTrigger id="script-language" className="h-9 w-32 rounded-lg text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(SCRIPT_LANGUAGE_LABELS) as ScriptLanguage[]).map((code) => (
+                <SelectItem key={code} value={code}>
+                  {SCRIPT_LANGUAGE_LABELS[code]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="script-subtitles" className="text-xs font-semibold text-muted-foreground">
+            Subtitles
+          </Label>
+          <Switch
+            id="script-subtitles"
+            checked={active.subtitles}
+            onCheckedChange={(checked) => updateSettings({ subtitles: checked })}
+            disabled={applyingSettings}
+          />
+        </div>
+        {applyingSettings && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      </div>
+
       <ScriptEditor
         key={active.id}
         script={active}
