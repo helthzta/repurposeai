@@ -269,29 +269,10 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
             />
           </>
         )}
-
-        <div className="mt-6 grid w-full max-w-lg gap-2.5 sm:grid-cols-2">
-          <SecondaryUpload
-            label="Product ad (optional)"
-            file={productFile}
-            onChange={setProductFile}
-          />
-          <SecondaryUpload label="Brand ad (optional)" file={brandFile} onChange={setBrandFile} />
-        </div>
       </div>
 
       {/* Brand profile */}
       <div className="rounded-3xl border bg-card p-6 shadow-card sm:p-8">
-        <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent">
-            <Palette className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-[15px] font-bold">Brand Profile</h3>
-            <p className="text-xs text-muted-foreground">Tell the AI who it's writing for</p>
-          </div>
-        </div>
-
         <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
           {brandProfiles.length > 0 && (
             <Select value={brandProfileId ?? undefined} onValueChange={setBrandProfileId}>
