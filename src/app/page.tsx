@@ -11,6 +11,7 @@ import {
   Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Repurpose AI — Turn Any Ad Into Your AI Commercial",
@@ -51,7 +52,13 @@ const particles = [
   { top: "16%", left: "46%", size: 5, delay: "3.2s" },
 ];
 
-export default function Landing() {
+export default async function Landing() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const ctaHref = user ? "/dashboard" : "/signup";
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -64,15 +71,26 @@ export default function Landing() {
             <span className="truncate text-[15px] font-bold tracking-tight">Repurpose AI</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" className="hidden sm:inline-flex">
-              <Link href="/login">Log in</Link>
-            </Button>
-            <Button asChild className="btn-glow rounded-xl">
-              <Link href="/signup">
-                Sign up
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            {user ? (
+              <Button asChild className="btn-glow rounded-xl">
+                <Link href="/dashboard">
+                  Go to Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="ghost" className="hidden sm:inline-flex">
+                  <Link href="/login">Log in</Link>
+                </Button>
+                <Button asChild className="btn-glow rounded-xl">
+                  <Link href="/signup">
+                    Sign up
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -125,7 +143,7 @@ export default function Landing() {
               size="lg"
               className="btn-glow h-13 rounded-2xl px-8 text-base font-semibold"
             >
-              <Link href="/dashboard">
+              <Link href={ctaHref}>
                 Start Repurposing
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
@@ -205,7 +223,7 @@ export default function Landing() {
             variant="secondary"
             className="mt-8 h-13 rounded-2xl px-8 text-base font-semibold hover-lift"
           >
-            <Link href="/dashboard">
+            <Link href={ctaHref}>
               Start Repurposing
               <ArrowRight className="h-4.5 w-4.5" />
             </Link>
