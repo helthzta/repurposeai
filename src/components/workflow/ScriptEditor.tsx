@@ -12,7 +12,7 @@ import {
   Gem,
   HeartHandshake,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,6 +42,13 @@ export function ScriptEditor({
   const [text, setText] = useState(script.body);
   const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
+
+  // script.body can change from outside this component (ScriptStep's Language/Subtitles
+  // controls regenerate the body and update the prop) without script.id changing, so no
+  // remount happens — resync local text whenever the underlying body actually changes.
+  useEffect(() => {
+    setText(script.body);
+  }, [script.body]);
 
   const applyAction = async (label: string, instruction: string) => {
     setApplying(label);

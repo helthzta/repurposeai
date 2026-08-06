@@ -1,4 +1,10 @@
-import { createPartFromUri, createUserContent, GoogleGenAI, Type } from "@google/genai";
+import {
+  createPartFromBase64,
+  createPartFromUri,
+  createUserContent,
+  GoogleGenAI,
+  Type,
+} from "@google/genai";
 import type {
   AiInsights,
   BrandProfile,
@@ -28,6 +34,51 @@ function ai() {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const MAX_LOGO_BYTES = 5_000_000;
+const LOGO_FETCH_TIMEOUT_MS = 8000;
+
+/**
+ * Best-effort: fetches a brand's logo from its public storage path and returns it as a Gemini
+ * image Part, so script-writing calls can ground the FINAL FRAME's on-screen brand text/logo
+ * description in what the logo actually looks like instead of inventing generic branding.
+ * Never throws — a missing logo, dead fetch, or non-image response just means no image part
+ * (brandBrief()'s logo line is skipped too in that case, see prompts.ts).
+ */
+async function brandLogoPart(brand: BrandProfile) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!brand.logo_path || !supabaseUrl) return null;
+  try {
+    const url = `${supabaseUrl}/storage/v1/object/public/brand-logos/${brand.logo_path}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), LOGO_FETCH_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (!res.ok) return null;
+
+    const mimeType = res.headers.get("content-type") || "image/png";
+    if (!mimeType.startsWith("image/")) return null;
+
+    const bytes = Buffer.from(await res.arrayBuffer());
+    if (bytes.length > MAX_LOGO_BYTES) return null;
+
+    return createPartFromBase64(bytes.toString("base64"), mimeType);
+  } catch {
+    return null;
+  }
+}
+
+/** Builds Gemini's `contents` for a script-writing prompt, attaching the brand logo image
+ * alongside the text when one's available — same prompt string either way, just with or
+ * without the extra grounding part. */
+async function scriptContents(promptText: string, brand: BrandProfile) {
+  const logoPart = await brandLogoPart(brand);
+  return logoPart ? createUserContent([logoPart, promptText]) : promptText;
+}
 
 const ANALYSIS_FIELDS = [
   "company",
@@ -133,7 +184,7 @@ export async function generateScripts(
   const client = ai();
   const response = await client.models.generateContent({
     model: MODEL,
-    contents: scriptGenerationPrompt(analysis, brand),
+    contents: await scriptContents(scriptGenerationPrompt(analysis, brand), brand),
     config: {
       responseMimeType: "application/json",
       responseSchema: { type: Type.ARRAY, items: SCRIPT_ITEM_SCHEMA, minItems: 3, maxItems: 3 },
@@ -163,7 +214,7 @@ export async function generateScriptIdeas(
   const client = ai();
   const response = await client.models.generateContent({
     model: MODEL,
-    contents: scriptIdeasPrompt(analysis, brand),
+    contents: await scriptContents(scriptIdeasPrompt(analysis, brand), brand),
     config: {
       responseMimeType: "application/json",
       responseSchema: { type: Type.ARRAY, items: SCRIPT_IDEA_SCHEMA, minItems: 3, maxItems: 3 },
@@ -187,7 +238,10 @@ export async function generateMasterScript(
   const client = ai();
   const response = await client.models.generateContent({
     model: MODEL,
-    contents: masterScriptPrompt(analysis, brand, idea, durationSeconds, options),
+    contents: await scriptContents(
+      masterScriptPrompt(analysis, brand, idea, durationSeconds, options),
+      brand,
+    ),
     config: { responseMimeType: "application/json", responseSchema: SCRIPT_ITEM_SCHEMA },
   });
 

@@ -41,6 +41,15 @@ export async function fetchWebsiteText(url: string): Promise<string | null> {
     }
     const html = Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf-8");
 
+    // Pull these out before the generic tag-strip below — a blind strip-and-slice often grabs
+    // cookie-banner/nav boilerplate instead of the actual pitch; title + meta description are
+    // the highest-signal, cheapest-to-extract summary of what the site is actually about.
+    const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim();
+    const description = (html.match(
+      /<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i,
+    ) ??
+      html.match(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i))?.[1]?.trim();
+
     const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -50,7 +59,15 @@ export async function fetchWebsiteText(url: string): Promise<string | null> {
       .replace(/\s+/g, " ")
       .trim();
 
-    return text ? text.slice(0, MAX_SUMMARY_CHARS) : null;
+    const prefix = [
+      title && `Page title: ${title}`,
+      description && `Meta description: ${description}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const combined = prefix ? `${prefix}\n\n${text}` : text;
+
+    return combined ? combined.slice(0, MAX_SUMMARY_CHARS) : null;
   } catch {
     return null;
   }

@@ -18,10 +18,17 @@ function brandBrief(brand: BrandProfile) {
   const website = brand.website_summary
     ? `\n- Brand website content (scanned from ${brand.website_url}):\n${brand.website_summary}`
     : "";
+  // Only true when gemini.ts actually attached the logo image to this request (brand.logo_path
+  // set and the fetch succeeded) — keep this claim in sync with scriptContents() there.
+  const logo = brand.logo_path
+    ? `\n- Brand logo: the image attached to this request. Look at it and use its real colors,` +
+      ` shape, and wordmark/symbol whenever the script calls for on-screen brand text or a logo` +
+      ` shot — describe what's actually in the image, don't invent generic branding.`
+    : "";
   return `- Brand: ${brand.brand_name ?? "Unnamed brand"}
 - Product/Service: ${brand.product_service ?? "n/a"}
 - Target audience: ${brand.target_audience ?? "n/a"}
-- Brand description: ${brand.description ?? "n/a"}${website}`;
+- Brand description: ${brand.description ?? "n/a"}${website}${logo}`;
 }
 
 /** Tone is never asked of the user — it's carried over from what the analyzed video actually did. */
@@ -123,8 +130,9 @@ character poses, props, and lighting at that instant, followed by an END FRAME L
 appearance / environment / lighting, no resets) that the next scene must continue from exactly.
 
 Close with a FINAL FRAME section: state of every character and prop at ${durationSeconds}.0s, centered
-on-screen brand text using the brand's colors (${brand.brand_colors?.join(", ") ?? "brand default"}), and a
-final AUDIO cue.
+on-screen brand text/logo using the brand's real colors (${brand.brand_colors?.join(", ") ?? "brand default"})${
+    brand.logo_path ? " and matching the attached logo image exactly, not a generic wordmark" : ""
+  }, and a final AUDIO cue.
 
 End with a VIDEO STYLE block: photorealistic live-action, natural facial animation, realistic object physics,
 accurate lip-sync, consistent character identity, no character swapping, no wardrobe changes, no prop
