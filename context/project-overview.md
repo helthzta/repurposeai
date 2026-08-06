@@ -30,8 +30,8 @@ project — see the confidentiality notice at the top of `project_overview.md`.
 (`project_overview.md` Steps 1–6; implemented in
 `src/components/workflow/*` + `src/app/api/*`)
 
-1. **Upload** — competitor ad + product ad + brand ad (MP4/MOV/WebM, or a
-   pasted Video Link in place of the competitor file) plus a brand profile
+1. **Upload** — competitor ad + product ad + brand ad (MP4/MOV/WebM, file
+   upload only — no URL/paste-link mode, see R-035) plus a brand profile
    picked from the user's reusable, account-level brand profiles (name,
    product/service, audience, colors, logo, Website Link that's scanned
    server-side and fed into every script-writing prompt as brand context) —

@@ -1,8 +1,7 @@
-import { CloudUpload, FileVideo, Link2, Loader2, Palette, Plus, Upload } from "lucide-react";
+import { CloudUpload, FileVideo, Loader2, Palette, Plus, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -45,18 +44,6 @@ async function uploadSourceVideo(projectId: string, kind: SourceVideoKind, file:
   if (!confirmRes.ok) throw new Error("Could not save the uploaded video");
 }
 
-async function uploadVideoFromLink(projectId: string, kind: SourceVideoKind, url: string) {
-  const res = await fetch("/api/uploads/from-link", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ projectId, kind, url }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "Could not fetch the video from that link");
-  }
-}
-
 function SecondaryUpload({
   label,
   file,
@@ -81,14 +68,11 @@ function SecondaryUpload({
 }
 
 export function UploadStep({ onContinue }: { onContinue: (projectId: string) => void }) {
-  const [uploadMode, setUploadMode] = useState<"file" | "link">("file");
   const [dragging, setDragging] = useState(false);
   const [competitorFile, setCompetitorFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
   const [brandFile, setBrandFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [videoLink, setVideoLink] = useState("");
 
   const [brandProfiles, setBrandProfiles] = useState<BrandProfile[]>([]);
   const [brandProfileId, setBrandProfileId] = useState<string | null>(null);
@@ -117,19 +101,9 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
     toast.success("Video added", { description: file.name });
   };
 
-  const switchToFile = () => {
-    setUploadMode("file");
-    setVideoLink("");
-  };
-  const switchToLink = () => {
-    setUploadMode("link");
-    setCompetitorFile(null);
-  };
-
   const handleSubmit = async () => {
-    const trimmedVideoLink = videoLink.trim();
-    if (!competitorFile && !trimmedVideoLink) {
-      toast.error("Add your competitor's ad — upload a file or paste a video link");
+    if (!competitorFile) {
+      toast.error("Add your competitor's ad — upload a video file");
       return;
     }
     if (!brandProfileId) {
@@ -147,11 +121,7 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       if (!res.ok) throw new Error("Could not create the project");
       const { project } = await res.json();
 
-      if (competitorFile) {
-        await uploadSourceVideo(project.id, "competitor", competitorFile);
-      } else {
-        await uploadVideoFromLink(project.id, "competitor", trimmedVideoLink);
-      }
+      await uploadSourceVideo(project.id, "competitor", competitorFile);
       if (productFile) await uploadSourceVideo(project.id, "product", productFile);
       if (brandFile) await uploadSourceVideo(project.id, "brand", brandFile);
 
@@ -170,7 +140,6 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
       {/* Drop zone */}
       <div
         onDragOver={(e) => {
-          if (uploadMode !== "file") return;
           e.preventDefault();
           setDragging(true);
         }}
@@ -178,97 +147,42 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          if (uploadMode !== "file") return;
           acceptFile(e.dataTransfer.files[0]);
         }}
         className={cn(
           "relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center transition-all duration-300 sm:py-20",
-          uploadMode === "file" && dragging
-            ? "border-primary bg-accent shadow-glow"
-            : "border-border shadow-card",
+          dragging ? "border-primary bg-accent shadow-glow" : "border-border shadow-card",
         )}
       >
-        <div className="mb-7 inline-flex rounded-xl border bg-muted/40 p-1">
-          <button
-            type="button"
-            onClick={switchToFile}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors",
-              uploadMode === "file"
-                ? "bg-card text-foreground shadow-card"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Upload File
-          </button>
-          <button
-            type="button"
-            onClick={switchToLink}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-colors",
-              uploadMode === "link"
-                ? "bg-card text-foreground shadow-card"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Link2 className="h-3.5 w-3.5" />
-            Paste Link
-          </button>
+        <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent animate-float">
+          {competitorFile ? (
+            <FileVideo className="h-7 w-7 text-primary" />
+          ) : (
+            <CloudUpload className="h-7 w-7 text-primary" />
+          )}
         </div>
-
-        {uploadMode === "file" ? (
-          <>
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent animate-float">
-              {competitorFile ? (
-                <FileVideo className="h-7 w-7 text-primary" />
-              ) : (
-                <CloudUpload className="h-7 w-7 text-primary" />
-              )}
-            </div>
-            <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
-              {competitorFile?.name ?? "Drag & drop your competitor's ad"}
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {competitorFile ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}
-            </p>
-            <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
-              <label>
-                <input
-                  type="file"
-                  accept=".mp4,.mov,.webm"
-                  className="sr-only"
-                  onChange={(e) => acceptFile(e.target.files?.[0])}
-                />
-                <Button asChild className="btn-glow rounded-xl font-semibold">
-                  <span className="cursor-pointer">
-                    <Upload className="h-4 w-4" />
-                    Browse Files
-                  </span>
-                </Button>
-              </label>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-accent">
-              <Link2 className="h-7 w-7 text-primary" />
-            </div>
-            <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
-              Paste a link to your competitor's ad
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              We'll fetch the video from the URL and analyze it the same way
-            </p>
-            <Input
-              type="url"
-              placeholder="https://..."
-              className="mt-7 h-11 w-full max-w-md rounded-xl text-center"
-              value={videoLink}
-              onChange={(e) => setVideoLink(e.target.value)}
+        <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
+          {competitorFile?.name ?? "Drag & drop your competitor's ad"}
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {competitorFile ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}
+        </p>
+        <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
+          <label>
+            <input
+              type="file"
+              accept=".mp4,.mov,.webm"
+              className="sr-only"
+              onChange={(e) => acceptFile(e.target.files?.[0])}
             />
-          </>
-        )}
+            <Button asChild className="btn-glow rounded-xl font-semibold">
+              <span className="cursor-pointer">
+                <Upload className="h-4 w-4" />
+                Browse Files
+              </span>
+            </Button>
+          </label>
+        </div>
       </div>
 
       {/* Brand profile */}
