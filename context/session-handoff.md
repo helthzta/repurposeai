@@ -1,95 +1,86 @@
 <!-- Overwrite this entire file at the end of every session. Do not append —
 replace. One current snapshot of where work stands right now. -->
 
-_Last updated: 2026-08-04_
+_Last updated: 2026-08-07_
 
 ## Status
 
-This session hardened the script-generation pipeline across 4 related
-tickets, all code-complete and each functionally verified against the
-real Gemini API (not just code review) except where the daily API quota
-ran out (see Blockers):
+This session shipped two related fixes, both code-complete and
+typechecked/linted clean, **neither click-tested in a real browser yet**:
 
-1. **Custom idea entry point.** `IdeaStep.tsx` got an "Add Your Own Idea"
-   inline form — submits through the exact same `chooseIdea()` →
-   `/api/scripts/generate` path an AI-pitched idea uses. Dead orphaned
-   `CustomIdeaDialog.tsx` (unused alternate implementation) deleted.
-2. **First-time generation now matches Regenerate's format.** Both
-   `/api/scripts/generate` and `/api/scripts/[id]/regenerate` now call one
-   shared `writeScript()` (`src/lib/scripts.ts`) — no more drift between
-   two prompt call sites. See R-031.
-3. **Language (English/Bengali/Hindi) + Subtitles controls** on
-   `ScriptStep.tsx`, wired to `/api/scripts/[id]/regenerate` via the same
-   `writeScript()`. Required a new `scripts.subtitles` column — migration
-   `0021_script_subtitles.sql`, applied live via Supabase MCP.
-4. **Fixed a real bug found during this session's own live verification:**
-   `masterScriptPrompt`'s language instruction was vague ("write every
-   spoken line... in X"), so `title`/`hook`/the body's header line stayed
-   in English even when `cta`/`scene_descriptions`/dialogue correctly
-   translated — because the body header line was a literal
-   `${idea.title.toUpperCase()} – ${idea.hook.toUpperCase()}` string
-   interpolation of the (English) original idea, not model-generated.
-   Fixed in `src/lib/ai/prompts.ts`: the instruction now names every
-   field that must translate (`title`, `hook`, `cta`,
-   `scene_descriptions`, `emotional_direction`, body DIALOGUE/SUBTITLE
-   lines) and explicitly carves out what stays English (structural
-   labels, camera/blocking directions — director's notes, not
-   viewer-facing text); the header line is now model-written instead of
-   hardcoded. Live-verified for Bengali: `title`, `hook`, `cta`,
-   `scene_descriptions`, and the body header line all came back correctly
-   in Bengali script this time. See R-033.
+1. **Brand context images replace the Website Link field.** The Add/Edit
+   brand profile dialog (`BrandProfileDialog.tsx`) no longer has a Website
+   Link input — it now has a "Brand Context Images" multi-upload (up to 5
+   product/packaging/mood shots). New column `brand_profiles.
+   context_image_paths text[]`, migration `0022_brand_context_images.sql`,
+   applied live via Supabase MCP. Uploads reuse the existing
+   `/api/uploads/sign` + `/api/uploads/confirm` pair with a new
+   `kind: "context_image"` (same public `brand-logos` bucket as the logo);
+   confirm appends to the array instead of overwriting; removing an
+   already-saved image before save goes through `PATCH /api/brand-profiles/
+   [id]` with a full-array replace (`contextImagePaths`). These images get
+   attached as extra Gemini image Parts (`brandContextImageParts()` in
+   `gemini.ts`, capped at 5) in every script-writing call, same mechanism
+   the logo already used (R-038) — `brandBrief()` in `prompts.ts` got a
+   matching text line. The backend `website_url`/`website_summary`
+   columns and route logic are untouched (not deleted) — existing profiles
+   that still have a scanned website keep using it in `brandBrief()`, the
+   dialog just can't set a new one anymore. See D-019.
 
-**Also discovered (not a code bug, flagging for awareness):** the
-project's Gemini API key is on the **free tier, hard-capped at 20
-requests/day** for whichever model `GEMINI_MODEL` points to. Hit this
-twice during this session's live-verification testing (429
-`RESOURCE_EXHAUSTED`). From the app's perspective this looks like a
-silently failed/stuck generate-or-regenerate, not an obvious quota
-message — worth checking this first if a user reports generation "not
-working" with no other symptom. See R-034. No code fix exists; needs a
-paid tier or the daily reset.
+2. **The brand logo now actually reaches Seedance as an image, not just
+   text.** Checked what `generation.ts` → `seedance.ts` sends on submit:
+   only a text `prompt` — the logo was never passed as an image, only
+   *described* to Gemini during script-writing (R-038), so the FINAL
+   FRAME's on-screen logo in the actual generated video depended entirely
+   on how well the model's text description carried through. Fixed:
+   confirmed via OpenRouter's docs that `bytedance/seedance-2.0-fast`
+   supports `input_references` (reference-to-video); added
+   `SubmitParams.referenceImageUrls` to the `VideoProvider` interface,
+   `seedance.ts` now sends it as `input_references` when present, and
+   `generation.ts` builds the logo's public URL (new `publicStorageUrl()`
+   helper in `storage.ts`, also now used by `gemini.ts` instead of its old
+   inline URL string) and passes it whenever `brand.logo_path` is set. See
+   D-020.
 
 ## Current branch
 
-`main`, 1 commit ahead of `origin/main` (`a651326`), not pushed. Working
-tree: `src/lib/ai/prompts.ts` modified (ticket 4's fix, uncommitted),
-`CustomIdeaDialog.tsx` deleted (uncommitted), `tsconfig.tsbuildinfo`
-touched by repeated `tsc --noEmit` runs (harmless), `supabase/migrations/
-0021_script_subtitles.sql` new and untracked (applied to the live DB, not
-yet committed). All temp verification scripts (`src/_verify-*.ts`) were
-deleted after use — none left in the tree.
+`main`, working tree has uncommitted changes (not staged/pushed — ask
+before committing): `supabase/migrations/0022_brand_context_images.sql`
+(new, applied live), plus edits to `src/lib/types.ts`, `src/lib/storage.ts`,
+`src/lib/ai/gemini.ts`, `src/lib/ai/prompts.ts`, `src/lib/generation.ts`,
+`src/lib/providers/{types,seedance}.ts`,
+`src/app/api/uploads/{sign,confirm}/route.ts`,
+`src/app/api/brand-profiles/[id]/route.ts`,
+`src/components/brand/BrandProfileDialog.tsx`. `tsconfig.tsbuildinfo`
+touched by `tsc --noEmit` runs (harmless).
 
 ## Half-done / needs manual follow-up
 
-- Ticket 4's fix (R-033) is live-verified for **Bengali only** — a Hindi
-  re-check got blocked by the Gemini daily quota (R-034) mid-session.
-  Same code path already proven correct for Hindi's *structure* pre-fix
-  and for Bengali's *field translation* post-fix, so risk is low, but do
-  a live Hindi check once quota resets to be thorough.
-- None of this session's UI (custom idea form, language/subtitle
-  controls) has been clicked through in an actual browser yet — all
-  verification was server-side, direct calls to the real pipeline/API.
-  Low risk (the UI code is straightforward prop-drilling to fetch calls
-  already proven correct) but still worth a real click-through.
-- `supabase/migrations/0021_script_subtitles.sql` is live on the DB but
-  not committed to git yet.
+- **Nothing has been clicked through in a real browser.** Needs: open the
+  Add/Edit brand dialog, upload 2-3 context images, save, reopen and
+  remove one, save again — confirm the array persists correctly. Then run
+  an actual generation for a brand with a logo set and check the
+  completed video's FINAL FRAME against the real logo (not a generic
+  invented one) — this is the actual proof D-020's fix works, code review
+  alone doesn't confirm OpenRouter/Seedance honors `input_references` the
+  way its docs describe.
+- Pre-existing, unrelated to this session: `npx tsc --noEmit` reports
+  errors in `.next/types/app/{credits,profile}/route.ts` and a couple
+  `.next/types/app/*.ts` "file not found" errors — stale `.next` build
+  artifacts, not caused by anything touched this session (confirmed by
+  `git status` — those route files aren't in the diff). Per R-028, don't
+  run `next build` to try to fix this.
 
 ## First action next session
 
-1. Check whether the Gemini daily quota has reset; if so, live-verify
-   Hindi the same way Bengali was verified (title/hook/header translate
-   correctly, structure markers intact).
-2. Click through the full flow in an actual browser: pick/type an idea →
-   confirm structured script → switch Language to Bengali or Hindi →
-   confirm the editor shows a properly translated script, no English
-   leftovers in title/hook/header → toggle Subtitles off → confirm no
-   SUBTITLE lines.
-3. If the user wants this committed: `src/lib/ai/prompts.ts`, the
-   `CustomIdeaDialog.tsx` deletion, and the new migration file are all
-   pending — ask before staging/pushing.
+1. Browser-verify both fixes per "Half-done" above — this is the only
+   thing standing between "code-complete" and "actually done" here.
+2. If the user wants this committed: everything listed under "Current
+   branch" is pending — ask before staging/pushing.
+3. Carried over from 2026-08-04 (still unverified): click through
+   Language/Subtitles controls in the Script step in an actual browser.
 
 ## Blockers
 
-None code-side — all 4 tickets are code-complete. The only real blocker
-is external: the Gemini free-tier daily quota (R-034), which prevented a
-live Hindi re-check of ticket 4's fix this session.
+None. Both fixes are code-complete; only manual browser verification is
+outstanding.

@@ -6,7 +6,7 @@ import { costForGeneration, refundCredits, spendCredits } from "@/lib/credits";
 import { logError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getProvider } from "@/lib/providers";
-import { mirrorToStorage, signUrl } from "@/lib/storage";
+import { mirrorToStorage, publicStorageUrl, signUrl } from "@/lib/storage";
 import type {
   AspectRatio,
   BrandProfile,
@@ -79,11 +79,17 @@ export async function createGeneration(
       provider: params.provider,
       durationSeconds: params.durationSeconds,
     });
+    // Logo goes in as an actual reference image, not just text — the prompt/script can describe
+    // it, but only this makes the provider ground the FINAL FRAME's on-screen logo shot in the
+    // real thing (brand-logos is a public bucket, so a plain URL is all the provider needs).
+    const logoUrl = brand.logo_path ? publicStorageUrl("brand-logos", brand.logo_path) : null;
+
     const { jobId } = await providerImpl.submit({
       prompt,
       durationSeconds: params.durationSeconds,
       aspectRatio: params.aspectRatio,
       quality: params.quality,
+      referenceImageUrls: logoUrl ? [logoUrl] : undefined,
     });
     logger.info("generation", "provider job submitted", { jobId });
 

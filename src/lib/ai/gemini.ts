@@ -13,6 +13,7 @@ import type {
   ScriptStyle,
   VideoAnalysis,
 } from "@/lib/types";
+import { publicStorageUrl } from "@/lib/storage";
 import {
   ANALYSIS_SYSTEM_PROMPT,
   masterScriptPrompt,
@@ -35,23 +36,23 @@ function ai() {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const MAX_LOGO_BYTES = 5_000_000;
-const LOGO_FETCH_TIMEOUT_MS = 8000;
+const MAX_IMAGE_BYTES = 5_000_000;
+const IMAGE_FETCH_TIMEOUT_MS = 8000;
+// ponytail: hard cap on how many context images get attached per Gemini call — keeps prompt
+// payload/latency bounded. Raise if brands with more product shots actually need it.
+const MAX_CONTEXT_IMAGES = 5;
 
 /**
- * Best-effort: fetches a brand's logo from its public storage path and returns it as a Gemini
- * image Part, so script-writing calls can ground the FINAL FRAME's on-screen brand text/logo
- * description in what the logo actually looks like instead of inventing generic branding.
- * Never throws — a missing logo, dead fetch, or non-image response just means no image part
- * (brandBrief()'s logo line is skipped too in that case, see prompts.ts).
+ * Best-effort: fetches a public brand-logos image (logo or context shot) and returns it as a
+ * Gemini image Part. Never throws — a missing path, dead fetch, or non-image response just
+ * means no image part (brandBrief()'s matching text line is skipped too, see prompts.ts).
  */
-async function brandLogoPart(brand: BrandProfile) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!brand.logo_path || !supabaseUrl) return null;
+async function fetchBrandImagePart(path: string) {
+  const url = publicStorageUrl("brand-logos", path);
+  if (!url) return null;
   try {
-    const url = `${supabaseUrl}/storage/v1/object/public/brand-logos/${brand.logo_path}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), LOGO_FETCH_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS);
     let res: Response;
     try {
       res = await fetch(url, { signal: controller.signal });
@@ -64,7 +65,7 @@ async function brandLogoPart(brand: BrandProfile) {
     if (!mimeType.startsWith("image/")) return null;
 
     const bytes = Buffer.from(await res.arrayBuffer());
-    if (bytes.length > MAX_LOGO_BYTES) return null;
+    if (bytes.length > MAX_IMAGE_BYTES) return null;
 
     return createPartFromBase64(bytes.toString("base64"), mimeType);
   } catch {
@@ -72,12 +73,30 @@ async function brandLogoPart(brand: BrandProfile) {
   }
 }
 
-/** Builds Gemini's `contents` for a script-writing prompt, attaching the brand logo image
- * alongside the text when one's available — same prompt string either way, just with or
- * without the extra grounding part. */
+/** The brand's logo, so script-writing calls can ground the FINAL FRAME's on-screen brand
+ * text/logo description in what the logo actually looks like instead of inventing generic branding. */
+async function brandLogoPart(brand: BrandProfile) {
+  return brand.logo_path ? fetchBrandImagePart(brand.logo_path) : null;
+}
+
+/** The brand's context images (product/packaging/mood shots) — the AI-context replacement for
+ * a website scan, see brandBrief() in prompts.ts. */
+async function brandContextImageParts(brand: BrandProfile) {
+  const paths = (brand.context_image_paths ?? []).slice(0, MAX_CONTEXT_IMAGES);
+  const parts = await Promise.all(paths.map(fetchBrandImagePart));
+  return parts.filter((part): part is NonNullable<typeof part> => part !== null);
+}
+
+/** Builds Gemini's `contents` for a script-writing prompt, attaching the brand's logo and
+ * context images alongside the text when available — same prompt string either way, just with
+ * or without the extra grounding parts. */
 async function scriptContents(promptText: string, brand: BrandProfile) {
-  const logoPart = await brandLogoPart(brand);
-  return logoPart ? createUserContent([logoPart, promptText]) : promptText;
+  const [logoPart, contextParts] = await Promise.all([
+    brandLogoPart(brand),
+    brandContextImageParts(brand),
+  ]);
+  const imageParts = [...(logoPart ? [logoPart] : []), ...contextParts];
+  return imageParts.length ? createUserContent([...imageParts, promptText]) : promptText;
 }
 
 const ANALYSIS_FIELDS = [

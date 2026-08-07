@@ -25,10 +25,16 @@ function brandBrief(brand: BrandProfile) {
       ` shape, and wordmark/symbol whenever the script calls for on-screen brand text or a logo` +
       ` shot — describe what's actually in the image, don't invent generic branding.`
     : "";
+  // Same sync requirement as the logo line above, against brandContextImageParts() in gemini.ts.
+  const contextImages = brand.context_image_paths?.length
+    ? `\n- Brand context images: ${brand.context_image_paths.length} image(s) attached to this` +
+      ` request — look at them for real product appearance, packaging, setting, and mood; ground` +
+      ` descriptions in what's actually shown instead of inventing generic imagery.`
+    : "";
   return `- Brand: ${brand.brand_name ?? "Unnamed brand"}
 - Product/Service: ${brand.product_service ?? "n/a"}
 - Target audience: ${brand.target_audience ?? "n/a"}
-- Brand description: ${brand.description ?? "n/a"}${website}${logo}`;
+- Brand description: ${brand.description ?? "n/a"}${website}${logo}${contextImages}`;
 }
 
 /** Tone is never asked of the user — it's carried over from what the analyzed video actually did. */

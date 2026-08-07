@@ -100,10 +100,14 @@ and src/lib/*. Citations inline. -->
   the Settings page (renamed Profile, `/profile`, D-017) dropped Theme/
   Language/Notifications as features, not just UI (D-018); `profiles.avatar_url`
   (already existed, previously write-only via direct DB access) is now
-  editable through `/api/profile`. **`0001`–`0020` are all applied to the
-  live project** (`0020` applied via the Supabase MCP on 2026-08-02,
-  confirmed via `list_migrations` + `list_tables`) — the schema is fully
-  current as of this note.
+  editable through `/api/profile`. `0021` adds `scripts.subtitles`. `0022`
+  adds `brand_profiles.context_image_paths text[]` — product/packaging/mood
+  images uploaded per brand, the AI-context replacement for a website scan
+  in the Add/Edit brand dialog (D-019); `website_url`/`website_summary`
+  stay in the schema and are still read by `brandBrief()`, just no longer
+  writable from that dialog. **`0001`–`0022` are all applied to the live
+  project** (confirmed via the Supabase MCP) — the schema is fully current
+  as of this note.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):
@@ -113,13 +117,22 @@ and src/lib/*. Citations inline. -->
     headers (`PollResult.outputHeaders`) since not every provider's output
     URL is publicly fetchable — OpenRouter's video content endpoint requires
     the same bearer token used to poll it.
-  - `brand-logos` (public read, 10MB limit) — brand logo uploads, path
+  - `brand-logos` (public read, 10MB limit) — brand logo *and* brand
+    context-image uploads (`kind: "logo"` / `kind: "context_image"`), path
     `{user_id}/{brand_profile_id}/{filename}` (second segment is a brand
     profile id, not a project id, since brand profiles aren't project-scoped
     — the bucket's RLS only checks the first segment against `auth.uid()`,
     so this doesn't need its own policy; see `uploads/sign`+`uploads/confirm`
     routes, which accept either `projectId` or `brandProfileId` depending on
-    `kind`).
+    `kind`). A `logo` confirm overwrites `brand_profiles.logo_path`; a
+    `context_image` confirm appends to `context_image_paths` (array) instead
+    of replacing it. Being public means a plain URL (`publicStorageUrl()` in
+    `storage.ts`) is enough to hand either one to a third party — used both
+    by `gemini.ts` (fetches the bytes as an image Part for script-writing
+    calls) and `generation.ts` (hands the logo's URL straight to Seedance as
+    an `input_references` reference image, D-020, so on-screen branding in
+    the actual generated video is grounded in the real logo, not just
+    Gemini's text description of it).
 - **No cache/ephemeral store** — polling for generation status is
   request-driven (client polls `GET /api/generations/[id]`, which calls
   `pollAndFinalize`), not backed by a queue or cache layer.

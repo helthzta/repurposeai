@@ -5,6 +5,8 @@ export interface SubmitParams {
   durationSeconds: number;
   aspectRatio: AspectRatio;
   quality: Quality;
+  /** Reference image URLs (currently just the brand logo) the provider should ground on-screen branding in, if it supports it. */
+  referenceImageUrls?: string[];
 }
 
 export interface PollResult {

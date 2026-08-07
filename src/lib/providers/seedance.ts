@@ -49,6 +49,17 @@ class SeedanceProvider implements VideoProvider {
         duration: params.durationSeconds,
         resolution: RESOLUTION_BY_QUALITY[params.quality],
         aspect_ratio: params.aspectRatio,
+        // Reference-to-video: grounds on-screen branding (the script's FINAL FRAME logo shot) in
+        // the brand's actual logo image instead of the model inventing one from the text prompt.
+        // https://openrouter.ai/docs/guides/overview/multimodal/video-generation
+        ...(params.referenceImageUrls?.length
+          ? {
+              input_references: params.referenceImageUrls.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+              })),
+            }
+          : {}),
       }),
     });
 

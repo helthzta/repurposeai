@@ -17,13 +17,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import type { BrandProfile } from "@/lib/types";
 
-async function uploadLogo(brandProfileId: string, file: File): Promise<string> {
+/** Shared by logo + context-image uploads — both go through sign/confirm, scoped to the brand profile. */
+async function uploadBrandImage(
+  brandProfileId: string,
+  kind: "logo" | "context_image",
+  file: File,
+): Promise<BrandProfile> {
   const signRes = await fetch("/api/uploads/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ brandProfileId, kind: "logo", filename: file.name }),
+    body: JSON.stringify({ brandProfileId, kind, filename: file.name }),
   });
-  if (!signRes.ok) throw new Error("Could not prepare logo upload");
+  if (!signRes.ok) throw new Error("Could not prepare image upload");
   const { bucket, path, token } = await signRes.json();
 
   const supabase = createClient();
@@ -35,12 +40,14 @@ async function uploadLogo(brandProfileId: string, file: File): Promise<string> {
   const confirmRes = await fetch("/api/uploads/confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ brandProfileId, kind: "logo", path, filename: file.name }),
+    body: JSON.stringify({ brandProfileId, kind, path, filename: file.name }),
   });
-  if (!confirmRes.ok) throw new Error("Could not save the logo");
+  if (!confirmRes.ok) throw new Error("Could not save the image");
   const { brandProfile } = await confirmRes.json();
-  return brandProfile.logo_path as string;
+  return brandProfile as BrandProfile;
 }
+
+const MAX_CONTEXT_IMAGES = 5;
 
 /** Shared Add/Edit brand profile modal — used from Profile and inline from the Upload step. */
 export function BrandProfileDialog({
@@ -60,12 +67,18 @@ export function BrandProfileDialog({
   const [productService, setProductService] = useState(editing?.product_service ?? "");
   const [targetAudience, setTargetAudience] = useState(editing?.target_audience ?? "");
   const [brandColors, setBrandColors] = useState(editing?.brand_colors?.join(", ") ?? "");
-  const [websiteUrl, setWebsiteUrl] = useState(editing?.website_url ?? "");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  // Already-saved context images (can be removed) vs. newly picked files (uploaded on save).
+  const [existingContextImages, setExistingContextImages] = useState(
+    editing?.context_image_paths ?? [],
+  );
+  const [contextImageFiles, setContextImageFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [labelError, setLabelError] = useState<string | null>(null);
+
+  const totalContextImages = existingContextImages.length + contextImageFiles.length;
 
   const handleLogoChange = (file: File | null) => {
     setLogoFile(file);
@@ -73,6 +86,16 @@ export function BrandProfileDialog({
       if (prev) URL.revokeObjectURL(prev);
       return file ? URL.createObjectURL(file) : null;
     });
+  };
+
+  const handleContextImagesAdded = (files: FileList | null) => {
+    if (!files) return;
+    const room = MAX_CONTEXT_IMAGES - totalContextImages;
+    if (room <= 0) {
+      toast.error(`Up to ${MAX_CONTEXT_IMAGES} context images`);
+      return;
+    }
+    setContextImageFiles((prev) => [...prev, ...Array.from(files).slice(0, room)]);
   };
 
   const handleSubmit = async () => {
@@ -93,7 +116,8 @@ export function BrandProfileDialog({
           .split(",")
           .map((c) => c.trim())
           .filter(Boolean),
-        websiteUrl: websiteUrl.trim() || null,
+        // Only meaningful on edit (drops a removed image) — a new profile has none yet.
+        contextImagePaths: existingContextImages,
       };
 
       const res = await fetch(
@@ -108,8 +132,10 @@ export function BrandProfileDialog({
       let { brandProfile } = await res.json();
 
       if (logoFile) {
-        const logoPath = await uploadLogo(brandProfile.id, logoFile);
-        brandProfile = { ...brandProfile, logo_path: logoPath };
+        brandProfile = await uploadBrandImage(brandProfile.id, "logo", logoFile);
+      }
+      for (const file of contextImageFiles) {
+        brandProfile = await uploadBrandImage(brandProfile.id, "context_image", file);
       }
 
       toast.success(editing ? "Brand profile updated" : "Brand profile created");
@@ -187,15 +213,75 @@ export function BrandProfileDialog({
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="bp-website">Website Link</Label>
-            <Input
-              id="bp-website"
-              type="url"
-              placeholder="https://yourbrand.com"
-              className="h-11 rounded-xl"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-            />
+            <Label htmlFor="bp-context-images">Brand Context Images</Label>
+            <p className="text-xs text-muted-foreground">
+              Product, packaging, or mood shots — used as AI context instead of a website link.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {existingContextImages.map((path) => (
+                <div
+                  key={path}
+                  className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-muted"
+                >
+                  <img
+                    src={
+                      createClient().storage.from("brand-logos").getPublicUrl(path).data.publicUrl
+                    }
+                    alt="Brand context"
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExistingContextImages((prev) => prev.filter((p) => p !== path))
+                    }
+                    aria-label="Remove image"
+                    className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-foreground/70 text-background"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {contextImageFiles.map((file, i) => (
+                <div
+                  key={`${file.name}-${i}`}
+                  className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border bg-muted"
+                >
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="Brand context"
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setContextImageFiles((prev) => prev.filter((_, j) => j !== i))}
+                    aria-label="Remove image"
+                    className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-foreground/70 text-background"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {totalContextImages < MAX_CONTEXT_IMAGES && (
+                <label
+                  htmlFor="bp-context-images"
+                  className="flex h-14 w-14 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                >
+                  <ImageUp className="h-5 w-5" />
+                </label>
+              )}
+              <input
+                id="bp-context-images"
+                type="file"
+                multiple
+                accept=".png,.jpg,.jpeg,.webp"
+                className="sr-only"
+                onChange={(e) => {
+                  handleContextImagesAdded(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </div>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="bp-description">Brand Description</Label>

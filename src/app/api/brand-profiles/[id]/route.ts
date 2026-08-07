@@ -28,6 +28,9 @@ export const PATCH = withLogger(
     if (body.description !== undefined) update.description = body.description;
     if (body.brandColors !== undefined) update.brand_colors = body.brandColors;
     if (body.logoPath !== undefined) update.logo_path = body.logoPath;
+    // Full-array replace — used to drop a context image (uploading a new one instead goes
+    // through /api/uploads/confirm, which appends).
+    if (body.contextImagePaths !== undefined) update.context_image_paths = body.contextImagePaths;
     if (body.isDefault !== undefined) update.is_default = body.isDefault;
     if (body.websiteUrl !== undefined) {
       const websiteUrl: string | undefined = body.websiteUrl?.trim() || undefined;

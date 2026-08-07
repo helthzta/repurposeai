@@ -48,6 +48,27 @@ export const POST = withLogger("uploads.confirm", async (req: NextRequest) => {
     return NextResponse.json({ brandProfile });
   }
 
+  // A context image appends to the brand profile's array rather than replacing a single path.
+  if (kind === "context_image") {
+    if (!brandProfileId) throw new ApiError(400, "brandProfileId is required");
+    const { data: current, error: fetchError } = await supabase
+      .from("brand_profiles")
+      .select("context_image_paths")
+      .eq("id", brandProfileId)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const { data: brandProfile, error } = await supabase
+      .from("brand_profiles")
+      .update({ context_image_paths: [...(current.context_image_paths ?? []), path] })
+      .eq("id", brandProfileId)
+      .select()
+      .single();
+    if (error) throw error;
+
+    return NextResponse.json({ brandProfile });
+  }
+
   if (!projectId) throw new ApiError(400, "projectId is required");
 
   const { data: sourceVideo, error } = await supabase

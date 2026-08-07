@@ -7,8 +7,12 @@ const BUCKET_BY_KIND = {
   product: "source-videos",
   brand: "source-videos",
   logo: "brand-logos",
+  context_image: "brand-logos",
   avatar: "brand-logos",
 } as const;
+
+/** Kinds scoped to a brand profile id instead of a project id — a brand profile isn't tied to one project. */
+const BRAND_SCOPED_KINDS = new Set(["logo", "context_image"]);
 
 export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
   const { supabase, user } = await requireUser();
@@ -31,11 +35,11 @@ export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
   if (kind === "avatar") {
     path = `${user.id}/avatar/${Date.now()}-${filename}`;
   } else {
-    const scopeId = kind === "logo" ? brandProfileId : projectId;
+    const scopeId = BRAND_SCOPED_KINDS.has(kind) ? brandProfileId : projectId;
     if (!scopeId) {
       throw new ApiError(
         400,
-        kind === "logo" ? "brandProfileId is required" : "projectId is required",
+        BRAND_SCOPED_KINDS.has(kind) ? "brandProfileId is required" : "projectId is required",
       );
     }
     path = `${user.id}/${scopeId}/${kind}-${Date.now()}-${filename}`;
