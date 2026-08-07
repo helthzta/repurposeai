@@ -1,11 +1,11 @@
 <!-- Soft cap ~50 lines. Completed work lives in git history, not here.
 Compact at the end of every session per CLAUDE.md ritual. -->
 
-_Last updated: 2026-08-07_
+_Last updated: 2026-08-08_
 
 ## Current phase
 
-Latest session (2026-08-07): two brand-context/video-fidelity fixes —
+Latest session (2026-08-07/08): brand-context/video-fidelity work —
 1. Add/Edit brand profile dialog now uploads "Brand Context Images"
    (product/packaging/mood shots, up to 5) instead of a Website Link field
    — new `brand_profiles.context_image_paths text[]` (migration `0022`,
@@ -18,8 +18,13 @@ Latest session (2026-08-07): two brand-context/video-fidelity fixes —
    described in the text prompt — previously only the *script text* was
    grounded in the real logo (via Gemini, R-038), the video-gen call itself
    never received the image. See D-020.
+3. Follow-up: website scanning removed entirely (not left as dead backend)
+   — `brand_profiles.website_url`/`website_summary` dropped (migration
+   `0023`, applied live), `src/lib/website.ts` deleted, both
+   `/api/brand-profiles` routes and `prompts.ts`'s `brandBrief()` no longer
+   reference it. See D-021 (supersedes D-014).
 
-Both code-complete, `npx tsc --noEmit` + targeted `eslint` clean.
+All three code-complete, `npx tsc --noEmit` + targeted `eslint` clean.
 **Not yet click-tested in a real browser.**
 
 ## In progress
@@ -41,9 +46,11 @@ Both code-complete, `npx tsc --noEmit` + targeted `eslint` clean.
 
 ## Next steps (max ~5)
 
-1. Click-test this session's two changes: add a brand with context images
-   (save, edit, remove one), and run a real generation with a logo set —
-   confirm the output video's FINAL FRAME actually uses the real logo.
+1. Click-test this session's changes: add a brand with context images
+   (save, edit, remove one), confirm no Website Link field remains and
+   nothing else broke from the column drop, and run a real generation
+   with a logo set — confirm the output video's FINAL FRAME actually uses
+   the real logo.
 2. Click through Language/Subtitles controls in an actual browser tab
    (carried over from 2026-08-04, still unverified).
 3. Decide on the middleware auth-gating finding (D-008).

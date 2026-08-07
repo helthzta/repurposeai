@@ -103,11 +103,12 @@ and src/lib/*. Citations inline. -->
   editable through `/api/profile`. `0021` adds `scripts.subtitles`. `0022`
   adds `brand_profiles.context_image_paths text[]` — product/packaging/mood
   images uploaded per brand, the AI-context replacement for a website scan
-  in the Add/Edit brand dialog (D-019); `website_url`/`website_summary`
-  stay in the schema and are still read by `brandBrief()`, just no longer
-  writable from that dialog. **`0001`–`0022` are all applied to the live
-  project** (confirmed via the Supabase MCP) — the schema is fully current
-  as of this note.
+  in the Add/Edit brand dialog (D-019). `0023` drops `brand_profiles.
+  website_url`/`website_summary` and deletes `src/lib/website.ts`
+  (`fetchWebsiteText`) — website scanning is fully removed, not just
+  hidden (D-021, supersedes D-014). **`0001`–`0023` are all applied to the
+  live project** (confirmed via the Supabase MCP) — the schema is fully
+  current as of this note.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):

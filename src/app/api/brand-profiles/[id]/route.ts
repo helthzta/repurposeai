@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
-import { fetchWebsiteText } from "@/lib/website";
 
 export const PATCH = withLogger(
   "brand-profiles.update",
@@ -32,12 +31,6 @@ export const PATCH = withLogger(
     // through /api/uploads/confirm, which appends).
     if (body.contextImagePaths !== undefined) update.context_image_paths = body.contextImagePaths;
     if (body.isDefault !== undefined) update.is_default = body.isDefault;
-    if (body.websiteUrl !== undefined) {
-      const websiteUrl: string | undefined = body.websiteUrl?.trim() || undefined;
-      update.website_url = websiteUrl ?? null;
-      // Best-effort, same as creation — a dead/slow site just leaves website_summary null.
-      update.website_summary = websiteUrl ? await fetchWebsiteText(websiteUrl) : null;
-    }
 
     const { data: brandProfile, error } = await supabase
       .from("brand_profiles")

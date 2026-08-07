@@ -32,10 +32,8 @@ export interface BrandProfile {
   brand_colors: string[] | null;
   cta: string | null;
   logo_path: string | null;
-  /** Product/packaging/mood images for AI context — replaces the website link as the default way to describe a brand. */
+  /** Product/packaging/mood images for AI context — replaces the website link as the way to describe a brand. */
   context_image_paths: string[] | null;
-  website_url: string | null;
-  website_summary: string | null;
   created_at: string;
   updated_at: string;
 }
