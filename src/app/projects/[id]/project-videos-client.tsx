@@ -200,10 +200,13 @@ export function ProjectVideosClient({ project }: { project: ProjectDetail }) {
                       </div>
 
                       <div className="self-start">
+                        {/* Prefer the frozen snapshot on the generation (what actually produced
+                            this video) over the live script row, which can have since been
+                            edited/regenerated — that would show text that never went to Seedance. */}
                         <ExpandableTextCard
                           icon={FileText}
                           title="Script Used"
-                          content={script?.body ?? null}
+                          content={generation.script_body ?? script?.body ?? null}
                           emptyText="No script selected."
                         />
                       </div>

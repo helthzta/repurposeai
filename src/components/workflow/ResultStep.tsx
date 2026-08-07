@@ -125,11 +125,12 @@ export function ResultStep({
             </Button>
           </div>
 
-          {/* Script */}
+          {/* Script — prefer the frozen snapshot on the generation (what actually produced this
+              video) over the live script row, which can have since been edited/regenerated. */}
           <ExpandableTextCard
             icon={FileText}
             title="Script Used"
-            content={script?.body ?? null}
+            content={generation?.script_body ?? script?.body ?? null}
             emptyText="No script selected."
           />
         </div>

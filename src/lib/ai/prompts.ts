@@ -108,8 +108,11 @@ they're director's notes for the video generator, not spoken or on-screen conten
 Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
 entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.
 
-"body" is fed directly into an AI video generator as its shot-by-shot prompt, so write it in this EXACT
-structure — precision here is what determines shot quality, continuity, and lip-sync accuracy:
+"body" is fed directly into an AI video generator as its shot-by-shot prompt AND shown verbatim in a plain-text
+editor, so write it in this EXACT structure — precision here is what determines shot quality, continuity, and
+lip-sync accuracy. Use REAL newline characters between every line and section below, never run them together
+separated only by spaces — each labeled line (LOCATION:, CAMERA:, ACTION:, AUDIO:, DIALOGUE:, etc.) starts on
+its own new line, and each "---" scene separator sits on its own line too:
 
 Start with a header line: your translated "title" and "hook" (see above), both in ALL CAPS, separated by " – ".
 On the next line: TOTAL DURATION: ${durationSeconds} SECONDS

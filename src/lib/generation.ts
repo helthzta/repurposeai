@@ -105,6 +105,8 @@ export async function createGeneration(
         camera_style: params.cameraStyle,
         status: "processing",
         prompt_used: prompt,
+        // Frozen at submit time — script.body itself can be edited/regenerated afterward, this can't.
+        script_body: script.body,
         provider_job_id: jobId,
         credits_charged: cost,
       })

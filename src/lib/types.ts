@@ -138,6 +138,8 @@ export interface Generation {
   camera_style: string;
   status: GenerationStatus;
   prompt_used: string | null;
+  /** Snapshot of the script body at submit time — use this for display, not the live script row, which can drift after edits/regenerates. */
+  script_body: string | null;
   provider_job_id: string | null;
   output_path: string | null;
   output_url: string | null;
