@@ -90,7 +90,7 @@ export type WorkflowPhase = "analysis" | "ideas" | "script" | "settings" | "gene
 
 export interface WorkflowState {
   phase: WorkflowPhase;
-  /** The current script variant(s) written for the picked idea — what the Ideas->Script hand-off shows. Only 15s is written today; 30s reappears here once native 30s generation ships. */
+  /** The current script variants (15s and 30s) written for the picked idea — what the Ideas->Script hand-off shows. */
   scripts: Script[];
   /** Whichever of `scripts` is active/selected — used once past the Script step. */
   script: Script | null;

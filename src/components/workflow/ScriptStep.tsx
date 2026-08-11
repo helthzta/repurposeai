@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Loader2, MicVocal } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { SCRIPT_LANGUAGE_LABELS, type Script, type ScriptLanguage } from "@/lib/types";
-import { ScriptEditor } from "./ScriptEditor";
+import { ScriptEditor, type ScriptEditorHandle } from "./ScriptEditor";
 
 export function ScriptStep({
   scripts: initialScripts,
@@ -24,7 +24,7 @@ export function ScriptStep({
   onBack,
   onContinue,
 }: {
-  /** Only a 15s variant is written for now — see the disabled 30s "Coming Soon" button below. */
+  /** The 15s and 30s variants written for the picked idea — switching between them is instant. */
   scripts: Script[];
   /** The analyzed source video's tone — same value shown on the Idea step, carried forward so it's
    * still visible while reviewing/editing the full script. */
@@ -35,7 +35,9 @@ export function ScriptStep({
   const [scripts, setScripts] = useState(initialScripts);
   const [switching, setSwitching] = useState(false);
   const [applyingSettings, setApplyingSettings] = useState(false);
+  const [continuing, setContinuing] = useState(false);
   const active = scripts.find((s) => s.is_selected) ?? scripts[0];
+  const editorRef = useRef<ScriptEditorHandle>(null);
 
   const pick = async (target: Script) => {
     if (target.id === active.id) return;
@@ -56,6 +58,24 @@ export function ScriptStep({
 
   const updateActive = (updated: Script) =>
     setScripts((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+
+  // Flushes any unsaved textarea edits before handing off — otherwise a typed-but-not-"Saved"
+  // change would silently generate from the old body, so the script shown here would never
+  // match the one baked into the video (see ScriptEditor.saveIfDirty).
+  const handleContinue = async () => {
+    setContinuing(true);
+    try {
+      const finalScript = (await editorRef.current?.saveIfDirty()) ?? active;
+      updateActive(finalScript);
+      onContinue(finalScript);
+    } catch (err) {
+      toast.error("Couldn't save your edits", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setContinuing(false);
+    }
+  };
 
   // Changing language or subtitles re-writes this script's body from scratch through the same
   // structured prompt as first-time generation — never a translation-in-place of the old text.
@@ -112,16 +132,6 @@ export function ScriptStep({
             {s.target_duration_seconds ?? "?"}s version
           </button>
         ))}
-        {/* Native 30s generation isn't wired up yet — kept visible so it reads as roadmapped, not missing. */}
-        <button
-          disabled
-          className="cursor-not-allowed rounded-xl border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground opacity-60"
-        >
-          30s version
-          <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-            Coming Soon
-          </span>
-        </button>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-5 rounded-2xl border bg-card px-4 py-3 shadow-card">
@@ -161,6 +171,7 @@ export function ScriptStep({
       </div>
 
       <ScriptEditor
+        ref={editorRef}
         key={active.id}
         script={active}
         onBack={onBack}
@@ -171,10 +182,15 @@ export function ScriptStep({
         <Button
           size="lg"
           className="btn-glow h-12 rounded-xl px-8 font-semibold"
-          onClick={() => onContinue(active)}
+          onClick={handleContinue}
+          disabled={continuing}
         >
+          {continuing ? (
+            <Loader2 className="h-4.5 w-4.5 animate-spin" />
+          ) : (
+            <ArrowRight className="h-4.5 w-4.5" />
+          )}
           Continue to Settings
-          <ArrowRight className="h-4.5 w-4.5" />
         </Button>
       </div>
     </div>

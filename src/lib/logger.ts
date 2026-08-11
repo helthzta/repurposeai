@@ -17,7 +17,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { logError } from "@/lib/errors";
+import { errorMessage, logError } from "@/lib/errors";
 import { ApiError, apiErrorResponse } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -74,7 +74,7 @@ export function withLogger<T extends object = object>(
       return response;
     } catch (error) {
       const elapsed = Date.now() - start;
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       const status = error instanceof ApiError ? error.status : 500;
 
       console.error(

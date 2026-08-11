@@ -81,7 +81,7 @@ export function masterScriptPrompt(
   options?: { language?: ScriptLanguage; subtitles?: boolean },
 ) {
   const language = options?.language ?? "en";
-  const subtitles = options?.subtitles ?? true;
+  const subtitles = options?.subtitles ?? false;
   const midpoint = Math.round(durationSeconds / 2);
   return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}

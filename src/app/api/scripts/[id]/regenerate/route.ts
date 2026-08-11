@@ -36,8 +36,11 @@ export const POST = withLogger(
       pitch: current.scene_descriptions ?? current.emotional_direction ?? current.title,
     };
     const nextSubtitles = subtitles ?? current.subtitles;
+    // The script's own target_duration_seconds is authoritative here too — a regenerate must
+    // keep fitting the same-length variant the user is editing, not silently default to 15s.
+    const durationSeconds = (current.target_duration_seconds ?? 15) as 15 | 30;
 
-    const { generated } = await writeScript(supabase, current.project_id, idea, {
+    const { generated } = await writeScript(supabase, current.project_id, idea, durationSeconds, {
       language: language ?? (current.language as ScriptLanguage),
       subtitles: nextSubtitles,
     });

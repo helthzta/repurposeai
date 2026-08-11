@@ -12,7 +12,7 @@ import {
   Gem,
   HeartHandshake,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,17 +28,22 @@ const quickActions = [
   { label: "More Cinematic", icon: Clapperboard },
 ];
 
-export function ScriptEditor({
-  script,
-  onBack,
-  onSync,
-  onSave,
-}: {
-  script: Script;
-  onBack: () => void;
-  onSync: (script: Script) => void;
-  onSave: (script: Script) => void;
-}) {
+/** Imperative escape hatch for ScriptStep's "Continue" button — see saveIfDirty below. */
+export interface ScriptEditorHandle {
+  /** Persists any unsaved textarea edits before leaving this step. No-op (and no network call)
+   * if the textarea still matches what's already saved. Returns the script to continue with. */
+  saveIfDirty: () => Promise<Script>;
+}
+
+export const ScriptEditor = forwardRef<
+  ScriptEditorHandle,
+  {
+    script: Script;
+    onBack: () => void;
+    onSync: (script: Script) => void;
+    onSave: (script: Script) => void;
+  }
+>(function ScriptEditor({ script, onBack, onSync, onSave }, ref) {
   const [text, setText] = useState(script.body);
   const [saving, setSaving] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
@@ -100,23 +105,36 @@ export function ScriptEditor({
     }
   };
 
+  const persistBody = async (): Promise<Script> => {
+    const res = await fetch(`/api/scripts/${script.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: text }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Save failed");
+    onSave(data.script);
+    return data.script;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/scripts/${script.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Save failed");
-      onSave(data.script);
+      await persistBody();
     } catch (err) {
       toast.error("Save failed", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setSaving(false);
     }
   };
+
+  // Lets ScriptStep's "Continue to Settings" flush unsaved textarea edits before generation
+  // reads this script from the DB — without this, typing a change and continuing without an
+  // explicit "Save Version" would silently generate from the old, still-persisted body, so the
+  // "final" script shown in the editor could drift from the one actually used to render the video.
+  useImperativeHandle(ref, () => ({
+    saveIfDirty: () => (text === script.body ? Promise.resolve(script) : persistBody()),
+  }));
 
   return (
     <div className="animate-fade-up">
@@ -205,4 +223,4 @@ export function ScriptEditor({
       </div>
     </div>
   );
-}
+});

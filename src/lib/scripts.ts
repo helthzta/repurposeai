@@ -14,6 +14,7 @@ export async function writeScript(
   supabase: SupabaseClient,
   projectId: string,
   idea: ScriptIdea,
+  durationSeconds: 15 | 30,
   options?: { language?: ScriptLanguage; subtitles?: boolean },
 ): Promise<{ analysisId: string; generated: GeneratedScript }> {
   const { data: analysis, error: analysisError } = await supabase
@@ -27,6 +28,6 @@ export async function writeScript(
   if (analysisError) throw new ApiError(400, "Run analysis before generating a script");
 
   const brand = await requireProjectBrand(supabase, projectId);
-  const generated = await generateMasterScript(analysis, brand, idea, 15, options);
+  const generated = await generateMasterScript(analysis, brand, idea, durationSeconds, options);
   return { analysisId: analysis.id, generated };
 }

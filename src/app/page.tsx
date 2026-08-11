@@ -232,13 +232,24 @@ export default async function Landing() {
       </section>
 
       <footer className="border-t">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
             <div className="grid h-6 w-6 place-items-center rounded-md gradient-primary">
               <Clapperboard className="h-3 w-3 text-primary-foreground" />
             </div>
             <span className="font-semibold text-foreground">Repurpose AI</span>
           </div>
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs font-medium">
+            <Link href="/terms" className="hover:text-foreground">
+              Terms of Service
+            </Link>
+            <Link href="/privacy" className="hover:text-foreground">
+              Privacy Policy
+            </Link>
+            <Link href="/copyright" className="hover:text-foreground">
+              Copyright Policy
+            </Link>
+          </nav>
           <p>© 2026 Repurpose AI. All rights reserved.</p>
         </div>
       </footer>
