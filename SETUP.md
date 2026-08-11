@@ -46,7 +46,7 @@ This key powers video analysis (Step 2), script generation/editing (Steps 3–4)
 
 ## 5. Seedance (video generation)
 
-`src/lib/providers/seedance.ts` calls **bytedance/seedance-2.0-fast via OpenRouter** (https://openrouter.ai/bytedance/seedance-2.0-fast), OpenRouter's unified video generation API:
+`src/lib/providers/seedance.ts` calls **bytedance/seedance-2.5 via OpenRouter** (https://openrouter.ai/bytedance/seedance-2.5), OpenRouter's unified video generation API:
 
 - Set `OPENROUTER_API_KEY` from your [OpenRouter dashboard](https://openrouter.ai/settings/keys).
 - Until then, leave `MOCK_PROVIDERS=true` — generation requests will "complete" instantly with no real video, so you can exercise the entire upload → analyze → script → generate → result flow today.
