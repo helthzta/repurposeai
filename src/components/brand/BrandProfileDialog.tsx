@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageUp, Loader2, X } from "lucide-react";
+import { ImageUp, Loader2, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -48,6 +48,16 @@ async function uploadBrandImage(
 }
 
 const MAX_CONTEXT_IMAGES = 5;
+const MAX_BRAND_COLORS = 6;
+const DEFAULT_SWATCH = "#2563eb";
+const isHexColor = (value: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
+/** Accepts "2563eb" or "#2563eb" typed by hand; returns null if it's not a valid hex once normalized. */
+const normalizeHex = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  return isHexColor(withHash) ? withHash : null;
+};
 
 /** Shared Add/Edit brand profile modal — used from Profile and inline from the Upload step. */
 export function BrandProfileDialog({
@@ -66,7 +76,10 @@ export function BrandProfileDialog({
   const [brandName, setBrandName] = useState(editing?.brand_name ?? "");
   const [productService, setProductService] = useState(editing?.product_service ?? "");
   const [targetAudience, setTargetAudience] = useState(editing?.target_audience ?? "");
-  const [brandColors, setBrandColors] = useState(editing?.brand_colors?.join(", ") ?? "");
+  const [brandColors, setBrandColors] = useState<string[]>(editing?.brand_colors ?? []);
+  // Staged value for the "add a color" control — see handleDraftColorSubmit for why this is
+  // separate from brandColors instead of writing straight into it.
+  const [draftHex, setDraftHex] = useState("");
   const [description, setDescription] = useState(editing?.description ?? "");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -98,6 +111,39 @@ export function BrandProfileDialog({
     setContextImageFiles((prev) => [...prev, ...Array.from(files).slice(0, room)]);
   };
 
+  const handleColorAdded = (hex: string) => {
+    setBrandColors((prev) => {
+      if (prev.length >= MAX_BRAND_COLORS) {
+        toast.error(`Up to ${MAX_BRAND_COLORS} brand colors`);
+        return prev;
+      }
+      return [...prev, hex];
+    });
+  };
+
+  const handleColorChanged = (index: number, hex: string) => {
+    setBrandColors((prev) => prev.map((c, i) => (i === index ? hex : c)));
+  };
+
+  const handleColorRemoved = (index: number) => {
+    setBrandColors((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Wheel/spectrum drag and hex typing both only ever touch draftHex — nothing lands in brandColors
+  // until "Add" is clicked. A native color input's onChange fires on every intermediate tick while
+  // dragging the wheel, not just once on release; wiring that straight into the list meant one drag
+  // gesture silently added several colors at once (confusing — looked like colors were "randomly
+  // getting selected" from a scroll/drag).
+  const handleDraftColorSubmit = () => {
+    const hex = normalizeHex(draftHex);
+    if (!hex) {
+      toast.error("Enter a valid hex code, e.g. #2563EB");
+      return;
+    }
+    handleColorAdded(hex);
+    setDraftHex("");
+  };
+
   const handleSubmit = async () => {
     if (!label.trim()) {
       setLabelError('Give this brand profile a name, e.g. "Brand A"');
@@ -112,10 +158,7 @@ export function BrandProfileDialog({
         productService: productService.trim() || null,
         targetAudience: targetAudience.trim() || null,
         description: description.trim() || null,
-        brandColors: brandColors
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
+        brandColors,
         // Only meaningful on edit (drops a removed image) — a new profile has none yet.
         contextImagePaths: existingContextImages,
       };
@@ -202,15 +245,99 @@ export function BrandProfileDialog({
               onChange={(e) => setTargetAudience(e.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bp-colors">Brand Colors</Label>
-            <Input
-              id="bp-colors"
-              placeholder="#2563EB, #F8FAFC"
-              className="h-11 rounded-xl"
-              value={brandColors}
-              onChange={(e) => setBrandColors(e.target.value)}
-            />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Brand Colors</Label>
+            <p className="text-xs text-muted-foreground">
+              {brandColors.length === 0
+                ? `Choose a color below, then click Add — up to ${MAX_BRAND_COLORS}.`
+                : "Click a swatch to change it, or the × to remove it."}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {brandColors.map((hex, i) => (
+                <div key={`color-${i}`} className="relative flex items-center gap-1">
+                  <label
+                    htmlFor={`bp-color-${i}`}
+                    title={isHexColor(hex) ? hex : "Not a valid hex color"}
+                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border shadow-sm"
+                    style={isHexColor(hex) ? { backgroundColor: hex } : undefined}
+                  >
+                    {!isHexColor(hex) && (
+                      <span className="text-[9px] font-medium text-muted-foreground">?</span>
+                    )}
+                  </label>
+                  <input
+                    id={`bp-color-${i}`}
+                    type="color"
+                    value={isHexColor(hex) ? hex : DEFAULT_SWATCH}
+                    onChange={(e) => handleColorChanged(i, e.target.value)}
+                    className="sr-only"
+                  />
+                  <Input
+                    aria-label={`Hex code for color ${i + 1}`}
+                    value={hex}
+                    onChange={(e) => handleColorChanged(i, e.target.value)}
+                    onBlur={(e) => {
+                      const normalized = normalizeHex(e.target.value);
+                      if (normalized) handleColorChanged(i, normalized);
+                    }}
+                    placeholder="#2563EB"
+                    className="h-9 w-24 rounded-lg px-2 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleColorRemoved(i)}
+                    aria-label="Remove color"
+                    className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {brandColors.length < MAX_BRAND_COLORS && (
+              <div className="flex items-center gap-1.5 rounded-xl border border-dashed p-1.5">
+                <label
+                  htmlFor="bp-color-draft"
+                  title="Choose a color"
+                  className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  style={isHexColor(draftHex) ? { backgroundColor: draftHex } : undefined}
+                >
+                  {!isHexColor(draftHex) && <Plus className="h-4 w-4" />}
+                </label>
+                <input
+                  id="bp-color-draft"
+                  type="color"
+                  // Only ever previews here — see handleDraftColorSubmit for why this doesn't
+                  // write to brandColors directly.
+                  value={isHexColor(draftHex) ? draftHex : DEFAULT_SWATCH}
+                  onChange={(e) => setDraftHex(e.target.value)}
+                  className="sr-only"
+                />
+                <Input
+                  aria-label="Hex code for the new color"
+                  value={draftHex}
+                  onChange={(e) => setDraftHex(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleDraftColorSubmit();
+                    }
+                  }}
+                  placeholder="#2563EB"
+                  className="h-9 flex-1 rounded-lg px-2 font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 shrink-0 rounded-lg px-3"
+                  onClick={handleDraftColorSubmit}
+                  disabled={!normalizeHex(draftHex)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
+                </Button>
+              </div>
+            )}
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="bp-context-images">Brand Context Images</Label>

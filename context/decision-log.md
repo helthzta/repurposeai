@@ -3,7 +3,7 @@ contestable belong here. Anything PROMOTED or SUPERSEDED gets deleted
 once the promotion/supersession is itself stable — don't let this become
 a permanent record, that's what git and archive/ are for. -->
 
-_Last updated: 2026-07-29 (later session)_
+_Last updated: 2026-08-11_
 
 ## Format
 
@@ -27,10 +27,6 @@ D-001 thru D-004 (2026-07-25 session: auto tone/CTA, viral-framed analysis field
 D-007 · 2026-07-29 · Rate limiting is in-memory, per-process (`src/lib/rate-limit.ts`, keyed by user/IP + route scope) · ACTIVE
   Why: no Redis/DB-backed limiter infra exists yet, and the hosting target is still unresolved (architecture.md)
   Rejected: a Postgres-backed limiter table — more correct under multi-instance hosting, but adds a migration + DB round-trip per request for what's currently a single-instance app
-
-D-008 · 2026-07-29 · Found middleware.ts's page-level auth gate not firing in local dev (bare `/dashboard`, `/projects`, `/history`, `/credits`, `/settings` all return 200 for an unauthenticated request) — not fixed, only flagged · ACTIVE
-  Why: predates this session (only `/admin`'s entry was added to `PROTECTED_PATHS`; the gating logic itself is untouched); out of scope for the feature work asked today, and no data actually leaks since every `/api/*` route independently calls `requireUser()`
-  Rejected: fixing it inline — needs its own investigation (dev-server quirk vs. real gap, verify against a production build) rather than a quick patch bundled into this session's diff
 
 D-010 · 2026-07-29 · Website content is fetched once at project creation and cached as `brand_profiles.website_summary` (raw truncated text), not re-scanned or summarized via a separate Gemini call · SUPERSEDED by D-014
   Why: keeps this a zero-extra-AI-cost feature — the existing script-writing prompts already synthesize it in context via `brandBrief()`
@@ -66,15 +62,3 @@ D-018 · 2026-08-02 · Theme/Language/Notifications removed from Profile: `profi
   Why: these were being actively removed as a feature (not deprioritized data), so the `0018` chaining-column-drop precedent applies, not R-005's "leave column unused" one (that was for data that might still be reused). Avatar reuses the existing plain-URL-field pattern (like `website_url`) instead of building dedicated avatar upload/storage infra for one field
   Rejected: leaving `theme`/`locale`/`notify_on_completion` as unused columns (R-005's usual pattern) — doesn't fit here since the feature itself, not just its usage, is gone; a dedicated avatar upload endpoint — more correct long-term but disproportionate for a field with no other consumer yet
 
-D-019 · 2026-08-07 · Add/Edit brand profile dialog drops the Website Link input, replaced with multi-image "Brand Context Images" upload (`brand_profiles.context_image_paths text[]`, migration `0022`) · ACTIVE, extended by D-021
-  Why: explicit user request ("add images instead of the website link")
-  Implementation: uploads go through the existing `/api/uploads/sign`+`/api/uploads/confirm` pair widened with `kind: "context_image"` (reuses the public `brand-logos` bucket, same RLS reasoning as R-018); confirm appends to the array (read-modify-write, single-user low-concurrency), the dialog's own removal-before-save goes through `PATCH .../[id]` with a full-array replace. Gemini script-writing calls attach up to 5 context images as extra image Parts (`brandContextImageParts()` in `gemini.ts`, capped — see its ponytail comment), alongside the existing logo Part (R-038); `brandBrief()` in `prompts.ts` gained a matching text line, same "must stay in sync with what was actually attached" rule as the logo line.
-
-D-021 · 2026-08-08 · Website scanning removed entirely, not just hidden — `brand_profiles.website_url`/`website_summary` dropped (migration `0023`), `src/lib/website.ts` (`fetchWebsiteText`) deleted, and both `/api/brand-profiles` routes + `prompts.ts`'s `brandBrief()` no longer reference it · ACTIVE, supersedes D-019's "leave the backend live" call and D-014
-  Why: explicit user request — "make sure the logic should not be hampered" after being asked to fully delete it, i.e. this time the feature itself is confirmed dead, not just its UI surface (D-018's precedent, not R-005's "leave unused" one)
-  Verified before deleting: grepped the full `src/` tree for `website_url`/`website_summary`/`fetchWebsiteText` — only the two brand-profiles routes, `prompts.ts`, and `website.ts` itself referenced it; no RLS policy depends on either column (checked `0017`/`0019`, unlike the chaining-column drop in `0018` that needed policy reordering per R-023)
-
-D-020 · 2026-08-07 · The brand logo is now sent to Seedance (via OpenRouter) as an actual `input_references` reference image on `POST /videos`, not just described in the text prompt · ACTIVE
-  Why: the FINAL FRAME's on-screen logo was previously grounded in the real logo only for the *script text* (R-038, via Gemini's image Part) — the video-generation call itself (`generation.ts` → `seedance.ts`) never received the image, so Seedance had nothing but Gemini's text description to work from; OpenRouter's video API supports exactly this via `input_references` (confirmed against its docs — bytedance/seedance-2.0-fast explicitly supports "multimodal reference-to-video")
-  Rejected: `frame_images` (first/last-frame control) — that pins an exact frame, wrong shape for "use this logo somewhere in the video," `input_references` is the documented fit for style/content guidance
-  Implementation: `VideoProvider.SubmitParams` gained `referenceImageUrls?: string[]`; `generation.ts` builds the logo's public URL via the new `publicStorageUrl()` helper (`storage.ts`, also now used by `gemini.ts`'s logo/context-image fetch, replacing its inline URL string) and passes it through only when `brand.logo_path` is set. `higgsfield.ts`'s stub is unaffected (throws regardless of params).
