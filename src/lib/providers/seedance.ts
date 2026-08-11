@@ -41,6 +41,17 @@ class SeedanceProvider implements VideoProvider {
 
     if (!this.apiKey) throw new Error("Missing OPENROUTER_API_KEY");
 
+    // NOTE: no image-conditioned branding here (deliberately) — 2.5's only single-image anchor
+    // is frame_images/first_frame (last_frame alone 400s: "last frame image content cannot be
+    // mixed with first frame or reference image content"; 2.0-fast's input_references isn't in
+    // 2.5's supported params at all per /api/v1/videos/models). And first_frame conditioning is
+    // itself incompatible with an explicit aspect_ratio: the API 400s with "the output ratio
+    // follows the first-frame image" whenever both are sent together — on *every* generation,
+    // regardless of duration, once a brand logo is attached. Since aspect_ratio is a real,
+    // user-facing setting (GenerateStep's Aspect Ratio picker) that has to keep working, we drop
+    // image conditioning entirely rather than let it silently override the user's choice — the
+    // brand logo still gets described in the text prompt's FINAL FRAME beat (masterScriptPrompt),
+    // it's just not pixel-grounded in the actual uploaded image anymore.
     const res = await fetch(`${OPENROUTER_API}/videos`, {
       method: "POST",
       headers: { ...this.authHeader, "Content-Type": "application/json" },
@@ -50,20 +61,6 @@ class SeedanceProvider implements VideoProvider {
         duration: params.durationSeconds,
         resolution: RESOLUTION_BY_QUALITY[params.quality],
         aspect_ratio: params.aspectRatio,
-        // Grounds on-screen branding (the script's FINAL FRAME logo shot) in the brand's actual
-        // logo image instead of the model inventing one from the text prompt. 2.5's metadata
-        // (/api/v1/videos/models) only lists frame_images support, not input_references like
-        // 2.0-fast had — last_frame is the right anchor since the logo shot is the closing beat.
-        // https://openrouter.ai/docs/guides/overview/multimodal/video-generation
-        ...(params.referenceImageUrls?.length
-          ? {
-              frame_images: params.referenceImageUrls.map((url) => ({
-                type: "image_url",
-                image_url: { url },
-                frame_type: "last_frame",
-              })),
-            }
-          : {}),
       }),
     });
 

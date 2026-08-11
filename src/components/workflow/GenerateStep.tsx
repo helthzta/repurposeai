@@ -1,6 +1,14 @@
 "use client";
 
-import { Camera, Clock, Loader2, MonitorPlay, RectangleVertical, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Clock,
+  Loader2,
+  MonitorPlay,
+  RectangleVertical,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -63,12 +71,15 @@ export function GenerateStep({
   projectId,
   scriptId,
   durationSeconds,
+  onBack,
   onGenerate,
 }: {
   projectId: string;
   scriptId: string;
   /** Fixed by which script variant (15s/30s) the user picked in the Script step. */
   durationSeconds: number;
+  /** Back to the Script step — e.g. to switch the 15s/30s variant before generating. */
+  onBack: () => void;
   onGenerate: (generationId: string) => void;
 }) {
   const [aspect, setAspect] = useState<AspectRatio>("9:16");
@@ -107,7 +118,16 @@ export function GenerateStep({
     <div className="animate-fade-up mx-auto max-w-3xl">
       <div className="rounded-3xl border bg-card p-6 shadow-card sm:p-10">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-xl gradient-primary shadow-card">
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0 rounded-xl"
+            onClick={onBack}
+            aria-label="Back to script"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl gradient-primary shadow-card">
             <MonitorPlay className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>

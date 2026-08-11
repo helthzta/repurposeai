@@ -94,6 +94,7 @@ export function ProjectWorkflowClient({
             projectId={projectId}
             scriptId={selectedScript.id}
             durationSeconds={selectedScript.target_duration_seconds ?? 15}
+            onBack={() => setPhase("script")}
             onGenerate={(id) => {
               setGenerationId(id);
               setPhase("generating");
