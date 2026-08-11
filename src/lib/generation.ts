@@ -65,9 +65,8 @@ export async function createGeneration(
 
   try {
     const providerImpl = getProvider(params.provider);
-    // 15s is the only supported duration for now (native 30s isn't wired up yet — see
-    // maxClipDurationSeconds in providers/types.ts). This should never actually trigger since
-    // the UI only offers 15s, but guards against a stale 30s script row reaching generation.
+    // Guards against a stale script row requesting a duration longer than the provider's
+    // native single-call ceiling (see maxClipDurationSeconds in providers/types.ts).
     if (params.durationSeconds > providerImpl.maxClipDurationSeconds) {
       throw new ApiError(
         400,

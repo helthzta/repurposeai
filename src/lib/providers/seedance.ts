@@ -1,71 +1,93 @@
 import type { PollResult, SubmitParams, VideoProvider } from "./types";
 
-const MUAPI_API = "https://api.muapi.ai/api/v1";
+const OPENROUTER_API = "https://openrouter.ai/api/v1";
+const MODEL = "bytedance/seedance-2.0-fast";
 
-// MuAPI selects resolution via endpoint slug, not a body param. 1080p exists in the
-// pricing table but is "planned for a future update" per the docs — not callable yet.
-// ponytail: ultra shares the "high" 720p ceiling until MuAPI ships 1080p.
-const RESOLUTION_SUFFIX_BY_QUALITY: Record<SubmitParams["quality"], string> = {
-  standard: "-480p",
-  high: "",
-  ultra: "",
+// The model only exposes two resolution tiers; "ultra" shares the "high" ceiling.
+// ponytail: no 1080p tier exists on this model yet, ceiling is 720p.
+const RESOLUTION_BY_QUALITY: Record<SubmitParams["quality"], "480p" | "720p"> = {
+  standard: "480p",
+  high: "720p",
+  ultra: "720p",
 };
 
 /**
- * bytedance Seedance 2.5 via MuAPI — https://muapi.ai/docs/introduction
- * Submit-then-poll REST pattern: POST /api/v1/{model-slug}, GET /api/v1/predictions/{id}/result.
+ * bytedance/seedance-2.0-fast via OpenRouter's video generation API —
+ * https://openrouter.ai/docs/guides/overview/multimodal/video-generation
  */
 class SeedanceProvider implements VideoProvider {
-  // Seedance 2.5 supports native clips up to 30s (docs: "duration 4-30 seconds").
+  // Seedance now supports native 30s generation on OpenRouter — submit() already forwards
+  // durationSeconds straight through as `duration` below, so no other changes were needed.
   maxClipDurationSeconds = 30;
 
+  private get mocked() {
+    return process.env.MOCK_PROVIDERS === "true";
+  }
+
   private get apiKey() {
-    return process.env.MUAPI_API_KEY;
+    return process.env.OPENROUTER_API_KEY;
   }
 
   private get authHeader() {
-    return { "x-api-key": this.apiKey! };
+    return { Authorization: `Bearer ${this.apiKey}` };
   }
 
   async submit(params: SubmitParams): Promise<{ jobId: string }> {
-    if (!this.apiKey) throw new Error("Missing MUAPI_API_KEY");
+    if (this.mocked) {
+      return { jobId: `mock_${Date.now()}_${Math.round(Math.random() * 1e6)}` };
+    }
 
-    // Reference-to-video: grounds on-screen branding (the script's FINAL FRAME logo shot) in
-    // the brand's actual logo image instead of the model inventing one from the text prompt.
-    // MuAPI's image-to-video variant takes a single image_url, unlike OpenRouter's array — first wins.
-    const imageUrl = params.referenceImageUrls?.[0];
-    const model = `seedance-2.5-${imageUrl ? "image-to-video" : "text-to-video"}${RESOLUTION_SUFFIX_BY_QUALITY[params.quality]}`;
+    if (!this.apiKey) throw new Error("Missing OPENROUTER_API_KEY");
 
-    const res = await fetch(`${MUAPI_API}/${model}`, {
+    const res = await fetch(`${OPENROUTER_API}/videos`, {
       method: "POST",
       headers: { ...this.authHeader, "Content-Type": "application/json" },
       body: JSON.stringify({
+        model: MODEL,
         prompt: params.prompt,
         duration: params.durationSeconds,
+        resolution: RESOLUTION_BY_QUALITY[params.quality],
         aspect_ratio: params.aspectRatio,
-        ...(imageUrl ? { image_url: imageUrl } : {}),
+        // Reference-to-video: grounds on-screen branding (the script's FINAL FRAME logo shot) in
+        // the brand's actual logo image instead of the model inventing one from the text prompt.
+        // https://openrouter.ai/docs/guides/overview/multimodal/video-generation
+        ...(params.referenceImageUrls?.length
+          ? {
+              input_references: params.referenceImageUrls.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+              })),
+            }
+          : {}),
       }),
     });
 
-    if (!res.ok) throw new Error(`MuAPI submit failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`OpenRouter submit failed: ${res.status} ${await res.text()}`);
     const data = await res.json();
-    return { jobId: data.request_id };
+    return { jobId: data.id };
   }
 
   async poll(jobId: string): Promise<PollResult> {
-    if (!this.apiKey) throw new Error("Missing MUAPI_API_KEY");
+    if (this.mocked) {
+      return jobId.startsWith("mock_")
+        ? { status: "completed" }
+        : { status: "failed", error: "unknown mock job" };
+    }
 
-    const res = await fetch(`${MUAPI_API}/predictions/${jobId}/result`, {
+    if (!this.apiKey) throw new Error("Missing OPENROUTER_API_KEY");
+
+    const res = await fetch(`${OPENROUTER_API}/videos/${jobId}`, {
       headers: this.authHeader,
     });
 
-    if (!res.ok) throw new Error(`MuAPI poll failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) throw new Error(`OpenRouter poll failed: ${res.status} ${await res.text()}`);
     const data = await res.json();
 
     if (data.status === "completed") {
-      const outputUrl = data.outputs?.[0];
+      const outputUrl = data.unsigned_urls?.[0];
       if (!outputUrl) return { status: "failed", error: "no video output returned" };
-      return { status: "completed", outputUrl };
+      // unsigned_urls point back at the OpenRouter API and need the same bearer token to fetch.
+      return { status: "completed", outputUrl, outputHeaders: this.authHeader };
     }
     if (data.status === "failed") {
       return { status: "failed", error: data.error ?? "generation failed" };

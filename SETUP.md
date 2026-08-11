@@ -46,11 +46,12 @@ This key powers video analysis (Step 2), script generation/editing (Steps 3–4)
 
 ## 5. Seedance (video generation)
 
-`src/lib/providers/seedance.ts` calls **Seedance 2.5 via [MuAPI](https://muapi.ai/docs/introduction)**, a submit-then-poll REST API (`POST /api/v1/{model-slug}`, `GET /api/v1/predictions/{id}/result`):
+`src/lib/providers/seedance.ts` calls **bytedance/seedance-2.0-fast via OpenRouter** (https://openrouter.ai/bytedance/seedance-2.0-fast), OpenRouter's unified video generation API:
 
-- Set `MUAPI_API_KEY` from your [MuAPI dashboard](https://muapi.ai) (a sandbox key returns mock data for free if you want to smoke-test the real HTTP calls without spending credits).
-- **Model limits that shape the app's UI**: resolution is chosen via endpoint slug, not a body param — `standard` quality calls the `-480p` slug, `high`/`ultra` both call the base (720p) slug. MuAPI's 1080p tier is listed as "planned for a future update" and isn't callable yet.
-- **No chaining needed**: Seedance 2.5 natively renders up to 30s in a single call (`SeedanceProvider.maxClipDurationSeconds = 30`), which covers both durations the app requests (15s/30s), so the ffmpeg clip-stitching path in `src/lib/generation.ts`/`src/lib/ffmpeg.ts` is dormant unless a future provider needs it again.
+- Set `OPENROUTER_API_KEY` from your [OpenRouter dashboard](https://openrouter.ai/settings/keys).
+- Until then, leave `MOCK_PROVIDERS=true` — generation requests will "complete" instantly with no real video, so you can exercise the entire upload → analyze → script → generate → result flow today.
+- **Model limits that shape the app's UI**: only 480p/720p resolution tiers (`standard` quality maps to 480p, `high`/`ultra` both map to 720p — there's no 1080p tier on this model).
+- **No chaining needed**: Seedance now renders up to 30s natively in a single OpenRouter call (`SeedanceProvider.maxClipDurationSeconds = 30`), which covers both durations the app requests (15s/30s), so the ffmpeg clip-stitching path in `src/lib/generation.ts`/`src/lib/ffmpeg.ts` is dormant unless a future provider needs it again.
 - To add a second real provider later, implement the `VideoProvider` interface (see `src/lib/providers/higgsfield.ts` for the current stub) and register it in `src/lib/providers/index.ts`. Set `maxClipDurationSeconds` accurately — that's what drives whether `generation.ts` chains requests for it.
 
 ## 6. Environment variables
@@ -65,7 +66,8 @@ Copy `.env.example` to `.env.local` and fill in the values described above:
 | `NEXT_PUBLIC_SITE_URL`                       | yes                        | Base URL used for the OAuth redirect                                 |
 | `GEMINI_API_KEY`                             | yes                        | Google AI Studio key                                                 |
 | `GEMINI_MODEL`                               | no                         | Defaults to `gemini-2.5-flash`                                       |
-| `MUAPI_API_KEY`                              | yes                        | Real Seedance calls fail without this                                |
+| `OPENROUTER_API_KEY`                         | no (until you have one)    | Real Seedance calls fail without this; use `MOCK_PROVIDERS` meanwhile |
+| `MOCK_PROVIDERS`                             | no                         | `true` forces the mock video-provider result regardless of the above |
 
 ## 7. Install and run
 

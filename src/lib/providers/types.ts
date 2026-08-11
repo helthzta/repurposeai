@@ -21,8 +21,7 @@ export interface PollResult {
 export interface VideoProvider {
   /**
    * Longest single clip this provider can render in one call — generation.ts rejects anything
-   * past this rather than chaining (chaining was removed once Seedance's native 30s call
-   * became relevant; see seedance.ts for the TODO on bumping this once that's wired up).
+   * past this rather than chaining.
    */
   maxClipDurationSeconds: number;
   submit(params: SubmitParams): Promise<{ jobId: string }>;
