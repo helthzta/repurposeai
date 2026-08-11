@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { logError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 
-/** Exchanges the Supabase OAuth (Google) code for a session, then sends the user to the dashboard. */
+/**
+ * Exchanges the Supabase OAuth (Google) code for a session, then sends the user to their profile.
+ * Shared by both the Login and Signup pages' "Continue with Google" buttons — Supabase doesn't
+ * distinguish sign-in from sign-up for OAuth, so this one redirect target covers both.
+ */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -16,5 +20,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/dashboard`);
+  return NextResponse.redirect(`${origin}/profile`);
 }

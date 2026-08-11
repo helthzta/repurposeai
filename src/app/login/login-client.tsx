@@ -53,7 +53,7 @@ export function LoginPageClient() {
     }
 
     setLoading(false);
-    router.push("/dashboard");
+    router.push("/profile");
     router.refresh();
   };
 

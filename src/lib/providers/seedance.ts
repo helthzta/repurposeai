@@ -19,10 +19,6 @@ class SeedanceProvider implements VideoProvider {
   // Seedance 2.5 supports native clips up to 30s (docs: "duration 4-30 seconds").
   maxClipDurationSeconds = 30;
 
-  private get mocked() {
-    return process.env.MOCK_PROVIDERS === "true";
-  }
-
   private get apiKey() {
     return process.env.MUAPI_API_KEY;
   }
@@ -32,10 +28,6 @@ class SeedanceProvider implements VideoProvider {
   }
 
   async submit(params: SubmitParams): Promise<{ jobId: string }> {
-    if (this.mocked) {
-      return { jobId: `mock_${Date.now()}_${Math.round(Math.random() * 1e6)}` };
-    }
-
     if (!this.apiKey) throw new Error("Missing MUAPI_API_KEY");
 
     // Reference-to-video: grounds on-screen branding (the script's FINAL FRAME logo shot) in
@@ -61,12 +53,6 @@ class SeedanceProvider implements VideoProvider {
   }
 
   async poll(jobId: string): Promise<PollResult> {
-    if (this.mocked) {
-      return jobId.startsWith("mock_")
-        ? { status: "completed" }
-        : { status: "failed", error: "unknown mock job" };
-    }
-
     if (!this.apiKey) throw new Error("Missing MUAPI_API_KEY");
 
     const res = await fetch(`${MUAPI_API}/predictions/${jobId}/result`, {
