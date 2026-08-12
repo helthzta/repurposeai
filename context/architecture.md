@@ -91,59 +91,29 @@ and src/lib/*. Citations inline. -->
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`, `contact_submissions`,
-  `payments`, `dodo_webhook_events`
-  (`supabase/migrations/0001`–`0029`). `video_analyses` was reworked around
-  virality in `0013` — `company_does` (renamed from `business_category`),
-  `viral_factor`, `relief`, `language`, `video_metrics` added;
-  `marketing_strategy`, `offer`, `cta`, `narrative_structure` dropped;
-  `tone_of_voice`/`visual_style` kept (load-bearing for auto-tone, the
-  Idea-step tone chip, and "Original" camera style — see `learned-rules.md`
-  R-007/R-009). `brand_profiles.tone`/`cta` still exist as columns but are no
-  longer written by any code path — CTA/tone are fully AI-derived now
-  (R-005/R-006). `0014` adds `projects.script_ideas` (idea-step cache),
-  `0015` adds `scripts.target_duration_seconds`, `0016` adds
-  `profiles.username` (unique, required at signup) and `profiles.is_admin`
-  (gates `/admin`). `0017` adds `brand_profiles.website_url`/
-  `website_summary` — a brand's website is scanned best-effort
-  (`src/lib/website.ts`, never blocks/fails) and fed into every
-  script-writing prompt via `brandBrief()` in `prompts.ts`. `0018` drops
-  `generations.chain_stage`/`chain_clip1_job_id` (added by `0012`, chaining
-  removed — see the `generation.ts` note above). `0019` reshapes
-  `brand_profiles` from one-row-per-project into a reusable, user-owned
-  entity: adds `user_id`, `label`, `is_default`; drops `project_id` (was
-  `unique`); `projects` gains `brand_profile_id` (nullable FK, `on delete set
-  null`) to pick which of the user's profiles a project uses. RLS on
-  `brand_profiles` switched from joining through `projects` to a direct
-  `auth.uid() = user_id` check. "Only one default per user" is enforced in
-  application code (`src/app/api/brand-profiles/[id]/route.ts`), not a DB
-  constraint. `0020` drops `profiles.theme`/`locale`/`notify_on_completion` —
-  the Settings page (renamed Profile, `/profile`, D-017) dropped Theme/
-  Language/Notifications as features, not just UI (D-018); `profiles.avatar_url`
-  (already existed, previously write-only via direct DB access) is now
-  editable through `/api/profile`. `0021` adds `scripts.subtitles`. `0022`
-  adds `brand_profiles.context_image_paths text[]` — product/packaging/mood
-  images uploaded per brand, the AI-context replacement for a website scan
-  in the Add/Edit brand dialog (D-019). `0023` drops `brand_profiles.
-  website_url`/`website_summary` and deletes `src/lib/website.ts`
-  (`fetchWebsiteText`) — website scanning is fully removed, not just
-  hidden (D-021, supersedes D-014). `0024` snapshots the script body onto
-  `generations` at submit time. `0025` defaults `scripts.subtitles` to
-  `false`. `0026` adds `contact_submissions` (Custom-plan "Contact Us",
-  D-023) — RLS enabled with no policies, every access path goes through
-  the service-role client (R-046). `0027` renames the `enterprise` plan
-  value to `custom` in `profiles.plan`'s check constraint and existing
-  rows (D-024). `0028` adds Dodo billing: `profiles.dodo_customer_id`/
-  `plan_period_end`/`plan_grace_end`, a 4th `plan` value `'free'` (new
-  default, D-027), the `payments` ledger and `dodo_webhook_events`
-  idempotency table, and revokes/re-grants `profiles`' UPDATE columns
-  down to just `full_name`/`username`/`avatar_url` (D-028, security fix —
-  see invariant 9 below). `0029` enables `pg_cron`/`pg_net` and schedules
-  the `expire-subscriptions` Edge Function every 6h. **`0001`–`0029` are
-  all applied to the live project** (confirmed via the Supabase MCP as of
-  2026-08-13) — the schema is fully current as of this note, though
-  tracked migration history (`list_migrations`) has known drift from the
-  real file numbering for several of these (R-024/R-045) — trust the live
-  schema over the history table.
+  `payments`, `dodo_webhook_events`. As of 2026-08-13 the canonical schema
+  source is a single consolidated file, `supabase/migrations/0001_baseline.sql`
+  (R-058/D-031) — built by introspecting the live project directly, not from
+  the 29 incremental files that got here (now archived under
+  `supabase/migrations/_archive/`, reference/git-blame only). The *reasoning*
+  behind individual columns/decisions from that history is preserved via the
+  `D-0XX`/`R-0XX` references throughout this doc — only the "which numbered
+  migration file added this" mapping was dropped as no longer meaningful.
+  Notable shape, for orientation: `video_analyses` is reworked around
+  virality (`company_does`, `viral_factor`, `relief`, `language`,
+  `video_metrics`; `tone_of_voice`/`visual_style` load-bearing for auto-tone
+  and "Original" camera style, R-007/R-009); `brand_profiles` is user-owned
+  and reusable across projects (`user_id`, `label`, `is_default`,
+  `context_image_paths`), not one-row-per-project (R-016); `profiles.plan`
+  has 4 values — `'free'` (default/resting), `'starter'`/`'pro'` (set only by
+  `dodo-webhook` on a real payment), `'custom'` (admin-set, Contact-Us only);
+  `profiles`' billing columns (`dodo_customer_id`, `plan_period_end`,
+  `plan_grace_end`) and its column-level UPDATE grant restriction (invariant
+  9) are both from the same billing work (D-026–D-028). **The schema is
+  confirmed fully current as of 2026-08-13** (introspected directly via the
+  Supabase MCP while writing the consolidated file) — if this project's
+  migration files are ever allowed to drift from the live schema again
+  (R-024/R-045's original warning), trust the live schema, not any file.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):

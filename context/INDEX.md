@@ -22,8 +22,10 @@ One line per file: what it owns, when to read it, when it was last true.
   grounding deliberately not restored (D-025), Dodo one-time-payment
   billing model (D-026), `'free'` plan value + backfill (D-027), `profiles`
   column-grant security fix (D-028), billing as Supabase Edge Functions
-  (D-029) — see `decision-log.md`. (D-008 resolved and D-010/D-019/D-020/
-  D-021 compacted to `learned-rules.md` R-039–R-042/R-047 as of 2026-08-13.)
+  (D-029), Visual Quality labels vs. real resolution (D-030), migrations
+  consolidated to one file (D-031) — see `decision-log.md`. (D-008 resolved
+  and D-010/D-019/D-020/D-021 compacted to `learned-rules.md`
+  R-039–R-042/R-047 as of 2026-08-13.)
 
 ## Compaction thresholds
 

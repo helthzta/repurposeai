@@ -12,21 +12,29 @@ Credits exist as a ledger (with a 100-credit signup bonus), topped up by the Sta
    - `anon public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (**server-only, never expose to the browser**)
 
-## 2. Run the database migrations
+## 2. Run the database migration
 
-Apply the SQL files in `supabase/migrations/`, in order, using either:
+`supabase/migrations/` holds a single consolidated file,
+`0001_baseline.sql` — the entire current schema (every table, RLS policy,
+function/trigger, storage bucket, and the billing cron job), read directly
+off the live project rather than reconstructed from incremental history.
+The 29 files that originally built this schema up one piece at a time are
+archived under `supabase/migrations/_archive/` (git-blame/reference only,
+not applied by anything — see that folder's `README.md`).
+
+Apply it using either:
 
 - **Supabase CLI** (recommended):
   ```bash
   supabase link --project-ref <your-project-ref>
   supabase db push
   ```
-- **SQL Editor** in the Supabase dashboard: open each file in `supabase/migrations/` in numeric order and run it.
-- **Supabase MCP** (if connected): apply each file's contents in order via the migration tool.
+- **SQL Editor** in the Supabase dashboard: open `0001_baseline.sql` and run it.
+- **Supabase MCP** (if connected): apply its contents via the migration tool.
 
-New migration files land here as the product grows — always check `supabase/migrations/` for anything newer than what your project has applied (the CLI's `supabase migration list` compares local files against the project's tracked history; note that history can drift from the real schema if a migration was ever applied by hand instead of through the CLI/MCP — when in doubt, diff against the actual table/column list, not just the history table).
+This creates every table (`profiles`, `projects`, `brand_profiles`, `source_videos`, `video_analyses`, `scripts`, `generations`, `credit_transactions`, `api_keys`, `error_logs`, `contact_submissions`, `payments`, `dodo_webhook_events`), the `spend_credits`/`handle_new_user`/`set_updated_at` functions, RLS policies, the three storage buckets (`source-videos`, `generated-videos`, `brand-logos`), and schedules the billing cron job — but **not** the two Edge Functions the schema depends on (`dodo-webhook`, `expire-subscriptions`): SQL migrations and Deno Edge Functions are different deploy mechanisms, nothing can bundle both into one file. Deploy those separately — see §8.
 
-This creates every table (`profiles`, `projects`, `brand_profiles`, `source_videos`, `video_analyses`, `scripts`, `generations`, `credit_transactions`, `api_keys`, `error_logs`), the `spend_credits` function, the new-user trigger that grants a 100-credit signup bonus, RLS policies, and the three storage buckets (`source-videos`, `generated-videos`, `brand-logos`).
+Going forward, new schema changes are new numbered files at the top level of `supabase/migrations/` (`0002_whatever.sql`, and so on) — same convention as before, this consolidation was a one-time reset of the starting point, not a new rule about how migrations work day to day.
 
 ## 3. Enable Google sign-in (optional but wired up)
 
@@ -93,7 +101,7 @@ Starter ($19) and Pro ($39) are **one-time payments, not Dodo subscriptions** �
    It prints two things:
    - `DODO_STARTER_PRODUCT_ID` / `DODO_PRO_PRODUCT_ID` — add both to `.env.local`.
    - A `supabase secrets set DODO_PAYMENTS_WEBHOOK_KEY=... --project-ref ...` command — **run this yourself**, don't put the webhook secret in `.env.local`. It's an Edge Function secret (consumed by `supabase/functions/dodo-webhook`, a *separate* Deno deployment from the Next.js app, not a Next.js env var) and it's the one value in this whole setup that's genuinely sensitive — leaking it lets someone forge fake "payment succeeded" events and grant themselves free credits.
-4. That's it — the Edge Functions (`dodo-webhook`, `expire-subscriptions`) and the `expire-subscriptions` cron schedule (migration `0029`, every 6 hours) are already deployed to the live Supabase project; they don't need redeploying unless you change their code (`supabase functions deploy dodo-webhook` / `expire-subscriptions`, or the Supabase MCP's `deploy_edge_function`).
+4. That's it — the Edge Functions (`dodo-webhook`, `expire-subscriptions`) and the `expire-subscriptions` cron schedule (bottom of `0001_baseline.sql`, every 6 hours) are already deployed/applied to the live Supabase project; they don't need redeploying unless you change their code (`supabase functions deploy dodo-webhook` / `expire-subscriptions`, or the Supabase MCP's `deploy_edge_function`). Setting up a **new** project from scratch instead needs both: run `0001_baseline.sql` first (§2), then deploy the two functions — the cron job in that file references their URL and will just fail silently (net.http_post to a 404) until they exist.
 5. To go live: create the same two Products for **live mode** in the Dodo dashboard (test/live are separate catalogs), flip `DODO_PAYMENTS_ENVIRONMENT=live_mode`, and re-run `npm run setup:dodo` against live mode (it'll create live-mode products/webhook the same way, test-mode ones are untouched).
 
 Flow: `POST /api/billing/checkout` (session-authed, `src/app/api/billing/checkout/route.ts`) creates a Dodo Checkout Session and returns its hosted `checkout_url`, which the Credits page redirects the browser to. On `payment.succeeded`, `dodo-webhook` grants `PLAN_CONFIG[plan].credits` (resetting the balance to exactly that number, not topping up — see `src/lib/payments/plans.ts`), sets `profiles.plan`, and stamps `plan_period_end`/`plan_grace_end` (period + 30 days, grace + 3 more). `expire-subscriptions` runs on a schedule and downgrades anyone past `plan_grace_end` with no renewal back to `'free'`, leaving their existing credit balance untouched.
