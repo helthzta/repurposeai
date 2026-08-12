@@ -1,10 +1,15 @@
 import type { PollResult, SubmitParams, VideoProvider } from "./types";
 
 const OPENROUTER_API = "https://openrouter.ai/api/v1";
-// seedance-2.0-fast tops out at 15s — 2.5 is the model that actually supports native 30s
-// (verified against OpenRouter's /api/v1/videos/models: supported_durations is 4-30 for 2.5,
-// 4-15 for 2.0-fast). Don't downgrade this without also dropping maxClipDurationSeconds below.
-const MODEL = "bytedance/seedance-2.5";
+
+// Routed by duration, not a single constant: seedance-2.0-fast tops out at 15s (and is
+// meaningfully cheaper on OpenRouter, ~$0.04/s vs ~$0.10/s), 2.5 is the model that actually
+// supports native 30s (verified against OpenRouter's /api/v1/videos/models: supported_durations
+// is 4-30 for 2.5, 4-15 for 2.0-fast). 30 stays the fallback for any duration that isn't
+// exactly 15, matching maxClipDurationSeconds below.
+function modelFor(durationSeconds: number) {
+  return durationSeconds === 15 ? "bytedance/seedance-2.0-fast" : "bytedance/seedance-2.5";
+}
 
 // The model only exposes two resolution tiers; "ultra" shares the "high" ceiling.
 // ponytail: no 1080p tier exists on this model yet, ceiling is 720p.
@@ -15,11 +20,12 @@ const RESOLUTION_BY_QUALITY: Record<SubmitParams["quality"], "480p" | "720p"> = 
 };
 
 /**
- * bytedance/seedance-2.5 via OpenRouter's video generation API —
- * https://openrouter.ai/docs/guides/overview/multimodal/video-generation
+ * Seedance via OpenRouter's video generation API — 2.0-fast for 15s clips, 2.5 for 30s
+ * (see modelFor above) — https://openrouter.ai/docs/guides/overview/multimodal/video-generation
  */
 class SeedanceProvider implements VideoProvider {
-  // Seedance 2.5 supports native clips up to 30s in a single call (see MODEL comment above).
+  // Seedance 2.5 (the 30s model) supports native clips up to 30s in a single call; 2.0-fast (the
+  // 15s model) tops out at 15s but nothing above 15s reaches it anyway (see modelFor above).
   maxClipDurationSeconds = 30;
 
   private get mocked() {
@@ -52,11 +58,15 @@ class SeedanceProvider implements VideoProvider {
     // image conditioning entirely rather than let it silently override the user's choice — the
     // brand logo still gets described in the text prompt's FINAL FRAME beat (masterScriptPrompt),
     // it's just not pixel-grounded in the actual uploaded image anymore.
+    // FLAG: now that 15s clips route to 2.0-fast (which per the note above *does* support
+    // input_references, unlike 2.5), 15s generations could regain real logo-image grounding via
+    // params.referenceImageUrls without hitting 2.5's aspect_ratio conflict. Left off deliberately
+    // for this change — model routing only, per the spec — needs its own decision/verification.
     const res = await fetch(`${OPENROUTER_API}/videos`, {
       method: "POST",
       headers: { ...this.authHeader, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: MODEL,
+        model: modelFor(params.durationSeconds),
         prompt: params.prompt,
         duration: params.durationSeconds,
         resolution: RESOLUTION_BY_QUALITY[params.quality],

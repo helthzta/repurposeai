@@ -3,7 +3,7 @@ contestable belong here. Anything PROMOTED or SUPERSEDED gets deleted
 once the promotion/supersession is itself stable — don't let this become
 a permanent record, that's what git and archive/ are for. -->
 
-_Last updated: 2026-08-11_
+_Last updated: 2026-08-12_
 
 ## Format
 
@@ -61,4 +61,17 @@ D-017 · 2026-08-02 · Settings page renamed to Profile with a route change (`/s
 D-018 · 2026-08-02 · Theme/Language/Notifications removed from Profile: `profiles.theme`/`locale`/`notify_on_completion` dropped via a real migration (`0020`, written but not yet applied), and `avatar_url` added to `/api/profile`'s `EDITABLE_FIELDS` as a plain URL input (no new upload endpoint) · ACTIVE
   Why: these were being actively removed as a feature (not deprioritized data), so the `0018` chaining-column-drop precedent applies, not R-005's "leave column unused" one (that was for data that might still be reused). Avatar reuses the existing plain-URL-field pattern (like `website_url`) instead of building dedicated avatar upload/storage infra for one field
   Rejected: leaving `theme`/`locale`/`notify_on_completion` as unused columns (R-005's usual pattern) — doesn't fit here since the feature itself, not just its usage, is gone; a dedicated avatar upload endpoint — more correct long-term but disproportionate for a field with no other consumer yet
+
+D-022 · 2026-08-12 · 15s generations now cost fewer credits than 30s at the same quality tier (`CREDIT_RATE_15S` in `src/lib/credits.ts`, ~0.4x the 30s per-second rate) instead of keeping one flat duration×quality rate · ACTIVE
+  Why: explicit user call after being shown real numbers — seedance-2.0-fast (now the 15s model, D-023-adjacent model-routing change) runs ~$0.04/s on OpenRouter vs seedance-2.5's ~$0.10/s for 30s, user wanted the discount to actually reflect that
+  Rejected: leaving the rate flat — simpler, and the app never passed through raw provider cost 1:1 anyway, but user explicitly asked for the split
+D-023 · 2026-08-12 · Custom plan's "Contact Us" is a real feature — `contact_submissions` table, public `POST /api/contact`, `/contact` page, and an admin-dashboard section to view/mark-responded — not a mailto link or a toast · ACTIVE
+  Why: explicit user request ("hook it into the database and also in the admin portal") after being told no contact page/support email existed yet
+  Rejected: mailto: placeholder or keeping the existing toast-only pattern — both were offered and declined
+D-024 · 2026-08-12 · "Enterprise" plan renamed to "Custom" all the way through, including `profiles.plan`'s DB check constraint and existing rows (migration `0027`), not just the UI label · ACTIVE
+  Why: spec explicitly said "rename, don't just relabel if pricing/credit fields exist for it"; no code path was found that ever set `plan` to anything but the signup default, so this was low-risk
+  Rejected: leaving `enterprise` as an allowed-but-unused DB value and only changing what's displayed — cheaper, but leaves a real rename half-done at the schema layer
+D-025 · 2026-08-12 · 15s generations do NOT regain real image-conditioned logo grounding even though they now route to seedance-2.0-fast, which (per the existing code comment) supports `input_references` unlike 2.5 · ACTIVE
+  Why: the video-model-routing spec was scoped to model selection only; restoring image conditioning is a real behavior change (visual output, another aspect-ratio-conflict risk to re-verify) that deserves its own decision, not a byproduct of a routing change — flagged inline in `seedance.ts` instead
+  Rejected: wiring it up now since the capability is technically already there — rejected on scope-discipline grounds, not a technical blocker
 

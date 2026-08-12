@@ -1,7 +1,7 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
-import { toast } from "sonner";
+import Link from "next/link";
+import { Copyright, FileText, MessageCircle, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
+const legalLinks = [
+  { href: "/terms", label: "Terms of Condition", icon: FileText },
+  { href: "/privacy", label: "Privacy Policy", icon: ShieldCheck },
+  { href: "/copyright", label: "Copyright Policy", icon: Copyright },
+];
 
 const faqs = [
   {
@@ -30,7 +36,7 @@ const faqs = [
   },
   {
     q: "How do credits work?",
-    a: "Each generation uses credits based on length and quality — a 15s High-quality video uses 20 credits. Credits reset monthly with your plan.",
+    a: "Each generation uses credits based on length and quality — a 15s High-quality video uses 6 credits, a 30s High-quality video uses 30. Credits reset monthly with your plan.",
   },
 ];
 
@@ -54,15 +60,30 @@ export function HelpPageClient() {
           </Accordion>
         </div>
 
+        <div className="rounded-3xl border bg-card p-6 shadow-card sm:p-8">
+          <h2 className="text-lg font-extrabold tracking-tight">Legal</h2>
+          <div className="mt-4 divide-y divide-border">
+            {legalLinks.map(({ href, label, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-3 py-3 text-sm font-semibold text-foreground transition-colors hover:text-primary"
+              >
+                <Icon className="h-4 w-4 text-primary" />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
         <div className="rounded-3xl border bg-card p-6 text-center shadow-card sm:p-8">
           <h3 className="text-sm font-bold">Still need help?</h3>
           <p className="mt-1 text-sm text-muted-foreground">Our team replies within a few hours.</p>
-          <Button
-            className="btn-glow mt-4 rounded-xl font-semibold"
-            onClick={() => toast.success("Support chat opening")}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Contact support
+          <Button asChild className="btn-glow mt-4 rounded-xl font-semibold">
+            <Link href="/contact">
+              <MessageCircle className="h-4 w-4" />
+              Contact support
+            </Link>
           </Button>
         </div>
       </div>

@@ -71,8 +71,8 @@ and src/lib/*. Citations inline. -->
 
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
-  `credit_transactions`, `api_keys`, `error_logs`
-  (`supabase/migrations/0001`–`0019`). `video_analyses` was reworked around
+  `credit_transactions`, `api_keys`, `error_logs`, `contact_submissions`
+  (`supabase/migrations/0001`–`0027`). `video_analyses` was reworked around
   virality in `0013` — `company_does` (renamed from `business_category`),
   `viral_factor`, `relief`, `language`, `video_metrics` added;
   `marketing_strategy`, `offer`, `cta`, `narrative_structure` dropped;
@@ -106,9 +106,18 @@ and src/lib/*. Citations inline. -->
   in the Add/Edit brand dialog (D-019). `0023` drops `brand_profiles.
   website_url`/`website_summary` and deletes `src/lib/website.ts`
   (`fetchWebsiteText`) — website scanning is fully removed, not just
-  hidden (D-021, supersedes D-014). **`0001`–`0023` are all applied to the
-  live project** (confirmed via the Supabase MCP) — the schema is fully
-  current as of this note.
+  hidden (D-021, supersedes D-014). `0024` snapshots the script body onto
+  `generations` at submit time. `0025` defaults `scripts.subtitles` to
+  `false`. `0026` adds `contact_submissions` (Custom-plan "Contact Us",
+  D-023) — RLS enabled with no policies, every access path goes through
+  the service-role client (R-046). `0027` renames the `enterprise` plan
+  value to `custom` in `profiles.plan`'s check constraint and existing
+  rows (D-024). **`0001`–`0027` are all applied to the live project**
+  (confirmed via the Supabase MCP as of 2026-08-12) — the schema is fully
+  current as of this note, though tracked migration history
+  (`list_migrations`) has known drift from the real file numbering for
+  several of these (R-024/R-045) — trust the live schema over the
+  history table.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):

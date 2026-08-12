@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Loader2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,20 +10,23 @@ import { Button } from "@/components/ui/button";
 const PLANS = [
   {
     name: "Starter",
-    credits: "300 credits / mo",
+    price: "$19",
+    credits: "350 credits / mo",
     features: ["15s & 30s videos", "1 AI provider", "Standard quality"],
   },
   {
     name: "Pro",
-    credits: "1,000 credits / mo",
+    price: "$39",
+    credits: "700 credits / mo",
     features: ["All video lengths", "Ultra quality", "Priority rendering"],
   },
   {
-    name: "Enterprise",
-    credits: "Unlimited credits",
+    name: "Custom",
+    price: null,
+    credits: null,
     features: ["Dedicated capacity", "SSO & API access", "Success manager"],
   },
-];
+] as const;
 
 interface CreditTransaction {
   id: string;
@@ -66,41 +70,61 @@ export function CreditsPageClient() {
                 <p className="text-sm capitalize text-muted-foreground">{plan} plan</p>
               </div>
             </div>
-            <Button
-              className="btn-glow rounded-xl font-semibold"
-              onClick={() => toast.info("No payment integration yet — contact us to add credits")}
-            >
-              Buy more
+            <Button asChild className="btn-glow rounded-xl font-semibold">
+              <Link href="/contact">Buy more</Link>
             </Button>
           </div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
-          {PLANS.map((p) => (
-            <div
-              key={p.name}
-              className="hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card"
-            >
-              <h3 className="text-[15px] font-bold">{p.name}</h3>
-              <p className="mt-1 text-xs font-medium text-muted-foreground">{p.credits}</p>
-              <ul className="mt-5 flex-1 space-y-2.5">
-                {p.features.map((f) => (
-                  <li key={f} className="text-sm text-muted-foreground">
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                variant="outline"
-                className="mt-6 rounded-xl font-semibold"
-                onClick={() =>
-                  toast.info("Contact us to change plans — no payment integration yet")
-                }
+          {PLANS.map((p) => {
+            const isCustom = p.name === "Custom";
+            return (
+              <div
+                key={p.name}
+                className="hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card"
               >
-                Contact us
-              </Button>
-            </div>
-          ))}
+                <h3 className="text-[15px] font-bold">{p.name}</h3>
+                {isCustom ? (
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">
+                    Tailored to your volume
+                  </p>
+                ) : (
+                  <p className="mt-1 flex items-baseline gap-1.5">
+                    <span className="text-xl font-extrabold tracking-tight">{p.price}</span>
+                    <span className="text-xs font-medium text-muted-foreground">/ mo</span>
+                  </p>
+                )}
+                <p className="mt-1 text-xs font-medium text-muted-foreground">
+                  {p.credits ?? "Custom credit allotment"}
+                </p>
+                <ul className="mt-5 flex-1 space-y-2.5">
+                  {p.features.map((f) => (
+                    <li key={f} className="text-sm text-muted-foreground">
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                {isCustom ? (
+                  <Button asChild variant="outline" className="mt-6 rounded-xl font-semibold">
+                    <Link href="/contact?plan=Custom">Contact Us</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="mt-6 rounded-xl font-semibold"
+                    onClick={() =>
+                      toast.info("Checkout isn't live yet", {
+                        description: `Contact us to move to the ${p.name} plan for now.`,
+                      })
+                    }
+                  >
+                    Choose {p.name}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="rounded-3xl border bg-card p-6 shadow-card">

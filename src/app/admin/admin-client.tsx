@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Film, FolderKanban, Loader2, ShieldCheck, Users, Zap } from "lucide-react";
+import { Film, FolderKanban, Loader2, Mail, ShieldCheck, Users, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -37,6 +38,16 @@ interface AdminUser {
   creditsSpent: number;
 }
 
+interface ContactSubmission {
+  id: string;
+  name: string;
+  email: string;
+  plan_interest: string | null;
+  message: string;
+  status: "new" | "responded";
+  created_at: string;
+}
+
 function StatTile({
   icon: Icon,
   label,
@@ -64,20 +75,44 @@ function StatTile({
 export function AdminDashboardClient() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [submissions, setSubmissions] = useState<ContactSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/overview").then((res) => res.json()),
       fetch("/api/admin/users").then((res) => res.json()),
+      fetch("/api/admin/contact-submissions").then((res) => res.json()),
     ])
-      .then(([overviewData, usersData]) => {
+      .then(([overviewData, usersData, submissionsData]) => {
         setOverview(overviewData);
         setUsers(usersData.users ?? []);
+        setSubmissions(submissionsData.submissions ?? []);
       })
       .catch(() => toast.error("Could not load admin data"))
       .finally(() => setLoading(false));
   }, []);
+
+  const toggleStatus = async (submission: ContactSubmission) => {
+    const nextStatus = submission.status === "new" ? "responded" : "new";
+    setUpdatingId(submission.id);
+    try {
+      const res = await fetch(`/api/admin/contact-submissions/${submission.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) throw new Error();
+      setSubmissions((prev) =>
+        prev.map((s) => (s.id === submission.id ? { ...s, status: nextStatus } : s)),
+      );
+    } catch {
+      toast.error("Could not update submission");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   return (
     <AppShell title="Admin">
@@ -159,6 +194,84 @@ export function AdminDashboardClient() {
                 </Table>
                 {users.length === 0 && (
                   <p className="py-10 text-center text-sm text-muted-foreground">No users yet.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border bg-card p-6 shadow-card">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent">
+                  <Mail className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-bold">Contact submissions</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {submissions.length} message{submissions.length === 1 ? "" : "s"} ·{" "}
+                    {submissions.filter((s) => s.status === "new").length} unanswered
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>From</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Message</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Received</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {submissions.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <span className="font-semibold">{s.name}</span>
+                          <p className="text-xs text-muted-foreground">{s.email}</p>
+                        </TableCell>
+                        <TableCell>{s.plan_interest ?? "—"}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={s.message}>
+                          {s.message}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={
+                              s.status === "new"
+                                ? "rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-accent-foreground"
+                                : "rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground"
+                            }
+                          >
+                            {s.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>{new Date(s.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-lg text-xs font-semibold"
+                            disabled={updatingId === s.id}
+                            onClick={() => toggleStatus(s)}
+                          >
+                            {updatingId === s.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : s.status === "new" ? (
+                              "Mark responded"
+                            ) : (
+                              "Mark new"
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {submissions.length === 0 && (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    No contact submissions yet.
+                  </p>
                 )}
               </div>
             </div>

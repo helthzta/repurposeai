@@ -85,12 +85,16 @@ export interface ScriptIdea {
   pitch: string;
 }
 
-export type ScriptLanguage = "en" | "bn" | "hi";
+// "hinglish" isn't a real ISO 639-1 code (there isn't one for Hindi-English code-mixing) — kept
+// alongside the real codes anyway since this is the app's own internal language identifier, not
+// something round-tripped through an ISO lookup.
+export type ScriptLanguage = "en" | "bn" | "hi" | "hinglish";
 
 export const SCRIPT_LANGUAGE_LABELS: Record<ScriptLanguage, string> = {
   en: "English",
   bn: "Bengali",
   hi: "Hindi",
+  hinglish: "Hinglish",
 };
 
 export interface Script {
@@ -156,7 +160,7 @@ export interface Profile {
   username: string;
   full_name: string | null;
   avatar_url: string | null;
-  plan: "starter" | "pro" | "enterprise";
+  plan: "starter" | "pro" | "custom";
   credits_balance: number;
   is_admin: boolean;
 }

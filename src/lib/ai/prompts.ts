@@ -40,6 +40,42 @@ function toneNote(analysis: VideoAnalysis) {
 original was funny, be funny; if it was earnest, stay earnest — don't default to a generic "commercial" tone.`;
 }
 
+// Shared tail for whichever language block below — the structural/director's-notes exception
+// applies the same way regardless of language.
+const LANGUAGE_INSTRUCTION_TAIL = `The only exceptions are the structural section labels and physical/camera
+directions described below (CONTINUITY LOCK, character/location descriptions, CAMERA/ACTION/AUDIO lines,
+section headers like SCENE/FINAL FRAME/VIDEO STYLE) — those stay in English exactly as instructed, since
+they're director's notes for the video generator, not spoken or on-screen content a viewer reads.`;
+
+/**
+ * Hinglish needs its own instruction rather than the generic "${label} (${code})" template below —
+ * a vague instruction just produces plain English or plain Hindi, not genuine code-mixing (this is
+ * also why it isn't in SCRIPT_LANGUAGE_LABELS' code passed to a generic "write in X" line).
+ */
+function languageInstruction(language: ScriptLanguage) {
+  if (language === "hinglish") {
+    return `Write this ENTIRE script in Hinglish — casual, code-mixed Hindi-English the way it's actually spoken/
+texted in urban India, NOT pure English and NOT pure Hindi. "title", "hook", "cta", "scene_descriptions",
+"emotional_direction", and every DIALOGUE/SUBTITLE line inside "body" must ALL genuinely mix Hindi and English
+words within the same sentences (e.g. "Yaar, yeh product seriously kamaal hai" — not a Hindi sentence followed
+by a separate English one). Rules:
+- Latin/Roman script only (the English alphabet) — never Devanagari. Hindi words are transliterated, not
+  written in the Hindi script.
+- Keep the tone casual and conversational, like a friend talking, not a formal translation.
+- Don't just translate the English concept above word-for-word into Hindi and call it done — actually
+  code-switch mid-sentence the way real Hinglish speakers do.
+
+${LANGUAGE_INSTRUCTION_TAIL}`;
+  }
+
+  return `Write this ENTIRE script in ${SCRIPT_LANGUAGE_LABELS[language]} (${language}) — "title", "hook", "cta",
+"scene_descriptions", "emotional_direction", and every DIALOGUE/SUBTITLE line inside "body" must ALL be in
+${SCRIPT_LANGUAGE_LABELS[language]}, never left in English (translate the concept above, don't just echo its
+English title/hook back).
+
+${LANGUAGE_INSTRUCTION_TAIL}`;
+}
+
 export function scriptGenerationPrompt(analysis: VideoAnalysis, brand: BrandProfile) {
   return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}
@@ -97,13 +133,7 @@ ${brandBrief(brand)}
 
 ${toneNote(analysis)}
 
-Write this ENTIRE script in ${SCRIPT_LANGUAGE_LABELS[language]} (${language}) — "title", "hook", "cta",
-"scene_descriptions", "emotional_direction", and every DIALOGUE/SUBTITLE line inside "body" must ALL be in
-${SCRIPT_LANGUAGE_LABELS[language]}, never left in English (translate the concept above, don't just echo its
-English title/hook back). The only exceptions are the structural section labels and physical/camera
-directions described below (CONTINUITY LOCK, character/location descriptions, CAMERA/ACTION/AUDIO lines,
-section headers like SCENE/FINAL FRAME/VIDEO STYLE) — those stay in English exactly as instructed, since
-they're director's notes for the video generator, not spoken or on-screen content a viewer reads.
+${languageInstruction(language)}
 
 Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
 entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.

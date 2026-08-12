@@ -1,72 +1,75 @@
 <!-- Overwrite this entire file at the end of every session. Do not append —
 replace. One current snapshot of where work stands right now. -->
 
-_Last updated: 2026-08-11_
+_Last updated: 2026-08-12_
 
 ## Status
 
-User asked to smoke-test brand image handling on add/update, and confirm
-brand edit works from both the dashboard and the Profile section. This
-was the standing "not yet click-tested" item from the 2026-08-08 session
-(whose three changes — brand context images, logo→Seedance, website-scan
-removal — are now committed on `main`: `1071ed6`, `0375998`, `723c3d3`,
-`39e3b11`).
+Implemented a 4-part feature-update spec end to end: video model routing
+(15s → seedance-2.0-fast, 30s → seedance-2.5, `src/lib/providers/
+seedance.ts`), Hinglish added as a 4th script language, the payment plans
+replaced (Starter 350cr/$19, Pro 700cr/$39, Custom no-price/"Contact Us"),
+and three legal links added to the dashboard Help section. Full detail in
+`progress-tracker.md`'s "Current phase" — this file is the short version.
 
-**Approach taken:** user explicitly declined browser automation
-("no playwright, pure smoke testing"), so this was an API-level smoke
-test instead of a click-through. Confirmed `BrandProfileDialog.tsx` is
-literally the same component used by both `/profile`
-(`profile-client.tsx`) and the dashboard Upload step
-(`UploadStep.tsx:250`) — no surface-specific logic exists in either
-call site beyond how they refetch their own local list — so exercising
-the API contract once covers both.
+Two things came up mid-task that expanded scope beyond the spec as written,
+both resolved via `AskUserQuestion` before building:
 
-Built a disposable-user smoke test (`learned-rules.md` R-043 documents
-the technique for reuse): service-role-created throwaway Supabase user,
-signed in for a real session, hand-built the `sb-<ref>-auth-token`
-cookie `@supabase/ssr` expects, then drove the real routes with `fetch`
-exactly as `BrandProfileDialog.tsx` does — create, logo upload, two
-context-image uploads (confirmed append not replace), PATCH edit
-(label/brand name + drop one context image via full-array replace),
-logo replace (confirmed overwrite not append), then a final GET
-confirming persisted state, plus a live fetch of the public logo URL.
-**All 21 checks passed.** Test user, its `brand_profiles` row, and all 4
-uploaded storage files were deleted afterward and verified gone via a
-service-role storage listing (a first cleanup pass missed the storage
-files — DB row/user delete alone doesn't remove them, see R-043).
+1. **15s credit cost** — OpenRouter charges ~2.5x more per second for
+   seedance-2.5 than 2.0-fast. User chose to lower the 15s credit rate to
+   reflect that (D-022) rather than leave it flat.
+2. **Custom plan's "Contact Us"** — no contact page or support email existed
+   anywhere in the codebase. User asked for a real feature, not a
+   placeholder: a `contact_submissions` table, a public `/contact` page,
+   and an admin-dashboard section to view/manage submissions (D-023). Built
+   all three (migrations `0026`/`0027`, `/api/contact`, `/api/admin/
+   contact-submissions[/[id]]`, `/contact` page, admin UI section).
 
-Also re-checked middleware auth gating (`/dashboard`, `/projects`,
-`/history`, `/credits`, `/profile`) while doing this — all now correctly
-redirect an unauthenticated request to `/login`. This resolves D-008
-(open since 2026-07-29), likely fixed incidentally by the `src/`
-middleware relocation (R-036). Decision log/learned-rules updated
-accordingly (D-008, D-019, D-020, D-021 compacted/removed; R-039–R-042
-added).
+**Flagged rather than silently done**: no Razorpay/payment-gateway
+integration exists anywhere in this codebase (`SETUP.md` confirms this is
+"not included by design") — the spec's Starter/Pro "checkout charges $X"
+acceptance criteria can't be met yet; Starter/Pro buttons stay informational
+(point to `/contact`). Also flagged, not changed: 2.0-fast supports real
+image-conditioned logo grounding (`input_references`) that 2.5 doesn't, but
+15s clips don't use it yet — left as an inline code comment + open question
+(D-025), out of this task's stated scope.
 
 ## Current branch
 
-`main`, working tree clean (`git status` confirmed) — this session made
-no source changes, only ran a temporary script from a scratch path (never
-committed, deleted after use) and updated `context/` files.
+`main`, working tree has this session's changes uncommitted (not asked to
+commit) — 8 modified files, 6 new (2 migrations, `/api/contact`, `/api/
+admin/contact-submissions[/[id]]`, `/contact` page + client, `ContactForm`
+component). Migrations `0026_contact_submissions` and
+`0027_rename_enterprise_plan_to_custom` are already applied live via
+Supabase MCP against project `xxitlqjgmfqxesqiuouk` — don't re-apply them,
+just get the local `.sql` files committed alongside the code that depends
+on them.
+
+`npm run lint`: clean, 0 errors from this session (pre-existing warnings
+elsewhere untouched). `tsc --noEmit`: same pre-existing `.next`-cache-stale
+errors as `main` before this session (confirmed via `git stash` A/B test),
+nothing new from this session's files.
 
 ## Half-done / needs manual follow-up
 
-- **Still not visually verified**: the dialog's actual pixels/click
-  targets in a real browser (this session proved the API/data layer
-  works, not the UI rendering itself), and a real Seedance generation's
-  FINAL FRAME against a real logo (D-020's original ask, still only
-  code+API verified).
+- **Nothing in this session was click-tested in a real browser** — all
+  verification was code review + lint/tsc + live DB queries via Supabase
+  MCP. See progress-tracker's "Next steps" for the specific things to
+  click through first.
 - Carried over, still unverified: Language/Subtitles controls in the
-  Script step (from 2026-08-04).
+  Script step (from 2026-08-04) — now also relevant to Hinglish
+  specifically, since that's untested live (Gemini quota caution, R-034).
+- Carried over: a real Seedance generation's FINAL FRAME against a real
+  logo (D-020, code+API verified only).
 
 ## First action next session
 
-1. If a visual/pixel-level check of the Add/Edit dialog is still wanted,
-   that needs actual browser driving (chromium-cli or similar) — this
-   session's user explicitly opted for API-level testing instead.
-2. Run one real generation for a brand with a logo set; check the
-   completed video's FINAL FRAME uses the real logo, not an invented one.
-3. Click through Language/Subtitles controls (2026-08-04 carryover).
+1. Click through this session's new/changed UI live: `/contact` (direct and
+   `?plan=Custom`), Help's three legal links, Credits page's three plan
+   cards, admin dashboard's Contact submissions table.
+2. Run one real 15s generation, confirm the OpenRouter job actually used
+   `bytedance/seedance-2.0-fast` (not just code review).
+3. Generate a Hinglish script and eyeball it for genuine code-mixing.
 4. Resolve hosting target (D-007) — still open.
 
 ## Blockers
