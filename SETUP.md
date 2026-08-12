@@ -1,8 +1,8 @@
 # Repurpose AI — Backend Setup
 
-This covers everything needed to run the backend that was added on top of the existing Next.js frontend: database, auth, storage, AI (Gemini), and the video-generation provider abstraction (Seedance).
+This covers everything needed to run the backend that was added on top of the existing Next.js frontend: database, auth, storage, AI (Gemini), the video-generation provider abstraction (Seedance), and billing (Dodo Payments).
 
-No payment/billing is included in this pass — credits exist as a ledger (with a 100-credit signup bonus) but there's no way to buy more yet.
+Credits exist as a ledger (with a 100-credit signup bonus), topped up by the Starter/Pro plans — see §9.
 
 ## 1. Create a Supabase project
 
@@ -68,6 +68,10 @@ Copy `.env.example` to `.env.local` and fill in the values described above:
 | `GEMINI_MODEL`                               | no                         | Defaults to `gemini-2.5-flash`                                       |
 | `OPENROUTER_API_KEY`                         | no (until you have one)    | Real Seedance calls fail without this; use `MOCK_PROVIDERS` meanwhile |
 | `MOCK_PROVIDERS`                             | no                         | `true` forces the mock video-provider result regardless of the above |
+| `DODO_PAYMENTS_API_KEY`                      | no (until you have one)    | Needed for `/api/billing/checkout` to work — see §8            |
+| `DODO_PAYMENTS_ENVIRONMENT`                  | no                         | `test_mode` or `live_mode`, defaults to `test_mode`             |
+| `DODO_STARTER_PRODUCT_ID` / `DODO_PRO_PRODUCT_ID` | no (until you run setup:dodo) | Printed by `npm run setup:dodo`                            |
+| `DODO_PAYMENTS_WEBHOOK_KEY`                  | —                           | **Not a Next.js env var** — an Edge Function secret, set via `supabase secrets set` (§8), never in `.env.local` |
 
 ## 7. Install and run
 
@@ -76,11 +80,29 @@ npm install
 npm run dev
 ```
 
+## 8. Dodo Payments (Starter/Pro billing)
+
+Starter ($19) and Pro ($39) are **one-time payments, not Dodo subscriptions** — each 30-day period is its own fresh checkout, tracked entirely in Supabase (not Dodo's subscription lifecycle). See `supabase/functions/dodo-webhook/index.ts`'s own comment for the full reasoning.
+
+1. Create a [Dodo Payments](https://app.dodopayments.com/) account (test mode is free, no real business verification needed to start).
+2. Get your API key: **Developer → API**. Add it as `DODO_PAYMENTS_API_KEY` in `.env.local`, and set `DODO_PAYMENTS_ENVIRONMENT=test_mode`.
+3. Run the setup script — it creates both Products and registers the webhook endpoint idempotently (safe to re-run):
+   ```bash
+   npm run setup:dodo
+   ```
+   It prints two things:
+   - `DODO_STARTER_PRODUCT_ID` / `DODO_PRO_PRODUCT_ID` — add both to `.env.local`.
+   - A `supabase secrets set DODO_PAYMENTS_WEBHOOK_KEY=... --project-ref ...` command — **run this yourself**, don't put the webhook secret in `.env.local`. It's an Edge Function secret (consumed by `supabase/functions/dodo-webhook`, a *separate* Deno deployment from the Next.js app, not a Next.js env var) and it's the one value in this whole setup that's genuinely sensitive — leaking it lets someone forge fake "payment succeeded" events and grant themselves free credits.
+4. That's it — the Edge Functions (`dodo-webhook`, `expire-subscriptions`) and the `expire-subscriptions` cron schedule (migration `0029`, every 6 hours) are already deployed to the live Supabase project; they don't need redeploying unless you change their code (`supabase functions deploy dodo-webhook` / `expire-subscriptions`, or the Supabase MCP's `deploy_edge_function`).
+5. To go live: create the same two Products for **live mode** in the Dodo dashboard (test/live are separate catalogs), flip `DODO_PAYMENTS_ENVIRONMENT=live_mode`, and re-run `npm run setup:dodo` against live mode (it'll create live-mode products/webhook the same way, test-mode ones are untouched).
+
+Flow: `POST /api/billing/checkout` (session-authed, `src/app/api/billing/checkout/route.ts`) creates a Dodo Checkout Session and returns its hosted `checkout_url`, which the Credits page redirects the browser to. On `payment.succeeded`, `dodo-webhook` grants `PLAN_CONFIG[plan].credits` (resetting the balance to exactly that number, not topping up — see `src/lib/payments/plans.ts`), sets `profiles.plan`, and stamps `plan_period_end`/`plan_grace_end` (period + 30 days, grace + 3 more). `expire-subscriptions` runs on a schedule and downgrades anyone past `plan_grace_end` with no renewal back to `'free'`, leaving their existing credit balance untouched.
+
 ## What's included
 
 - **Auth**: Supabase Auth (email/password + Google OAuth), session cookie refreshed by `middleware.ts`, protected routes: `/dashboard`, `/projects`, `/history`, `/credits`, `/settings`, `/api`.
 - **Upload → Analyze → Script → Generate → Result**: full pipeline wired to Supabase Storage + Gemini + the provider abstraction, matching every field in the doc's Step 1–6 (including the previously-missing product/brand ad uploads and custom-duration input).
 - **Credits**: signup bonus, atomic spend/refund via a Postgres function (`spend_credits`), full ledger.
 - **API keys**: create/revoke in the dashboard, used to authenticate the public `POST /api/v1/commercials` / `GET /api/v1/commercials/:id` integration endpoints (the same ones shown in the API page's curl example).
-- **Error logging**: every route handler and the client error boundary log to `error_logs`.
-- **Not included (by design)**: any payment/billing integration.
+- **Error logging**: every route handler and the client error boundary log to `error_logs`; the `dodo-webhook` Edge Function also logs anything it can't safely act on there.
+- **Billing**: Dodo Payments, one-time payment per 30-day period for Starter/Pro (§8) — checkout via `/api/billing/checkout`, entitlement granted by the `dodo-webhook` Edge Function, grace-period downgrade by the scheduled `expire-subscriptions` Edge Function. Custom stays Contact-Us only, no checkout.

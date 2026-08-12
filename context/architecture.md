@@ -13,6 +13,8 @@ and src/lib/*. Citations inline. -->
 | Data fetching | `@tanstack/react-query` (client), direct Supabase queries in route handlers (server) | |
 | Auth + DB | Supabase (Postgres + Auth + Storage), `@supabase/ssr` for cookie-based session | |
 | AI | `@google/genai` (Gemini) for analysis/scripts/insights; provider-abstracted video gen (Seedance via OpenRouter live, Higgsfield stub) | |
+| Billing | Dodo Payments (`dodopayments` SDK) — one-time-payment checkout per 30-day period, not Dodo Subscriptions (D-026) | |
+| Background/scheduled jobs | Supabase Edge Functions (Deno, `supabase/functions/*`) + `pg_cron`/`pg_net` — the only scheduled job in the app (R-055) | |
 | Hosting | {{TODO: confirm with a human — no deploy config found in repo}} | |
 | Package manager | npm (`package-lock.json` present; `bunfig.toml` also present — {{TODO: confirm with a human which is canonical}}) | |
 
@@ -66,13 +68,31 @@ and src/lib/*. Citations inline. -->
   native 30s support as a clean drop-in later).
 - `middleware.ts` — page-level auth gate only. Explicitly does NOT gate
   `/api/*` — those routes handle their own auth (see comment in the file).
+- **Billing (D-026)** — `POST /api/billing/checkout` (session-authed Next.js
+  route, `src/lib/payments/{plans,dodo}.ts`) creates a Dodo Checkout Session
+  for a one-time payment against the Starter/Pro Product and returns its
+  hosted `checkout_url`; the browser redirects there directly. Entitlement is
+  never granted from this route or the post-payment browser redirect — only
+  from `payment.succeeded`, handled by the `dodo-webhook` Supabase Edge
+  Function (`supabase/functions/dodo-webhook`, R-052/R-057), which grants
+  `PLAN_CONFIG[plan].credits` (reset, not top-up — R-053), sets
+  `profiles.plan`, and stamps `plan_period_end`/`plan_grace_end` (+30d/+33d).
+  A second scheduled Edge Function, `expire-subscriptions`, runs every 6h via
+  `pg_cron`/`pg_net` (migration `0029`) and downgrades anyone past
+  `plan_grace_end` with no renewal back to `'free'`, credits untouched
+  (R-054/R-055). Both Edge Functions are a genuinely separate Deno
+  deploy/runtime from the Next.js app — `supabase/functions` is excluded
+  from the root `tsconfig.json`, code is hand-kept in sync with
+  `src/lib/payments/plans.ts` where it overlaps (R-052/R-053). The Custom
+  plan never reaches any of this — Contact-Us only (D-023/D-024).
 
 ## Storage model
 
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
-  `credit_transactions`, `api_keys`, `error_logs`, `contact_submissions`
-  (`supabase/migrations/0001`–`0027`). `video_analyses` was reworked around
+  `credit_transactions`, `api_keys`, `error_logs`, `contact_submissions`,
+  `payments`, `dodo_webhook_events`
+  (`supabase/migrations/0001`–`0029`). `video_analyses` was reworked around
   virality in `0013` — `company_does` (renamed from `business_category`),
   `viral_factor`, `relief`, `language`, `video_metrics` added;
   `marketing_strategy`, `offer`, `cta`, `narrative_structure` dropped;
@@ -112,12 +132,18 @@ and src/lib/*. Citations inline. -->
   D-023) — RLS enabled with no policies, every access path goes through
   the service-role client (R-046). `0027` renames the `enterprise` plan
   value to `custom` in `profiles.plan`'s check constraint and existing
-  rows (D-024). **`0001`–`0027` are all applied to the live project**
-  (confirmed via the Supabase MCP as of 2026-08-12) — the schema is fully
-  current as of this note, though tracked migration history
-  (`list_migrations`) has known drift from the real file numbering for
-  several of these (R-024/R-045) — trust the live schema over the
-  history table.
+  rows (D-024). `0028` adds Dodo billing: `profiles.dodo_customer_id`/
+  `plan_period_end`/`plan_grace_end`, a 4th `plan` value `'free'` (new
+  default, D-027), the `payments` ledger and `dodo_webhook_events`
+  idempotency table, and revokes/re-grants `profiles`' UPDATE columns
+  down to just `full_name`/`username`/`avatar_url` (D-028, security fix —
+  see invariant 9 below). `0029` enables `pg_cron`/`pg_net` and schedules
+  the `expire-subscriptions` Edge Function every 6h. **`0001`–`0029` are
+  all applied to the live project** (confirmed via the Supabase MCP as of
+  2026-08-13) — the schema is fully current as of this note, though
+  tracked migration history (`list_migrations`) has known drift from the
+  real file numbering for several of these (R-024/R-045) — trust the live
+  schema over the history table.
 - **Supabase Storage** — three buckets, all path-scoped as
   `{user_id}/{project_id}/{filename}` so ownership is derivable from the
   path's first segment (`supabase/migrations/0010_storage_buckets.sql`):
@@ -143,9 +169,14 @@ and src/lib/*. Citations inline. -->
     an `input_references` reference image, D-020, so on-screen branding in
     the actual generated video is grounded in the real logo, not just
     Gemini's text description of it).
-- **No cache/ephemeral store** — polling for generation status is
-  request-driven (client polls `GET /api/generations/[id]`, which calls
-  `pollAndFinalize`), not backed by a queue or cache layer.
+- **No cache/ephemeral store, and (still) no application-level job queue** —
+  polling for generation status is request-driven (client polls
+  `GET /api/generations/[id]`, which calls `pollAndFinalize`), not backed by
+  a queue or cache layer. The one exception is billing's grace-period
+  downgrade, which genuinely needs to run without a request to trigger it —
+  solved with `pg_cron`/`pg_net` calling a Supabase Edge Function
+  (`expire-subscriptions`) directly, not application code (see the Billing
+  bullet above and R-054/R-055).
 
 ## Auth and access model
 
@@ -221,3 +252,13 @@ and src/lib/*. Citations inline. -->
    generation's intermediate clip1 to storage; chaining itself was removed —
    see the `generation.ts` note above — but the underlying RLS behavior and
    the rule it implies are still true for any future non-deliverable asset.)
+9. `profiles` UPDATE is column-grant-restricted for `authenticated` to
+   exactly `full_name`/`username`/`avatar_url` (migration `0028`, D-028) —
+   RLS alone (`profiles_update_own`) only ever gated which *row*, never
+   which *column*, so this is a real Postgres privilege, not just app
+   discipline. Adding a new self-editable profile field needs a migration
+   (`grant update (...)`) in addition to `/api/profile`'s `EDITABLE_FIELDS`
+   (R-056) — every other field (`credits_balance`, `plan`,
+   `plan_period_end`, `plan_grace_end`, `dodo_customer_id`, `is_admin`) must
+   only ever change via `spend_credits` or the service-role key
+   (webhook/cron/admin routes), never a direct client update.

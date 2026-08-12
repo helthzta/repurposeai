@@ -1,77 +1,103 @@
 <!-- Overwrite this entire file at the end of every session. Do not append —
 replace. One current snapshot of where work stands right now. -->
 
-_Last updated: 2026-08-12_
+_Last updated: 2026-08-13_
 
 ## Status
 
-Implemented a 4-part feature-update spec end to end: video model routing
-(15s → seedance-2.0-fast, 30s → seedance-2.5, `src/lib/providers/
-seedance.ts`), Hinglish added as a 4th script language, the payment plans
-replaced (Starter 350cr/$19, Pro 700cr/$39, Custom no-price/"Contact Us"),
-and three legal links added to the dashboard Help section. Full detail in
-`progress-tracker.md`'s "Current phase" — this file is the short version.
+Built a full Dodo Payments billing integration for the Starter/Pro plans
+(Custom stays Contact-Us only, untouched). This was a large, security-
+sensitive build — full detail lives in `decision-log.md` (D-026–D-029) and
+`learned-rules.md` (R-047–R-057); this is the short version.
 
-Two things came up mid-task that expanded scope beyond the spec as written,
-both resolved via `AskUserQuestion` before building:
+**The design changed mid-build.** Before writing any billing code, an
+`AskUserQuestion` round confirmed: recurring monthly subscriptions, reset
+(not top-up) credits on renewal, a setup script for Product creation, and
+access continuing until period end on cancellation. Research then went deep
+into Dodo's actual SDK (`node_modules/dodopayments`'s `.d.ts` files, more
+reliable than the hosted docs — R-057) to nail down exact field names before
+writing anything. Partway through that research, the user redirected: **make
+it one-time payments, tracked via a Supabase Edge Function, with a 3-day
+grace period** — a materially different (and simpler/safer) architecture
+than Dodo's native Subscription object. Rebuilt the plan around that
+instead (D-026) and proceeded without re-asking, since the redirect was
+explicit and unambiguous.
 
-1. **15s credit cost** — OpenRouter charges ~2.5x more per second for
-   seedance-2.5 than 2.0-fast. User chose to lower the 15s credit rate to
-   reflect that (D-022) rather than leave it flat.
-2. **Custom plan's "Contact Us"** — no contact page or support email existed
-   anywhere in the codebase. User asked for a real feature, not a
-   placeholder: a `contact_submissions` table, a public `/contact` page,
-   and an admin-dashboard section to view/manage submissions (D-023). Built
-   all three (migrations `0026`/`0027`, `/api/contact`, `/api/admin/
-   contact-submissions[/[id]]`, `/contact` page, admin UI section).
-
-**Flagged rather than silently done**: no Razorpay/payment-gateway
-integration exists anywhere in this codebase (`SETUP.md` confirms this is
-"not included by design") — the spec's Starter/Pro "checkout charges $X"
-acceptance criteria can't be met yet; Starter/Pro buttons stay informational
-(point to `/contact`). Also flagged, not changed: 2.0-fast supports real
-image-conditioned logo grounding (`input_references`) that 2.5 doesn't, but
-15s clips don't use it yet — left as an inline code comment + open question
-(D-025), out of this task's stated scope.
+**What's live now:**
+- `POST /api/billing/checkout` (Next.js) creates a Dodo Checkout Session
+  for a one-time-payment Product (Starter $19/350cr, Pro $39/700cr).
+- `dodo-webhook` and `expire-subscriptions` — two Supabase Edge Functions,
+  deployed for real via the Supabase MCP (not just written) — handle
+  `payment.succeeded` (grant credits + stamp a 30-day period + 3-day grace)
+  and the scheduled grace-period downgrade (`pg_cron`/`pg_net`, every 6h,
+  migration `0029`) respectively. Both were chosen as Edge Functions
+  specifically because they need to work independent of the Next.js app's
+  own hosting, which is still unresolved (D-007/D-029).
+- Migrations `0028`/`0029` applied live to the project
+  (`xxitlqjgmfqxesqiuouk`) via the Supabase MCP.
+- **A real pre-existing security gap was found and fixed along the way**:
+  `profiles`' RLS update policy had no column restriction, and neither did
+  Postgres grants — any signed-in user could self-grant `plan`/
+  `credits_balance`/`is_admin` via a direct Supabase client call, bypassing
+  the app entirely. Fixed in `0028`: `authenticated` can now only UPDATE
+  `full_name`/`username`/`avatar_url` on `profiles` (D-028) — confirmed
+  live via `information_schema.column_privileges`.
+- `scripts/setup-dodo-products.ts` (`npm run setup:dodo`) — idempotent,
+  creates both Products + registers the webhook, prints exactly what to
+  paste into `.env.local` and the one CLI command for the webhook secret.
+- `.env.example`/`SETUP.md` updated (§8) with the full setup walkthrough.
+- `supabase/functions` excluded from the root `tsconfig.json` (Deno globals/
+  `npm:` specifiers don't resolve under the Next.js Node config).
 
 ## Current branch
 
 `main`, working tree has this session's changes uncommitted (not asked to
-commit) — 8 modified files, 6 new (2 migrations, `/api/contact`, `/api/
-admin/contact-submissions[/[id]]`, `/contact` page + client, `ContactForm`
-component). Migrations `0026_contact_submissions` and
-`0027_rename_enterprise_plan_to_custom` are already applied live via
-Supabase MCP against project `xxitlqjgmfqxesqiuouk` — don't re-apply them,
-just get the local `.sql` files committed alongside the code that depends
-on them.
+commit). New: `src/lib/payments/`, `src/app/api/billing/`,
+`src/app/checkout/`, `supabase/functions/dodo-webhook/`,
+`supabase/functions/expire-subscriptions/`, `scripts/setup-dodo-products.ts`,
+migrations `0028`/`0029`. Modified: `credits-client.tsx`, `/api/credits`
+route, `middleware.ts` (added `/checkout` to protected paths),
+`tsconfig.json`, `package.json`/`package-lock.json` (added `dodopayments`,
+`tsx`), `.env.example`, `SETUP.md`.
 
-`npm run lint`: clean, 0 errors from this session (pre-existing warnings
-elsewhere untouched). `tsc --noEmit`: same pre-existing `.next`-cache-stale
-errors as `main` before this session (confirmed via `git stash` A/B test),
-nothing new from this session's files.
+`npm run lint` / `tsc --noEmit`: clean — the only remaining output is the
+same pre-existing stale-`.next`-cache noise confirmed unrelated to this
+session's files (and to last session's, via an earlier `git stash` A/B).
 
-## Half-done / needs manual follow-up
+## Half-done / needs manual follow-up — billing is NOT actually usable yet
 
-- **Nothing in this session was click-tested in a real browser** — all
-  verification was code review + lint/tsc + live DB queries via Supabase
-  MCP. See progress-tracker's "Next steps" for the specific things to
-  click through first.
-- Carried over, still unverified: Language/Subtitles controls in the
-  Script step (from 2026-08-04) — now also relevant to Hinglish
-  specifically, since that's untested live (Gemini quota caution, R-034).
-- Carried over: a real Seedance generation's FINAL FRAME against a real
-  logo (D-020, code+API verified only).
+The code is done and deployed, but nobody has a real Dodo account wired up:
+
+1. `DODO_PAYMENTS_API_KEY` isn't set anywhere — `npm run setup:dodo` hasn't
+   been run, so `DODO_STARTER_PRODUCT_ID`/`DODO_PRO_PRODUCT_ID` don't exist.
+   Checkout will fail until this happens.
+2. `DODO_PAYMENTS_WEBHOOK_KEY` isn't set on the `dodo-webhook` Edge
+   Function — this is the one step that couldn't be done headlessly
+   (a real secret only the account holder has; deliberately not asked for
+   in chat). Until set, every webhook delivery 500s.
+3. **No real payment has ever been run through this.** The riskiest
+   unverified assumption: whether Checkout Session `metadata` actually
+   round-trips onto the resulting Payment object's `metadata` field the way
+   the SDK's doc comment implies — `dodo-webhook` has `product_id`/
+   `total_amount` fallbacks specifically in case it doesn't, but this needs
+   a real test-mode payment to actually confirm.
+4. Nothing from this session was click-tested in a browser.
+5. Carried over, still unverified: Language/Subtitles controls (2026-08-04),
+   Hinglish script output quality (2026-08-12).
 
 ## First action next session
 
-1. Click through this session's new/changed UI live: `/contact` (direct and
-   `?plan=Custom`), Help's three legal links, Credits page's three plan
-   cards, admin dashboard's Contact submissions table.
-2. Run one real 15s generation, confirm the OpenRouter job actually used
-   `bytedance/seedance-2.0-fast` (not just code review).
-3. Generate a Hinglish script and eyeball it for genuine code-mixing.
-4. Resolve hosting target (D-007) — still open.
+1. Get a Dodo test-mode account; set `DODO_PAYMENTS_API_KEY`; run
+   `npm run setup:dodo`; run the `supabase secrets set` command it prints.
+2. Run one real test-mode payment end to end. Watch `error_logs` for any
+   `dodo-webhook` `logUnresolved` rows — that's the signal the
+   metadata-propagation assumption needs a fallback fix.
+3. Confirm `expire-subscriptions` actually downgrades (manually backdate a
+   test row's `plan_grace_end`, or wait for the schedule).
+4. Resolve hosting target (D-007) — still open, now blocks billing too
+   (checkout is a Next.js route, not an Edge Function).
 
 ## Blockers
 
-None.
+Billing is code-complete and deployed but not yet actually usable — see
+"Half-done" above. Not a blocker on further code work, just on live testing.

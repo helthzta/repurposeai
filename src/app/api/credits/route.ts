@@ -7,7 +7,7 @@ export const GET = withLogger("credits.get", async () => {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("credits_balance, plan")
+    .select("credits_balance, plan, plan_period_end, plan_grace_end")
     .eq("id", user.id)
     .single();
   if (profileError) throw profileError;
@@ -23,6 +23,11 @@ export const GET = withLogger("credits.get", async () => {
   return NextResponse.json({
     balance: profile.credits_balance,
     plan: profile.plan,
+    // planGraceEnd is the hard cutoff — expire-subscriptions (the scheduled Edge Function)
+    // downgrades to 'free' once this passes without a renewal payment. planPeriodEnd is what
+    // the paid period itself covers; the gap between the two is the 3-day grace window.
+    planPeriodEnd: profile.plan_period_end,
+    planGraceEnd: profile.plan_grace_end,
     transactions,
   });
 });

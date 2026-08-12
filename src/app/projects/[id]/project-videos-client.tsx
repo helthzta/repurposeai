@@ -21,6 +21,7 @@ import { AiInsightsList, ExpandableTextCard } from "@/components/generation/Gene
 import { cn, downloadFile } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { ProjectDetail } from "@/lib/projects";
+import { QUALITY_LABELS } from "@/lib/types";
 
 function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -129,9 +130,9 @@ export function ProjectVideosClient({ project }: { project: ProjectDetail }) {
                         <Camera className="h-3 w-3" />
                         {generation.camera_style}
                       </span>
-                      <span className="flex items-center gap-1 capitalize">
+                      <span className="flex items-center gap-1">
                         <Sparkles className="h-3 w-3" />
-                        {generation.quality}
+                        {QUALITY_LABELS[generation.quality]}
                       </span>
                     </div>
                   </div>

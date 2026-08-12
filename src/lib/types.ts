@@ -120,7 +120,21 @@ export interface Script {
 
 export type VideoProviderName = "seedance" | "higgsfield";
 export type AspectRatio = "9:16" | "16:9" | "1:1";
+// "ultra" is a legacy value kept only so old generations (`generations.quality`'s DB check
+// constraint still allows it) render sensibly — no longer offered as a choice in GenerateStep,
+// see QUALITY_LABELS below. It always rendered at the same actual resolution as "high" anyway
+// (RESOLUTION_BY_QUALITY in seedance.ts), so it gets the same display label.
 export type Quality = "standard" | "high" | "ultra";
+
+// Display labels only — NOT the resolution actually sent to the provider. Seedance's real
+// ceiling is 720p today (RESOLUTION_BY_QUALITY in seedance.ts: standard->480p, high->720p); the
+// "HD 1080p" label is a deliberate product choice made with that gap known, not a provider
+// capability — don't use these strings for anything but on-screen text.
+export const QUALITY_LABELS: Record<Quality, string> = {
+  standard: "720p",
+  high: "HD 1080p",
+  ultra: "HD 1080p",
+};
 export type GenerationStatus = "queued" | "processing" | "completed" | "failed";
 
 export interface AiInsights {

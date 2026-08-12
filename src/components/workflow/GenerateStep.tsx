@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { costForGeneration } from "@/lib/credits";
-import type { AspectRatio, Quality } from "@/lib/types";
+import { QUALITY_LABELS, type AspectRatio, type Quality } from "@/lib/types";
 
 function OptionGroup<T extends string>({
   label,
@@ -165,9 +165,8 @@ export function GenerateStep({
             value={quality}
             onChange={setQuality}
             options={[
-              { value: "standard", label: "Standard" },
-              { value: "high", label: "High" },
-              { value: "ultra", label: "Ultra" },
+              { value: "standard", label: QUALITY_LABELS.standard },
+              { value: "high", label: QUALITY_LABELS.high },
             ]}
           />
           <OptionGroup

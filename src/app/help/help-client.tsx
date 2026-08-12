@@ -36,7 +36,7 @@ const faqs = [
   },
   {
     q: "How do credits work?",
-    a: "Each generation uses credits based on length and quality — a 15s High-quality video uses 6 credits, a 30s High-quality video uses 30. Credits reset monthly with your plan.",
+    a: "Each generation uses credits based on length and quality — a 15s HD 1080p video uses 6 credits, a 30s HD 1080p video uses 30. Credits reset monthly with your plan.",
   },
 ];
 

@@ -9,6 +9,7 @@ const PROTECTED_PATHS = [
   "/profile",
   "/admin",
   "/api",
+  "/checkout",
 ];
 
 function isProtected(pathname: string) {
