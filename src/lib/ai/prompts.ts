@@ -94,19 +94,49 @@ visual direction), scene descriptions, emotional direction, a CTA, an estimated 
 ISO 639-1 language code the script is written in.`;
 }
 
-export function scriptIdeasPrompt(analysis: VideoAnalysis, brand: BrandProfile) {
-  return `You analyzed a video with this viral breakdown:
+export function scriptIdeasPrompt(analysis: VideoAnalysis, brand: BrandProfile, repurposeOnly = false) {
+  if (repurposeOnly) {
+    return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}
 
-Pitch 3 completely different repurposed commercial concepts for this brand, each applying the same viral factor
-to a new product — this is a quick concept pitch, not the full script yet:
+Pitch 2 completely different REPURPOSED commercial concepts for this brand, each creatively adapting the
+core concept, emotion, or narrative arc of the original ad into a completely new scenario that fits the
+target brand's unique product and audience — this is a quick concept pitch, not the full script yet:
 ${brandBrief(brand)}
 
 ${toneNote(analysis)}
 
-Produce exactly three concepts with style "emotional", "humorous", and "high_conversion". Each needs: a title, a
-one-line hook, and a 2-3 sentence pitch describing the angle and how it repurposes the original's viral factor —
-no scene-by-scene detail yet.`;
+Produce exactly TWO repurposed concepts with styles "emotional" and "high_conversion". Each needs: a
+title, a one-line hook, and a 2-3 sentence pitch describing the angle and how it creatively repurposes
+the original's viral factor for the target brand — no scene-by-scene detail yet. Never mention the
+original brand or reuse its exact wording.`;
+  }
+
+  return `You analyzed a video with this viral breakdown:
+${JSON.stringify(analysis, null, 2)}
+
+Generate exactly 3 commercial concepts for this brand:
+${brandBrief(brand)}
+
+${toneNote(analysis)}
+
+CONCEPT 1 — REPURPOSED (style: "emotional"):
+A creatively repurposed concept that takes the core emotion or narrative arc of the original ad and
+adapts it into a completely new scenario that fits the target brand's unique product and audience.
+Hook into the same emotional trigger but reframe everything else for the new brand. Never mention the
+original brand.
+
+CONCEPT 2 — REPURPOSED (style: "high_conversion"):
+A creatively repurposed concept focused on the original's pain-to-relief conversion arc, adapted
+for the target brand. Maximize the virality factor identified above. Never mention the original brand.
+
+CONCEPT 3 — RECLONE (style: "reclone"):
+A shot-for-shot structural RECLONE of the original ad's visual sequence, pacing, and camera angles —
+but with the original brand's products, props, and branding swapped out for the target brand's.
+Describe the reconstruction faithfully: same pacing, same emotional beats, same scene structure —
+just mapped to the new brand. Label clearly in the title as "Reclone:" prefix (e.g. "Reclone: [original concept name] for [brand]").
+
+Each concept needs: a title, a one-line hook, and a 2-3 sentence pitch — no scene-by-scene detail yet.`;
 }
 
 export function masterScriptPrompt(

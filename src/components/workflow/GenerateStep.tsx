@@ -7,6 +7,7 @@ import {
   Loader2,
   MonitorPlay,
   RectangleVertical,
+  ShoppingCart,
   Sparkles,
 } from "lucide-react";
 import { useState } from "react";
@@ -86,9 +87,11 @@ export function GenerateStep({
   const [quality, setQuality] = useState<Quality>("high");
   const [style, setStyle] = useState("original");
   const [submitting, setSubmitting] = useState(false);
+  const [insufficientCredits, setInsufficientCredits] = useState(false);
 
   const handleGenerate = async () => {
     setSubmitting(true);
+    setInsufficientCredits(false);
     try {
       const res = await fetch("/api/generations", {
         method: "POST",
@@ -103,6 +106,22 @@ export function GenerateStep({
         }),
       });
       const data = await res.json();
+      if (res.status === 402) {
+        // Insufficient credits — show the inline buy-credits banner without navigating away
+        setInsufficientCredits(true);
+        toast.error("Not enough credits", {
+          description: "Top up your credits to continue generating.",
+          action: {
+            label: "Buy Credits",
+            onClick: () => {
+              // Open in a new tab so the user doesn't lose their generation settings
+              window.open(`/credits`, "_blank", "noopener");
+            },
+          },
+          duration: 8000,
+        });
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? "Could not start generation");
       onGenerate(data.generation.id);
     } catch (err) {
@@ -137,6 +156,23 @@ export function GenerateStep({
             </p>
           </div>
         </div>
+
+        {/* Insufficient credits inline banner */}
+        {insufficientCredits && (
+          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <ShoppingCart className="h-4 w-4 shrink-0 text-destructive" />
+            <p className="flex-1 text-sm text-destructive">
+              Not enough credits for this generation.
+            </p>
+            <Button
+              size="sm"
+              className="btn-glow rounded-xl font-semibold"
+              onClick={() => window.open("/credits", "_blank", "noopener")}
+            >
+              Buy Credits
+            </Button>
+          </div>
+        )}
 
         <div className="mt-8 space-y-8">
           <div>

@@ -2,28 +2,32 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
+  CheckCircle,
   Clapperboard,
   Layers,
   PenLine,
   Play,
   ScanEye,
+  ShieldCheck,
   Sparkles,
   Timer,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
-  title: "Repurpose AI — Turn Any Ad Into Your AI Commercial",
+  title: "Adiy AI — Turn Any Viral Ad Into Your Own AI Commercial",
   description:
-    "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.",
+    "Upload any viral ad. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.",
 };
 
 const features = [
   {
     icon: ScanEye,
     title: "AI Video Analysis",
-    desc: "Deconstructs any ad into hook, structure, emotion, and strategy in seconds.",
+    desc: "Deconstructs any viral ad into hook, structure, emotion, and strategy in seconds.",
   },
   {
     icon: PenLine,
@@ -39,6 +43,71 @@ const features = [
     icon: Layers,
     title: "Multi AI Provider Ready",
     desc: "Launching with Seedance, built to add Higgsfield and future providers next.",
+  },
+];
+
+const pricingPlans = [
+  {
+    name: "Free",
+    price: "$0",
+    period: "forever",
+    credits: "50 credits",
+    highlight: false,
+    features: [
+      "50 free credits on sign up",
+      "15s video generation",
+      "720p quality",
+      "AI script repurposing",
+    ],
+    cta: "Start Free",
+    href: "/signup",
+  },
+  {
+    name: "Starter",
+    price: "$19",
+    period: "/ 30-day period",
+    credits: "350 credits",
+    highlight: true,
+    features: [
+      "350 credits per period",
+      "15s & 30s videos",
+      "1 AI provider",
+      "720p quality",
+      "Priority support",
+    ],
+    cta: "Get Starter",
+    href: "/signup",
+  },
+  {
+    name: "Pro",
+    price: "$39",
+    period: "/ 30-day period",
+    credits: "700 credits",
+    highlight: false,
+    features: [
+      "700 credits per period",
+      "All video lengths",
+      "HD 1080p quality",
+      "Priority rendering",
+      "Advanced analytics",
+    ],
+    cta: "Get Pro",
+    href: "/signup",
+  },
+  {
+    name: "Custom",
+    price: "Custom",
+    period: "tailored to your volume",
+    credits: "Custom credit allotment",
+    highlight: false,
+    features: [
+      "Dedicated capacity",
+      "SSO & API access",
+      "Success manager",
+      "Custom SLA",
+    ],
+    cta: "Contact Us",
+    href: "/contact",
   },
 ];
 
@@ -59,6 +128,22 @@ export default async function Landing() {
   } = await supabase.auth.getUser();
   const ctaHref = user ? "/dashboard" : "/signup";
 
+  // Check if the current user is an admin (for the nav admin link)
+  let isAdmin = false;
+  if (user) {
+    try {
+      const adminClient = createAdminClient();
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+      isAdmin = !!profile?.is_admin;
+    } catch {
+      // non-critical — if this fails, just don't show the admin link
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -68,16 +153,26 @@ export default async function Landing() {
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl gradient-primary shadow-card">
               <Clapperboard className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
-            <span className="truncate text-[15px] font-bold tracking-tight">Repurpose AI</span>
+            <span className="truncate text-[15px] font-bold tracking-tight">Adiy AI</span>
           </div>
           <div className="flex items-center gap-2">
             {user ? (
-              <Button asChild className="btn-glow rounded-xl">
-                <Link href="/dashboard">
-                  Go to Dashboard
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              <>
+                {isAdmin && (
+                  <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex gap-1.5 rounded-xl text-xs font-semibold text-muted-foreground">
+                    <Link href="/admin">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Admin
+                    </Link>
+                  </Button>
+                )}
+                <Button asChild className="btn-glow rounded-xl">
+                  <Link href="/dashboard">
+                    Go to Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </>
             ) : (
               <>
                 <Button asChild variant="ghost" className="hidden sm:inline-flex">
@@ -85,7 +180,7 @@ export default async function Landing() {
                 </Button>
                 <Button asChild className="btn-glow rounded-xl">
                   <Link href="/signup">
-                    Sign up
+                    Sign up free
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -124,14 +219,14 @@ export default async function Landing() {
             className="animate-fade-up text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl"
             style={{ animationDelay: "80ms" }}
           >
-            Turn Any Competitor Ad Into{" "}
+            Turn Any Viral Ad Into{" "}
             <span className="gradient-text">Your Own AI Commercial</span>
           </h1>
           <p
             className="animate-fade-up mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
             style={{ animationDelay: "160ms" }}
           >
-            Upload any advertisement. Our AI understands the strategy, rewrites it for your brand,
+            Upload any viral ad. Our AI understands the strategy, rewrites it for your brand,
             and generates a brand-new cinematic commercial in minutes.
           </p>
           <div
@@ -144,7 +239,7 @@ export default async function Landing() {
               className="btn-glow h-13 rounded-2xl px-8 text-base font-semibold"
             >
               <Link href={ctaHref}>
-                Start Repurposing
+                Start Repurposing Free
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
             </Button>
@@ -192,7 +287,7 @@ export default async function Landing() {
           Everything between their ad and yours
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
-          A single workflow that takes you from a competitor's video to a finished commercial.
+          A single workflow that takes you from a viral video to a finished commercial.
         </p>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
@@ -202,6 +297,55 @@ export default async function Landing() {
               </div>
               <h3 className="mt-5 text-[15px] font-bold">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section
+        id="pricing"
+        className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6 sm:pb-28"
+      >
+        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+          Simple, transparent pricing
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
+          Start free with 50 credits. Upgrade when you need more firepower.
+        </p>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {pricingPlans.map((plan) => (
+            <div
+              key={plan.name}
+              className={`hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card${plan.highlight ? " border-primary/50 ring-1 ring-primary/20" : ""}`}
+            >
+              {plan.highlight && (
+                <div className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold uppercase text-accent-foreground">
+                  <Zap className="h-2.5 w-2.5" />
+                  Most Popular
+                </div>
+              )}
+              <h3 className="text-[15px] font-bold">{plan.name}</h3>
+              <p className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-2xl font-extrabold tracking-tight">{plan.price}</span>
+                <span className="text-xs font-medium text-muted-foreground">{plan.period}</span>
+              </p>
+              <p className="mt-1 text-xs font-semibold text-primary">{plan.credits}</p>
+              <ul className="mt-5 flex-1 space-y-2.5">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button
+                asChild
+                variant={plan.highlight ? "default" : "outline"}
+                className={`mt-6 rounded-xl font-semibold${plan.highlight ? " btn-glow" : ""}`}
+              >
+                <Link href={plan.href}>{plan.cta}</Link>
+              </Button>
             </div>
           ))}
         </div>
@@ -224,7 +368,7 @@ export default async function Landing() {
             className="mt-8 h-13 rounded-2xl px-8 text-base font-semibold hover-lift"
           >
             <Link href={ctaHref}>
-              Start Repurposing
+              Start Repurposing Free
               <ArrowRight className="h-4.5 w-4.5" />
             </Link>
           </Button>
@@ -237,9 +381,12 @@ export default async function Landing() {
             <div className="grid h-6 w-6 place-items-center rounded-md gradient-primary">
               <Clapperboard className="h-3 w-3 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-foreground">Repurpose AI</span>
+            <span className="font-semibold text-foreground">Adiy AI</span>
           </div>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs font-medium">
+            <Link href="#pricing" className="hover:text-foreground">
+              Pricing
+            </Link>
             <Link href="/terms" className="hover:text-foreground">
               Terms of Service
             </Link>
@@ -250,7 +397,7 @@ export default async function Landing() {
               Copyright Policy
             </Link>
           </nav>
-          <p>© 2026 Repurpose AI. All rights reserved.</p>
+          <p>© 2026 Adiy AI. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -3,14 +3,19 @@ import { generateScriptIdeas } from "@/lib/ai/gemini";
 import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { requireProjectBrand } from "@/lib/projects";
-import type { VideoAnalysis } from "@/lib/types";
+import type { ScriptIdea, VideoAnalysis } from "@/lib/types";
 
 /** Short concepts shown before committing to a full script — cached on the project, see IdeaStep.tsx. */
 export const POST = withLogger(
   "scripts.ideas",
   async (req: NextRequest) => {
     const { supabase } = await requireUser();
-    const { projectId } = await req.json();
+    const body = await req.json();
+    const { projectId, preserveReclone } = body as {
+      projectId?: string;
+      /** When true, the existing reclone idea is preserved and only the 2 repurposed ideas are regenerated. */
+      preserveReclone?: boolean;
+    };
     if (!projectId) throw new ApiError(400, "projectId is required");
 
     const { data: analysis, error: analysisError } = await supabase
@@ -25,7 +30,19 @@ export const POST = withLogger(
 
     const brand = await requireProjectBrand(supabase, projectId);
 
-    const ideas = await generateScriptIdeas(analysis, brand);
+    // If preserveReclone is requested, find the cached reclone idea to keep it unchanged
+    let keepRecloneIdea: ScriptIdea | null = null;
+    if (preserveReclone) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("script_ideas")
+        .eq("id", projectId)
+        .single();
+      const cachedIdeas = (project?.script_ideas as ScriptIdea[] | null) ?? [];
+      keepRecloneIdea = cachedIdeas.find((idea) => idea.style === "reclone") ?? null;
+    }
+
+    const ideas = await generateScriptIdeas(analysis, brand, keepRecloneIdea);
 
     // Cached on the project so navigating back to the Ideas step (or reloading) shows the
     // same ideas instead of burning another Gemini call for a different set — see IdeaStep.tsx.

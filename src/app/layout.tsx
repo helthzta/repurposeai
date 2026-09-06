@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const title = "Repurpose AI — Turn Any Ad Into Your AI Commercial";
+const title = "Adiy AI — Turn Any Viral Ad Into Your Own AI Commercial";
 const description =
-  "Upload any advertisement. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.";
+  "Upload any viral ad. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.";
 
 // TODO: add a real branded screenshot to public/ and reference it here as the
 // openGraph/twitter `images` field. The previous value pointed at a Lovable
@@ -14,7 +14,7 @@ const description =
 export const metadata: Metadata = {
   title,
   description,
-  authors: [{ name: "Repurpose AI" }],
+  authors: [{ name: "Adiy AI" }],
   icons: { icon: "/favicon.ico" },
   openGraph: {
     title,

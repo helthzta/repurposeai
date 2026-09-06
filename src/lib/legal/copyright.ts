@@ -491,6 +491,23 @@ Where appropriate, users may request human review.
 
 ---
 
+24A. RECREATED / RECLONE CONTENT
+
+Adiy AI may provide a "Recreated" or "Reclone" functionality that allows users to recreate the visual
+structure, sequencing, pacing, shot composition, camera angles, or other creative elements of an
+existing advertisement. This functionality is intended for content that the user owns, has created, or is
+otherwise authorized to reproduce, transform, or commercially use. Users must not use Reclone
+functionality to create unauthorized substantially identical copies of third-party advertisements or
+other protected works. Where the source advertisement contains copyrighted footage, music, scripts,
+artwork, performances, trademarks, likenesses, or other protected material, the user is responsible
+for obtaining all necessary rights, licenses, permissions, or other lawful authorization before using the
+recreated output commercially. Changing or replacing the product, branding, props, or other individual
+elements does not by itself make an otherwise unauthorized recreation lawful. Adiy AI may restrict,
+modify, or disable Reclone functionality where it reasonably identifies a potential intellectual-property,
+trademark, publicity, privacy, or other rights violation.
+
+---
+
 25. CHANGES TO THIS POLICY
 
 We may update this IP Policy from time to time.

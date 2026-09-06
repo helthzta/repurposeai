@@ -75,7 +75,7 @@ export interface VideoAnalysis {
   created_at: string;
 }
 
-export type ScriptStyle = "emotional" | "humorous" | "high_conversion" | "custom";
+export type ScriptStyle = "emotional" | "humorous" | "high_conversion" | "custom" | "reclone";
 
 /** A short, un-persisted concept shown before a full script is written — see IdeaStep.tsx. */
 export interface ScriptIdea {

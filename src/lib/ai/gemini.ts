@@ -217,7 +217,7 @@ export async function generateScripts(
 const SCRIPT_IDEA_SCHEMA = {
   type: Type.OBJECT,
   properties: {
-    style: { type: Type.STRING, enum: ["emotional", "humorous", "high_conversion"] },
+    style: { type: Type.STRING, enum: ["emotional", "humorous", "high_conversion", "reclone"] },
     title: { type: Type.STRING },
     hook: { type: Type.STRING },
     pitch: { type: Type.STRING },
@@ -225,15 +225,41 @@ const SCRIPT_IDEA_SCHEMA = {
   required: ["style", "title", "hook", "pitch"],
 };
 
-/** 3 short concepts shown before committing to writing a full script — cached by the ideas route. */
+/**
+ * Generates 3 idea concepts: 2 repurposed ideas (emotional, high_conversion) + 1 reclone idea.
+ * When `keepRecloneIdea` is provided (a previously generated reclone concept), only the 2
+ * repurposed ideas are regenerated — the reclone stays fixed across regenerations.
+ */
 export async function generateScriptIdeas(
   analysis: VideoAnalysis,
   brand: BrandProfile,
+  keepRecloneIdea?: ScriptIdea | null,
 ): Promise<ScriptIdea[]> {
   const client = ai();
+
+  if (keepRecloneIdea) {
+    // Only regenerate the 2 repurposed ideas, preserving the existing reclone.
+    const repurposedSchema = {
+      type: Type.ARRAY,
+      items: SCRIPT_IDEA_SCHEMA,
+      minItems: 2,
+      maxItems: 2,
+    };
+    const response = await client.models.generateContent({
+      model: MODEL,
+      contents: await scriptContents(scriptIdeasPrompt(analysis, brand, true), brand),
+      config: { responseMimeType: "application/json", responseSchema: repurposedSchema },
+    });
+    if (!response.text) throw new Error("Gemini returned no ideas");
+    const repurposedIdeas = JSON.parse(response.text) as ScriptIdea[];
+    // Return repurposed ideas first, then the preserved reclone last
+    return [...repurposedIdeas, keepRecloneIdea];
+  }
+
+  // Initial generation: 2 repurposed + 1 reclone
   const response = await client.models.generateContent({
     model: MODEL,
-    contents: await scriptContents(scriptIdeasPrompt(analysis, brand), brand),
+    contents: await scriptContents(scriptIdeasPrompt(analysis, brand, false), brand),
     config: {
       responseMimeType: "application/json",
       responseSchema: { type: Type.ARRAY, items: SCRIPT_IDEA_SCHEMA, minItems: 3, maxItems: 3 },
