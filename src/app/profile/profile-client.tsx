@@ -426,7 +426,7 @@ export function ProfilePageClient() {
           </Button>
         </Section>
 
-        <Section icon={LogOut} title="Account" desc="Sign out of Repurpose AI on this device">
+        <Section icon={LogOut} title="Account" desc="Sign out of Adiy AI on this device">
           <Button
             variant="outline"
             className="rounded-xl font-semibold text-destructive hover:text-destructive"

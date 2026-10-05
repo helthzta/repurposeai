@@ -100,15 +100,18 @@ const pricingPlans = [
     period: "tailored to your volume",
     credits: "Custom credit allotment",
     highlight: false,
-    features: [
-      "Dedicated capacity",
-      "SSO & API access",
-      "Success manager",
-      "Custom SLA",
-    ],
+    features: ["Dedicated capacity", "SSO & API access", "Success manager", "Custom SLA"],
     cta: "Contact Us",
     href: "/contact",
   },
+];
+
+// ponytail: placeholders until the real demo ads arrive — set `src` to a file in /public (or a
+// hosted mp4) and the card renders the video instead of the "coming soon" tile.
+const demoAds: { title: string; caption: string; src: string | null }[] = [
+  { title: "Demo ad 1", caption: "Original viral ad → repurposed commercial", src: null },
+  { title: "Demo ad 2", caption: "Original viral ad → repurposed commercial", src: null },
+  { title: "Demo ad 3", caption: "Original viral ad → recreated clone", src: null },
 ];
 
 const particles = [
@@ -159,7 +162,12 @@ export default async function Landing() {
             {user ? (
               <>
                 {isAdmin && (
-                  <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex gap-1.5 rounded-xl text-xs font-semibold text-muted-foreground">
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 rounded-xl text-xs font-semibold text-muted-foreground"
+                  >
                     <Link href="/admin">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       Admin
@@ -219,15 +227,14 @@ export default async function Landing() {
             className="animate-fade-up text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl"
             style={{ animationDelay: "80ms" }}
           >
-            Turn Any Viral Ad Into{" "}
-            <span className="gradient-text">Your Own AI Commercial</span>
+            Turn Any Viral Ad Into <span className="gradient-text">Your Own AI Commercial</span>
           </h1>
           <p
             className="animate-fade-up mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
             style={{ animationDelay: "160ms" }}
           >
-            Upload any viral ad. Our AI understands the strategy, rewrites it for your brand,
-            and generates a brand-new cinematic commercial in minutes.
+            Upload any viral ad. Our AI understands the strategy, rewrites it for your brand, and
+            generates a brand-new cinematic commercial in minutes.
           </p>
           <div
             className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
@@ -284,7 +291,7 @@ export default async function Landing() {
         className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28"
       >
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-          Everything between their ad and yours
+          Everything between a viral ad and yours
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
           A single workflow that takes you from a viral video to a finished commercial.
@@ -302,11 +309,47 @@ export default async function Landing() {
         </div>
       </section>
 
+      {/* Demo ads */}
+      <section id="demos" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6 sm:pb-28">
+        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
+          See what Adiy AI makes
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
+          Real commercials generated from viral ads.
+        </p>
+        <div className="mt-12 grid gap-5 sm:grid-cols-3">
+          {demoAds.map((demo) => (
+            <div
+              key={demo.title}
+              className="hover-lift overflow-hidden rounded-3xl border bg-card shadow-card"
+            >
+              {demo.src ? (
+                <video
+                  src={demo.src}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="aspect-[9/16] w-full bg-muted object-cover"
+                />
+              ) : (
+                <div className="grid aspect-[9/16] w-full place-items-center bg-muted">
+                  <div className="text-center">
+                    <Play className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                    <p className="mt-2 text-xs font-semibold text-muted-foreground">Coming soon</p>
+                  </div>
+                </div>
+              )}
+              <div className="p-4">
+                <h3 className="text-sm font-bold">{demo.title}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{demo.caption}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Pricing */}
-      <section
-        id="pricing"
-        className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6 sm:pb-28"
-      >
+      <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6 sm:pb-28">
         <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
           Simple, transparent pricing
         </h2>

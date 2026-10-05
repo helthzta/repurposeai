@@ -84,5 +84,9 @@ None tracked yet.
    manual scope filter.
 4. Any credit balance change → goes through `spend_credits`, not a direct
    `update` on `profiles`.
+   App code calls it only via `src/lib/credit-ledger.ts` (service-role client) with a `userId`
+   taken from the session, never from request input. `0004_lock_down_spend_credits.sql`
+   revokes EXECUTE from `anon`/`authenticated` — until that is applied live, the RPC is
+   publicly callable (anyone can grant credits to any account).
 5. New storage writes → path is `{user_id}/{project_id}/{filename}`, never
    caller-supplied verbatim.

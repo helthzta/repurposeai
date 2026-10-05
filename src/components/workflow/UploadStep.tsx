@@ -103,7 +103,7 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
 
   const handleSubmit = async () => {
     if (!competitorFile) {
-      toast.error("Add your competitor's ad — upload a video file");
+      toast.error("Add the viral ad you want to repurpose — upload a video file");
       return;
     }
     if (!brandProfileId) {
@@ -162,7 +162,7 @@ export function UploadStep({ onContinue }: { onContinue: (projectId: string) => 
           )}
         </div>
         <h2 className="mt-6 text-lg font-bold tracking-tight sm:text-xl">
-          {competitorFile?.name ?? "Drag & drop your competitor's ad"}
+          {competitorFile?.name ?? "Drag & drop any viral ad"}
         </h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
           {competitorFile ? "Ready for AI analysis" : "Supports MP4, MOV and WebM up to 500 MB"}

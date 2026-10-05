@@ -4,15 +4,15 @@ One line per file: what it owns, when to read it, when it was last true.
 
 | File | Owns | Read when | Last verified |
 |---|---|---|---|
-| `session-handoff.md` | current session snapshot | every session | 2026-08-13 |
-| `progress-tracker.md` | current phase, open questions, next steps | every session | 2026-08-13 |
-| `learned-rules.md` | distilled permanent constraints | every session | 2026-08-13 |
+| `session-handoff.md` | current session snapshot | every session | 2026-10-05 |
+| `progress-tracker.md` | current phase, open questions, next steps | every session | 2026-10-05 |
+| `learned-rules.md` | distilled permanent constraints | every session | 2026-10-05 |
 | `project-overview.md` | product definition, goals, scope | scope/priority questions | 2026-08-01 |
 | `decision-log.md` | still-active decisions with rationale | when touching an area listed below | 2026-08-13 |
 | `architecture.md` | stack, boundaries, storage, invariants | touching system structure | 2026-08-13 |
 | `ui-context.md` | design tokens, component conventions | touching UI | 2026-07-21 |
 | `code-standards.md` | implementation conventions | writing/reviewing code | 2026-07-21 |
-| `security-context.md` | threat model, hardening rules | touching auth/data/edge functions | 2026-07-21 |
+| `security-context.md` | threat model, hardening rules | touching auth/data/edge functions | 2026-10-05 |
 | `ai-workflow-rules.md` | branching, scoping, delivery ritual | starting a new unit of work | 2026-07-21 |
 
 ## Active decision areas (keeps decision-log.md from being read every session)

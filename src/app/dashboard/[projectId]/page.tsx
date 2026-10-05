@@ -5,7 +5,7 @@ import { deriveWorkflowPhase, getProjectDetail } from "@/lib/projects";
 import { ProjectWorkflowClient } from "./project-workflow-client";
 
 export const metadata: Metadata = {
-  title: "Commercial — Repurpose AI",
+  title: "Commercial — Adiy AI",
   description: "Analyze the ad, pick a script, and generate your AI commercial.",
 };
 

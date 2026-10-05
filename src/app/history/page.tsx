@@ -3,7 +3,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { ProjectGrid } from "@/components/app/ProjectGrid";
 
 export const metadata: Metadata = {
-  title: "History — Repurpose AI",
+  title: "History — Adiy AI",
   description: "Browse and manage every AI commercial you've generated.",
 };
 

@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { scoreGeneration } from "@/lib/ai/gemini";
 import { videoPrompt } from "@/lib/ai/prompts";
 import { ApiError } from "@/lib/auth";
-import { costForGeneration, refundCredits, spendCredits } from "@/lib/credits";
+import { refundCredits, spendCredits } from "@/lib/credit-ledger";
+import { costForGeneration } from "@/lib/credits";
 import { logError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getProvider } from "@/lib/providers";
@@ -34,9 +35,20 @@ export async function createGeneration(
   brand: BrandProfile,
   params: CreateGenerationParams,
 ): Promise<Generation> {
-  const cost = costForGeneration(params.durationSeconds, params.quality, params.aspectRatio);
-  logger.info("generation", "spending credits", { userId, cost, projectId: params.projectId });
-  await spendCredits(client, userId, cost, "generation", "project", params.projectId);
+  // Admins generate for free so they can always test — nothing is charged, so nothing is
+  // refunded on failure either (credits_charged is stored as 0).
+  const { data: profile } = await client
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  const cost = profile?.is_admin
+    ? 0
+    : costForGeneration(params.durationSeconds, params.quality, params.aspectRatio);
+  if (cost > 0) {
+    logger.info("generation", "spending credits", { userId, cost, projectId: params.projectId });
+    await spendCredits(userId, cost, "generation", "project", params.projectId);
+  }
 
   // "Original" camera style means "match the source video we analyzed" — only look that
   // up when actually needed, not on every generation.
@@ -117,7 +129,9 @@ export async function createGeneration(
 
     return generation as Generation;
   } catch (submitError) {
-    await refundCredits(client, userId, cost, "generation_refund", "project", params.projectId);
+    if (cost > 0) {
+      await refundCredits(userId, cost, "generation_refund", "project", params.projectId);
+    }
     await logError("generation.submit", submitError, {
       userId,
       metadata: { projectId: params.projectId },
@@ -232,14 +246,15 @@ async function failGeneration(
   generation: Generation,
   errorMessage: string,
 ): Promise<Generation> {
-  await refundCredits(
-    client,
-    userId,
-    generation.credits_charged,
-    "generation_refund",
-    "generation",
-    generation.id,
-  );
+  if (generation.credits_charged > 0) {
+    await refundCredits(
+      userId,
+      generation.credits_charged,
+      "generation_refund",
+      "generation",
+      generation.id,
+    );
+  }
   const { data: updated } = await client
     .from("generations")
     .update({

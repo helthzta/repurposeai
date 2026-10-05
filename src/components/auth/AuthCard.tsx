@@ -24,7 +24,7 @@ export function AuthCard({
           <div className="grid h-10 w-10 place-items-center rounded-xl gradient-primary shadow-card">
             <Clapperboard className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold tracking-tight">Repurpose AI</span>
+          <span className="text-lg font-bold tracking-tight">Adiy AI</span>
         </Link>
 
         <div className="rounded-3xl border bg-card p-8 shadow-card">

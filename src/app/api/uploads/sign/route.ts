@@ -29,11 +29,15 @@ export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
   if (!(kind in BUCKET_BY_KIND)) throw new ApiError(400, `Unsupported kind: ${kind}`);
 
   const bucket = BUCKET_BY_KIND[kind as keyof typeof BUCKET_BY_KIND];
+  // Storage rejects object keys containing spaces, non-Latin letters or most symbols ("Invalid
+  // key"), so a file's own name can't go into the path as-is — the original name is still kept
+  // in source_videos.original_filename by /api/uploads/confirm.
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-100);
 
   // Avatars are scoped to the user themselves — no project/brand-profile id to pass.
   let path: string;
   if (kind === "avatar") {
-    path = `${user.id}/avatar/${Date.now()}-${filename}`;
+    path = `${user.id}/avatar/${Date.now()}-${safeName}`;
   } else {
     const scopeId = BRAND_SCOPED_KINDS.has(kind) ? brandProfileId : projectId;
     if (!scopeId) {
@@ -42,7 +46,7 @@ export const POST = withLogger("uploads.sign", async (req: NextRequest) => {
         BRAND_SCOPED_KINDS.has(kind) ? "brandProfileId is required" : "projectId is required",
       );
     }
-    path = `${user.id}/${scopeId}/${kind}-${Date.now()}-${filename}`;
+    path = `${user.id}/${scopeId}/${kind}-${Date.now()}-${safeName}`;
   }
 
   const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(path);

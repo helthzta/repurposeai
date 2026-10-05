@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -33,6 +34,28 @@ interface UserDetail {
 export function AdminUserDetailClient({ userId }: { userId: string }) {
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [creditsDelta, setCreditsDelta] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const updateUser = async (body: { creditsDelta?: number; plan?: string }) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not update user");
+      setDetail((prev) => (prev ? { ...prev, profile: data.profile } : prev));
+      setCreditsDelta("");
+      toast.success("User updated");
+    } catch (err) {
+      toast.error("Update failed", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/admin/users/${userId}`)
@@ -106,6 +129,57 @@ export function AdminUserDetailClient({ userId }: { userId: string }) {
             <div>
               <p className="text-xs text-muted-foreground">Generations</p>
               <p className="font-semibold">{totalGenerations}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border bg-card p-6 shadow-card">
+          <h2 className="text-sm font-bold">Manage credits &amp; plan</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Manual changes for testing and support — no payment is taken.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <label htmlFor="credits-delta" className="text-xs text-muted-foreground">
+                  Add or remove credits (use a minus sign to remove)
+                </label>
+                <Input
+                  id="credits-delta"
+                  type="number"
+                  step={1}
+                  placeholder="e.g. 100 or -20"
+                  className="h-10 rounded-xl"
+                  value={creditsDelta}
+                  onChange={(e) => setCreditsDelta(e.target.value)}
+                />
+              </div>
+              <Button
+                className="rounded-xl font-semibold"
+                disabled={
+                  saving || !Number.isInteger(Number(creditsDelta)) || !Number(creditsDelta)
+                }
+                onClick={() => updateUser({ creditsDelta: Number(creditsDelta) })}
+              >
+                Apply
+              </Button>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Set plan (paid plans run 30 days)</p>
+              <div className="flex flex-wrap gap-2">
+                {(["free", "starter", "pro", "custom"] as const).map((p) => (
+                  <Button
+                    key={p}
+                    size="sm"
+                    variant={profile.plan === p ? "default" : "outline"}
+                    className="rounded-lg text-xs font-semibold capitalize"
+                    disabled={saving || profile.plan === p}
+                    onClick={() => updateUser({ plan: p })}
+                  >
+                    {p}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

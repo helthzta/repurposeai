@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { AdminDashboardClient } from "./admin-client";
 
 export const metadata: Metadata = {
-  title: "Admin — Repurpose AI",
+  title: "Admin — Adiy AI",
   description: "Users, generations, and credit spend across the whole app.",
 };
 

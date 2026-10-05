@@ -36,9 +36,9 @@ export const POST = withLogger(
         written.map(({ analysisId, generated }, i) => ({
           project_id: projectId,
           analysis_id: analysisId,
-          // A user-typed idea keeps its "custom" style rather than whatever Gemini classified the
-          // body as, so a later regenerate reconstructs the same idea shape from this row.
-          style: idea.style === "custom" ? "custom" : generated.style,
+          // A user-typed or reclone idea keeps its own style rather than whatever Gemini classified
+          // the body as, so a later regenerate reconstructs the same idea shape from this row.
+          style: idea.style === "custom" || idea.style === "reclone" ? idea.style : generated.style,
           title: generated.title,
           hook: generated.hook,
           body: generated.body,

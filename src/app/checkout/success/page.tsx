@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { CheckoutSuccessClient } from "./success-client";
 
 export const metadata: Metadata = {
-  title: "Payment confirmed — Repurpose AI",
+  title: "Payment confirmed — Adiy AI",
 };
 
 export default function CheckoutSuccessPage() {

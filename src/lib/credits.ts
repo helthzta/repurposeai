@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AspectRatio, Quality } from "@/lib/types";
 
 // Credits per second of rendered video, by quality tier. Split by duration because duration now
@@ -28,51 +27,4 @@ export function costForGeneration(
   _aspectRatio: AspectRatio,
 ) {
   return costFor(durationSeconds, quality);
-}
-
-/** Throws (via the spend_credits Postgres function) if the balance would go negative. */
-export async function spendCredits(
-  supabase: SupabaseClient,
-  userId: string,
-  amount: number,
-  reason: string,
-  referenceType?: string,
-  referenceId?: string,
-) {
-  const { data, error } = await supabase.rpc("spend_credits", {
-    p_user_id: userId,
-    p_amount: -Math.abs(amount),
-    p_reason: reason,
-    p_reference_type: referenceType ?? null,
-    p_reference_id: referenceId ?? null,
-  });
-
-  if (error) {
-    if (error.message.includes("insufficient_credits")) {
-      throw new Error("insufficient_credits");
-    }
-    throw error;
-  }
-
-  return data as number;
-}
-
-export async function refundCredits(
-  supabase: SupabaseClient,
-  userId: string,
-  amount: number,
-  reason: string,
-  referenceType?: string,
-  referenceId?: string,
-) {
-  const { data, error } = await supabase.rpc("spend_credits", {
-    p_user_id: userId,
-    p_amount: Math.abs(amount),
-    p_reason: reason,
-    p_reference_type: referenceType ?? null,
-    p_reference_id: referenceId ?? null,
-  });
-
-  if (error) throw error;
-  return data as number;
 }

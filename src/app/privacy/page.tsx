@@ -4,8 +4,8 @@ import { LegalLayout } from "@/components/legal/LegalLayout";
 import { PRIVACY_POLICY_BODY, PRIVACY_POLICY_LAST_UPDATED } from "@/lib/legal/privacy";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Repurpose AI",
-  description: "How Repurpose AI collects, uses, stores, and protects your information.",
+  title: "Privacy Policy — Adiy AI",
+  description: "How Adiy AI collects, uses, stores, and protects your information.",
 };
 
 export default function PrivacyPolicyPage() {

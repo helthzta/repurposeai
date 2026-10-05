@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowRight, Copy, Loader2, Megaphone, MicVocal, Plus, RefreshCw, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Copy,
+  Loader2,
+  Megaphone,
+  MicVocal,
+  Plus,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,13 +26,9 @@ const BADGE_LABEL: Record<string, string> = {
   custom: "Your Idea",
 };
 
-const BADGE_STAGE: Record<string, string> = {
-  emotional: "Stage 1",
-  humorous: "Stage 2",
-  high_conversion: "Stage 2",
-  reclone: "Stage 1 — Recreated",
-  custom: "",
-};
+/** The Recreated (reclone) concept always leads; the two repurposed ones follow it. */
+const recloneFirst = (ideas: ScriptIdea[]) =>
+  [...ideas].sort((a, b) => Number(b.style === "reclone") - Number(a.style === "reclone"));
 
 export function IdeaStep({
   projectId,
@@ -130,7 +135,7 @@ export function IdeaStep({
       <div className="text-center">
         <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">Pick a Direction</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          2 repurposed concepts + 1 recreated clone — pick one to write the full script.
+          1 recreated clone + 2 repurposed concepts — pick one to write the full script.
         </p>
         {originalTone && (
           <Badge
@@ -161,7 +166,7 @@ export function IdeaStep({
       </div>
 
       <div className={cn("mt-8 grid gap-5 lg:grid-cols-3", regenerating && "opacity-50")}>
-        {ideas.map((idea, i) => {
+        {recloneFirst(ideas).map((idea, i) => {
           const isReclone = idea.style === "reclone";
           return (
             <div
@@ -178,18 +183,18 @@ export function IdeaStep({
                   variant="secondary"
                   className={cn(
                     "w-fit rounded-full px-3 py-1 text-[11px] font-bold",
-                    idea.style === "high_conversion" && !isReclone && "bg-accent text-accent-foreground",
+                    idea.style === "high_conversion" &&
+                      !isReclone &&
+                      "bg-accent text-accent-foreground",
                     isReclone && "bg-amber-500/20 text-amber-700 dark:text-amber-400",
                   )}
                 >
                   {isReclone ? <Copy className="mr-1 h-2.5 w-2.5" /> : null}
                   {BADGE_LABEL[idea.style] ?? idea.style}
                 </Badge>
-                {BADGE_STAGE[idea.style] && (
-                  <span className="text-[10px] font-medium text-muted-foreground/60">
-                    {BADGE_STAGE[idea.style]}
-                  </span>
-                )}
+                <span className="text-[10px] font-medium text-muted-foreground/60">
+                  {isReclone ? "Stays on regenerate" : "Regenerates"}
+                </span>
               </div>
 
               {isReclone && (

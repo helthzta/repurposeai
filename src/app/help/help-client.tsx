@@ -23,8 +23,8 @@ const faqs = [
     a: "MP4, MOV and WebM up to 500 MB. Vertical, horizontal and square videos are all supported.",
   },
   {
-    q: "Is it legal to repurpose competitor ads?",
-    a: "Repurpose AI never copies footage. It analyzes the marketing strategy and generates a completely original commercial for your brand — the output is 100% new content.",
+    q: "Is it legal to repurpose viral ads?",
+    a: "Adiy AI never copies footage. It analyzes the marketing strategy and generates a completely original commercial for your brand — the output is 100% new content.",
   },
   {
     q: "How long does generation take?",
