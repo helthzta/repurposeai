@@ -6,7 +6,7 @@ import { ProjectGrid } from "@/components/app/ProjectGrid";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Projects — Repurpose AI",
+  title: "Projects — Adiy AI",
   description: "All your AI commercial projects in one place.",
 };
 

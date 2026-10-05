@@ -29,7 +29,7 @@ export function LegalLayout({
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl gradient-primary shadow-card">
               <Clapperboard className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
-            <span className="truncate text-[15px] font-bold tracking-tight">Repurpose AI</span>
+            <span className="truncate text-[15px] font-bold tracking-tight">Adiy AI</span>
           </Link>
         </div>
       </header>

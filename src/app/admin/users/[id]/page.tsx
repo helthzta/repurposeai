@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { AdminUserDetailClient } from "./user-detail-client";
 
 export const metadata: Metadata = {
-  title: "User — Admin — Repurpose AI",
+  title: "User — Admin — Adiy AI",
   description: "A single user's projects, generations, and credit activity.",
 };
 

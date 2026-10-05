@@ -1,54 +1,41 @@
 <!-- Soft cap ~50 lines. Completed work lives in git history, not here.
 Compact at the end of every session per CLAUDE.md ritual. -->
 
-_Last updated: 2026-08-13_
+_Last updated: 2026-10-05_
 
 ## Current phase
 
-2026-08-13 session, three things in order (fuller detail in
-`decision-log.md` D-022–D-031, `learned-rules.md` R-047–R-059,
-`session-handoff.md`):
+Client feedback round 2 (items 5–15), on branch `fix/client-feedback-round-2`, uncommitted.
+Code-complete for: Adiy AI rename, viral-ad wording, reclone script + idea-card order/labels,
+admin free generations + admin credit/plan controls, cancel-route audit row, upload filename
+sanitizing + brand-dialog error handling, video-prompt hand/voice rules, landing demo-ads
+placeholders + mobile admin link, credit ledger moved to service-role (R-060–R-064).
 
-1. **Dodo Payments billing** (Starter/Pro) — one-time payment per 30-day
-   period, tracked/enforced entirely in Supabase (not Dodo Subscriptions).
-   Checkout is a Next.js route; `dodo-webhook` (grants credits/plan) and
-   `expire-subscriptions` (grace-period downgrade, scheduled every 6h) are
-   deployed Supabase Edge Functions. **Not yet usable live** — no Dodo
-   account wired up, `npm run setup:dodo` hasn't been run, webhook secret
-   isn't set. See "Next steps" below.
-2. **Visual Quality relabel** — Generate step now shows "720p"/"HD 1080p"
-   (was Standard/High/Ultra), Ultra removed as a choice. Explicit user
-   choice made *after* being told "HD 1080p" doesn't reflect a real
-   capability change — Seedance still renders that tier at 720p
-   (`RESOLUTION_BY_QUALITY` in `seedance.ts` untouched). `QUALITY_LABELS` in
-   `types.ts` is the single source for the display strings (D-030/R-059).
-3. **Migrations consolidated to one file** — `supabase/migrations/0001_baseline.sql`
-   replaces the 29 incremental files (now archived under
-   `supabase/migrations/_archive/`, reference-only). Built by directly
-   introspecting the live project's actual schema, not from the old files'
-   text — this project's migration history had confirmed drift before
-   (R-024/R-045), so trusting the live DB over any file was deliberate.
-   Verified via static checks (table/policy/index counts match the live
-   introspection exactly, parens/dollar-quotes balanced) — **not** via an
-   actual dry-run apply (would need a paid Supabase branch, didn't spend
-   money on that without asking first). Edge Functions are NOT in this file
-   (can't be — different deploy mechanism); SETUP.md §2/§8 covers both.
+Verified: `tsc --noEmit` 0 errors; `npm run lint` 1 error (generated `next-env.d.ts`, pre-existing);
+public pages + unauthenticated API responses smoke-tested on a dev server. **Not** verified:
+any signed-in flow (generation, brand save, admin controls, checkout, cancel).
 
-## NOT yet done — billing blocks
+## Blocked on a human
 
-1. `DODO_PAYMENTS_API_KEY` not set → `npm run setup:dodo` not run →
-   `DODO_STARTER_PRODUCT_ID`/`DODO_PRO_PRODUCT_ID` don't exist → checkout 500s.
-2. `DODO_PAYMENTS_WEBHOOK_KEY` not set on the Edge Function (the one
-   necessarily-manual step) → every webhook delivery 500s until it is.
-3. No real payment has ever been run through this end to end.
-4. Nothing from this session was click-tested in a browser.
+1. Apply `0003_reclone_script_style.sql` to the live DB — until then, writing a Recreated
+   script fails on the `scripts_style_check` constraint.
+2. Deploy this branch, THEN apply `0004_lock_down_spend_credits.sql` (order matters — older
+   builds call the RPC with the user's client). Until applied, anyone can grant credits.
+3. Deploy `dodo-webhook` + `expire-subscriptions` to project `xvtkjkvxjxsbeispjlrh`, set
+   `DODO_PAYMENTS_WEBHOOK_KEY`, check the cron job's URL (R-065). Payments cannot work before this.
 
-## Next steps (max ~5)
+## Open questions
 
-1. Get a Dodo test-mode account, run `npm run setup:dodo`, set the webhook
-   secret it prints, run one real test payment end to end.
-2. If you want stronger confidence in `0001_baseline.sql` than static
-   checks gave: spin up a disposable Supabase branch (costs money, needs
-   your go-ahead) and apply it there as a true dry run.
-3. Resolve hosting target (D-007) — still open, blocks the Next.js side of
-   billing (checkout route) even though the Edge Functions don't need it.
+- Client asked for cancel on "monthly and yearly" plans — no yearly plan exists. Build one?
+- "Around 10 polish items" — no list was provided.
+- Idea-card labels: implemented as "Recreated" (first) / "Repurposed — …" with a small
+  "Regenerates" tag on cards 2–3; client's literal wording for those was "Regenerate".
+- HM Mollah's missing generations: consistent with the move to a new Supabase project; old
+  data would be in `xxitlqjgmfqxesqiuouk` if it still exists.
+- Demo ad videos and video-costing numbers still to come from the client (pricing untouched).
+
+## Next steps
+
+1. Get the three "Blocked on a human" items done, then click-test signed-in flows.
+2. Run one Dodo test-mode payment end to end.
+3. Drop real demo videos into `demoAds` in `src/app/page.tsx`.

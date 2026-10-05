@@ -21,10 +21,12 @@ import { errorMessage, logError } from "@/lib/errors";
 import { ApiError, apiErrorResponse } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
-type LoggerRouteCtx<T extends object = Record<string, never>> = T;
-type RouteHandler<T extends object = Record<string, never>> = (
+// Next's generated route types require every handler's second argument to carry `params`, even
+// on routes with no dynamic segment — hence the default.
+type DefaultRouteCtx = { params: Promise<Record<string, string>> };
+type RouteHandler<T extends object = DefaultRouteCtx> = (
   req: NextRequest,
-  ctx: LoggerRouteCtx<T>,
+  ctx: T,
 ) => Promise<NextResponse>;
 
 function timestamp() {
@@ -49,7 +51,7 @@ const DEFAULT_RATE_LIMIT = { limit: 120, windowMs: 60_000 };
  * @param scope   Human-readable name used in logs and error_logs.scope ("uploads.sign")
  * @param handler The actual async handler function.
  */
-export function withLogger<T extends object = object>(
+export function withLogger<T extends object = DefaultRouteCtx>(
   scope: string,
   handler: RouteHandler<T>,
   options?: { rateLimit?: { limit: number; windowMs: number } },

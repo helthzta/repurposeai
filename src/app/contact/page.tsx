@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import { ContactPageClient } from "./contact-client";
 
 export const metadata: Metadata = {
-  title: "Contact Us — Repurpose AI",
-  description: "Get in touch with the Repurpose AI team — plans, billing, or anything else.",
+  title: "Contact Us — Adiy AI",
+  description: "Get in touch with the Adiy AI team — plans, billing, or anything else.",
 };
 
 export default function ContactPage() {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CreditsPageClient } from "./credits-client";
 
 export const metadata: Metadata = {
-  title: "Credits — Repurpose AI",
+  title: "Credits — Adiy AI",
   description: "Manage your generation credits and upgrade your plan.",
 };
 

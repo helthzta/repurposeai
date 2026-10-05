@@ -5,7 +5,7 @@ import { getProjectDetail } from "@/lib/projects";
 import { ProjectVideosClient } from "./project-videos-client";
 
 export const metadata: Metadata = {
-  title: "Project — Repurpose AI",
+  title: "Project — Adiy AI",
   description: "All the commercials generated for this project.",
 };
 

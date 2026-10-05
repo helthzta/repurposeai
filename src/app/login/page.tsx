@@ -5,11 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { LoginPageClient } from "./login-client";
 
 export const metadata: Metadata = {
-  title: "Sign in — Repurpose AI",
-  description: "Sign in to Repurpose AI and start turning ads into cinematic AI commercials.",
+  title: "Sign in — Adiy AI",
+  description: "Sign in to Adiy AI and start turning ads into cinematic AI commercials.",
   openGraph: {
-    title: "Sign in — Repurpose AI",
-    description: "Sign in to Repurpose AI and start creating AI commercials.",
+    title: "Sign in — Adiy AI",
+    description: "Sign in to Adiy AI and start creating AI commercials.",
   },
 };
 

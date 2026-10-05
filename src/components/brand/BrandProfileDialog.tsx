@@ -28,26 +28,34 @@ async function uploadBrandImage(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brandProfileId, kind, filename: file.name }),
   });
-  if (!signRes.ok) throw new Error("Could not prepare image upload");
+  if (!signRes.ok) throw new Error(`Could not prepare the upload for "${file.name}"`);
   const { bucket, path, token } = await signRes.json();
 
   const supabase = createClient();
   const { error: uploadError } = await supabase.storage
     .from(bucket)
     .uploadToSignedUrl(path, token, file);
-  if (uploadError) throw uploadError;
+  if (uploadError) throw new Error(`"${file.name}" failed to upload: ${uploadError.message}`);
 
   const confirmRes = await fetch("/api/uploads/confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brandProfileId, kind, path, filename: file.name }),
   });
-  if (!confirmRes.ok) throw new Error("Could not save the image");
+  if (!confirmRes.ok) throw new Error(`"${file.name}" uploaded but could not be saved`);
   const { brandProfile } = await confirmRes.json();
   return brandProfile as BrandProfile;
 }
 
 const MAX_CONTEXT_IMAGES = 5;
+// Matches the brand-logos bucket's own file size limit — checked here so the user gets a clear
+// message up front instead of a failed save.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const tooLarge = (file: File) => {
+  if (file.size <= MAX_IMAGE_BYTES) return false;
+  toast.error(`"${file.name}" is over 10 MB`, { description: "Pick a smaller image." });
+  return true;
+};
 const MAX_BRAND_COLORS = 6;
 const DEFAULT_SWATCH = "#2563eb";
 const isHexColor = (value: string) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
@@ -94,6 +102,7 @@ export function BrandProfileDialog({
   const totalContextImages = existingContextImages.length + contextImageFiles.length;
 
   const handleLogoChange = (file: File | null) => {
+    if (file && tooLarge(file)) return;
     setLogoFile(file);
     setLogoPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev);
@@ -108,7 +117,8 @@ export function BrandProfileDialog({
       toast.error(`Up to ${MAX_CONTEXT_IMAGES} context images`);
       return;
     }
-    setContextImageFiles((prev) => [...prev, ...Array.from(files).slice(0, room)]);
+    const accepted = Array.from(files).filter((file) => !tooLarge(file));
+    setContextImageFiles((prev) => [...prev, ...accepted.slice(0, room)]);
   };
 
   const handleColorAdded = (hex: string) => {
@@ -171,17 +181,25 @@ export function BrandProfileDialog({
           body: JSON.stringify(payload),
         },
       );
-      if (!res.ok) throw new Error("Could not save the brand profile");
-      let { brandProfile } = await res.json();
+      const saved = await res.json();
+      if (!res.ok) throw new Error(saved.error ?? "Could not save the brand profile");
+      let { brandProfile } = saved;
 
-      if (logoFile) {
-        brandProfile = await uploadBrandImage(brandProfile.id, "logo", logoFile);
+      // The profile row itself is saved at this point. An image failing afterwards must not look
+      // like nothing was saved — retrying would then create a second, duplicate profile.
+      try {
+        if (logoFile) {
+          brandProfile = await uploadBrandImage(brandProfile.id, "logo", logoFile);
+        }
+        for (const file of contextImageFiles) {
+          brandProfile = await uploadBrandImage(brandProfile.id, "context_image", file);
+        }
+        toast.success(editing ? "Brand profile updated" : "Brand profile created");
+      } catch (err) {
+        toast.warning("Brand profile saved, but an image didn't upload", {
+          description: `${err instanceof Error ? err.message : "Upload failed"} — edit the profile to add it again.`,
+        });
       }
-      for (const file of contextImageFiles) {
-        brandProfile = await uploadBrandImage(brandProfile.id, "context_image", file);
-      }
-
-      toast.success(editing ? "Brand profile updated" : "Brand profile created");
       onSaved(brandProfile);
       onOpenChange(false);
     } catch (err) {

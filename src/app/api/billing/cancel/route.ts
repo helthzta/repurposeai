@@ -4,15 +4,11 @@ import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Cancel the user's current paid plan subscription.
+ * Cancels the user's current paid plan.
  *
- * Since billing is one-time payment (not a Dodo Subscription), "cancellation" means:
- * - Clear plan_period_end and plan_grace_end so the expire-subscriptions Edge Function
- *   will NOT renew on the next billing cycle check.
- * - The user keeps their current plan + credits until the grace period would have ended
- *   (we immediately downgrade them to 'free' here for clarity).
- *
- * No refund is issued — the current period's payment has already cleared.
+ * Billing is a one-time payment per 30-day period (not a Dodo Subscription), so there is nothing
+ * to cancel on Dodo's side and nothing auto-renews. Cancelling moves the account to 'free' right
+ * away and clears the period dates; the remaining credits stay. No refund is issued.
  */
 export const POST = withLogger("billing.cancel", async () => {
   const { supabase, user } = await requireUser();
@@ -20,17 +16,10 @@ export const POST = withLogger("billing.cancel", async () => {
   // Verify the user has an active paid plan to cancel
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("plan, is_admin")
+    .select("plan, credits_balance")
     .eq("id", user.id)
     .single();
   if (profileError) throw profileError;
-
-  if (profile.is_admin) {
-    return NextResponse.json(
-      { error: "Admin accounts do not have a subscription to cancel." },
-      { status: 400 },
-    );
-  }
 
   if (profile.plan === "free") {
     return NextResponse.json(
@@ -52,13 +41,17 @@ export const POST = withLogger("billing.cancel", async () => {
 
   if (updateError) throw updateError;
 
-  // Log the cancellation in credit transactions for auditability
-  await admin.from("credit_transactions").insert({
+  // Zero-amount ledger row so the cancellation shows in the user's activity and the admin view.
+  const { error: ledgerError } = await admin.from("credit_transactions").insert({
     user_id: user.id,
     amount: 0,
     reason: "subscription_cancelled",
-    balance_after: null,
-  }).select().maybeSingle();
+    balance_after: profile.credits_balance,
+  });
+  if (ledgerError) throw ledgerError;
 
-  return NextResponse.json({ success: true, message: "Subscription cancelled. You have been moved to the free plan." });
+  return NextResponse.json({
+    success: true,
+    message: "Subscription cancelled. You have been moved to the free plan.",
+  });
 });

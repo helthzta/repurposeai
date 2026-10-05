@@ -94,7 +94,11 @@ visual direction), scene descriptions, emotional direction, a CTA, an estimated 
 ISO 639-1 language code the script is written in.`;
 }
 
-export function scriptIdeasPrompt(analysis: VideoAnalysis, brand: BrandProfile, repurposeOnly = false) {
+export function scriptIdeasPrompt(
+  analysis: VideoAnalysis,
+  brand: BrandProfile,
+  repurposeOnly = false,
+) {
   if (repurposeOnly) {
     return `You analyzed a video with this viral breakdown:
 ${JSON.stringify(analysis, null, 2)}
@@ -165,8 +169,16 @@ ${toneNote(analysis)}
 
 ${languageInstruction(language)}
 
-Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
-entirely for this brand — never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.
+${
+  idea.style === "reclone"
+    ? `This is a RECLONE: rebuild the original ad shot for shot. Keep the same number of scenes in the same order,
+the same pacing and timing proportions, the same shot types, camera angles and movements, and the same
+emotional beat in each scene, exactly as the analysis describes them. Change ONLY what belongs to the original
+brand — its products, props, packaging, logo, on-screen text and spoken brand/product names — and swap in this
+brand's equivalents. Do not invent a new scenario, new characters' roles, or a new story.`
+    : `Reuse the viral factor and structure from the analysis — the hook shape, the pain-to-relief arc — but rewrite it
+entirely for this brand.`
+} Never mention the original brand or reuse its exact wording. Pick your own CTA; don't ask the user for one.
 
 "body" is fed directly into an AI video generator as its shot-by-shot prompt AND shown verbatim in a plain-text
 editor, so write it in this EXACT structure — precision here is what determines shot quality, continuity, and
@@ -249,6 +261,10 @@ export function videoPrompt(params: {
       : `${cameraStyle} style`;
   return `Cinematic ${aspectRatio} commercial for ${brand.brand_name ?? "the brand"}, ${durationSeconds}s,
 ${quality} quality, shot in ${styleDescription}. Brand colors: ${brand.brand_colors?.join(", ") ?? "brand default"}.
+Anatomy: every person has exactly two arms and two hands with five fingers each — no extra, duplicated,
+merged or floating hands, and hand movements stay natural and continuous across cuts.
+Voice: each character keeps one voice, one language and one accent for the whole video — never switch
+language or accent between scenes or after a cut.
 Based on this script:
 ${scriptBody}`;
 }

@@ -174,7 +174,7 @@ export interface Profile {
   username: string;
   full_name: string | null;
   avatar_url: string | null;
-  plan: "starter" | "pro" | "custom";
+  plan: "free" | "starter" | "pro" | "custom";
   credits_balance: number;
   is_admin: boolean;
 }

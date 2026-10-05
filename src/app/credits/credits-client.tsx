@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  Loader2,
-  ShieldCheck,
-  XCircle,
-  Zap,
-} from "lucide-react";
+import { AlertTriangle, Loader2, ShieldCheck, XCircle, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
@@ -144,8 +138,8 @@ export function CreditsPageClient() {
                   )}
                 </p>
                 <p className="text-sm capitalize text-muted-foreground">
-                  {isAdmin ? "Unlimited access for testing" : `${plan} plan`}
-                  {planGraceEnd && hasActivePaidPlan && !isAdmin && (
+                  {isAdmin ? `Unlimited generations · ${plan} plan` : `${plan} plan`}
+                  {planGraceEnd && hasActivePaidPlan && (
                     <span className={isPastGrace ? "text-destructive" : ""}>
                       {" · "}
                       {isPastGrace ? "renewal overdue" : "renews by"}{" "}
@@ -163,8 +157,8 @@ export function CreditsPageClient() {
           </div>
         </div>
 
-        {/* Admin banner — skip payment plans entirely */}
-        {isAdmin ? (
+        {/* Admins generate for free, but still see the plans below so checkout can be tested */}
+        {isAdmin && (
           <div className="rounded-3xl border border-primary/30 bg-accent/40 p-6 shadow-card sm:p-8">
             <div className="flex items-center gap-4">
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl gradient-primary shadow-card">
@@ -173,141 +167,139 @@ export function CreditsPageClient() {
               <div>
                 <h3 className="text-[15px] font-bold">Admin — Full Access</h3>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Admin accounts bypass payment plans and credit limits. You can generate and test
-                  all features freely. Use the{" "}
+                  Admin generations are never charged. The plans below still work for you, so you
+                  can test checkout and cancellation. Use the{" "}
                   <Link href="/admin" className="font-semibold text-primary hover:underline">
                     Admin Dashboard
                   </Link>{" "}
-                  to manage users, plans, and credits.
+                  to change any user&apos;s credits or plan.
                 </p>
               </div>
             </div>
           </div>
-        ) : (
-          /* Payment plans — users only */
-          <>
-            <div className="grid gap-5 md:grid-cols-3">
-              {PLANS.map((p) => {
-                const isCustom = p.planKey === null;
-                const isCurrent = p.planKey !== null && p.planKey === plan;
-                return (
-                  <div
-                    key={p.name}
-                    className="hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card"
-                  >
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-bold">{p.name}</h3>
-                      {isCurrent && (
-                        <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-accent-foreground">
-                          Current
-                        </span>
-                      )}
-                    </div>
-                    {isCustom ? (
-                      <p className="mt-1 text-xs font-medium text-muted-foreground">
-                        Tailored to your volume
-                      </p>
-                    ) : (
-                      <p className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-xl font-extrabold tracking-tight">{p.price}</span>
-                        <span className="text-xs font-medium text-muted-foreground">
-                          / 30-day period
-                        </span>
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs font-medium text-muted-foreground">
-                      {p.credits ?? "Custom credit allotment"}
-                    </p>
-                    <ul className="mt-5 flex-1 space-y-2.5">
-                      {p.features.map((f) => (
-                        <li key={f} className="text-sm text-muted-foreground">
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    {isCustom ? (
-                      <Button asChild variant="outline" className="mt-6 rounded-xl font-semibold">
-                        <Link href="/contact?plan=Custom">Contact Us</Link>
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="mt-6 rounded-xl font-semibold"
-                        disabled={checkingOutPlan !== null}
-                        onClick={() => handleCheckout(p.planKey)}
-                      >
-                        {checkingOutPlan === p.planKey ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : isCurrent ? (
-                          "Renew"
-                        ) : (
-                          `Choose ${p.name}`
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        )}
 
-            {/* Cancel subscription — only shown when user has an active paid plan */}
-            {hasActivePaidPlan && (
-              <div className="rounded-3xl border border-destructive/20 bg-card p-6 shadow-card">
-                <div className="flex items-start gap-4">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-destructive/10">
-                    <XCircle className="h-5 w-5 text-destructive" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-[15px] font-bold">Cancel Subscription</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Cancelling will immediately move your account to the free plan. Your current
-                      credits will remain but no further renewals will occur.
-                    </p>
-                    {!showCancelConfirm ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-4 rounded-xl border-destructive/30 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => setShowCancelConfirm(true)}
-                      >
-                        Cancel {plan.charAt(0).toUpperCase() + plan.slice(1)} Plan
-                      </Button>
-                    ) : (
-                      <div className="mt-4 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                        <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
-                        <p className="flex-1 text-xs font-medium text-destructive">
-                          Are you sure? This cannot be undone. You'll be moved to the free plan immediately.
-                        </p>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="rounded-lg text-xs"
-                            onClick={() => setShowCancelConfirm(false)}
-                            disabled={cancelling}
-                          >
-                            Keep Plan
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="rounded-lg bg-destructive text-xs font-semibold text-destructive-foreground hover:bg-destructive/90"
-                            onClick={handleCancelSubscription}
-                            disabled={cancelling}
-                          >
-                            {cancelling ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : null}
-                            Yes, Cancel
-                          </Button>
-                        </div>
-                      </div>
+        <>
+          <div className="grid gap-5 md:grid-cols-3">
+            {PLANS.map((p) => {
+              const isCustom = p.planKey === null;
+              const isCurrent = p.planKey !== null && p.planKey === plan;
+              return (
+                <div
+                  key={p.name}
+                  className="hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card"
+                >
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[15px] font-bold">{p.name}</h3>
+                    {isCurrent && (
+                      <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-accent-foreground">
+                        Current
+                      </span>
                     )}
                   </div>
+                  {isCustom ? (
+                    <p className="mt-1 text-xs font-medium text-muted-foreground">
+                      Tailored to your volume
+                    </p>
+                  ) : (
+                    <p className="mt-1 flex items-baseline gap-1.5">
+                      <span className="text-xl font-extrabold tracking-tight">{p.price}</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        / 30-day period
+                      </span>
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">
+                    {p.credits ?? "Custom credit allotment"}
+                  </p>
+                  <ul className="mt-5 flex-1 space-y-2.5">
+                    {p.features.map((f) => (
+                      <li key={f} className="text-sm text-muted-foreground">
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  {isCustom ? (
+                    <Button asChild variant="outline" className="mt-6 rounded-xl font-semibold">
+                      <Link href="/contact?plan=Custom">Contact Us</Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="mt-6 rounded-xl font-semibold"
+                      disabled={checkingOutPlan !== null}
+                      onClick={() => handleCheckout(p.planKey)}
+                    >
+                      {checkingOutPlan === p.planKey ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : isCurrent ? (
+                        "Renew"
+                      ) : (
+                        `Choose ${p.name}`
+                      )}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Cancel subscription — only shown when user has an active paid plan */}
+          {hasActivePaidPlan && (
+            <div className="rounded-3xl border border-destructive/20 bg-card p-6 shadow-card">
+              <div className="flex items-start gap-4">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-destructive/10">
+                  <XCircle className="h-5 w-5 text-destructive" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-[15px] font-bold">Cancel Subscription</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Cancelling will immediately move your account to the free plan. Your current
+                    credits will remain but no further renewals will occur.
+                  </p>
+                  {!showCancelConfirm ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4 rounded-xl border-destructive/30 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setShowCancelConfirm(true)}
+                    >
+                      Cancel {plan.charAt(0).toUpperCase() + plan.slice(1)} Plan
+                    </Button>
+                  ) : (
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+                      <p className="flex-1 text-xs font-medium text-destructive">
+                        Are you sure? This cannot be undone. You&apos;ll be moved to the free plan
+                        immediately.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-lg text-xs"
+                          onClick={() => setShowCancelConfirm(false)}
+                          disabled={cancelling}
+                        >
+                          Keep Plan
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="rounded-lg bg-destructive text-xs font-semibold text-destructive-foreground hover:bg-destructive/90"
+                          onClick={handleCancelSubscription}
+                          disabled={cancelling}
+                        >
+                          {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                          Yes, Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </>
 
         {/* Recent activity */}
         <div className="rounded-3xl border bg-card p-6 shadow-card">
