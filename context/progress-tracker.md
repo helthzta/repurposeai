@@ -20,6 +20,13 @@ any signed-in flow (generation, brand save, admin controls, checkout, cancel).
 to `gemini-3.7-flash` and `gemini-3.5-flash-lite`. Default model is now `gemini-3.8-flash`
 (`gemini-2.5-flash` 404s on this key). `tsc`/eslint clean; fallback path not yet seen firing live.
 
+2026-10-13: Visual Quality picker is now 480p / 720p / HD 1080p (`standard`/`high`/`ultra`, D-030
+updated); labels + picker only, no provider/rate/schema change. `tsc` clean, lint unchanged (1
+pre-existing error). Not click-tested signed-in. Native 30s re-confirmed against OpenRouter's
+`/api/v1/videos/models` (2.5: 4–30s); no clip-merging code is left in `src/`. 15s HD 1080p now
+routes to `bytedance/seedance-2.0` at real 1080p (30s HD 1080p still 720p) — no live render run,
+and `CREDIT_RATE_15S.ultra` (0.6) was not repriced for the costlier model: needs a number.
+
 ## Blocked on a human
 
 Done 2026-10-06 (verified live): `0003` applied; `dodo-webhook` deployed (`verify_jwt: false`);

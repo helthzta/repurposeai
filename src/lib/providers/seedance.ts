@@ -7,21 +7,23 @@ const OPENROUTER_API = "https://openrouter.ai/api/v1";
 // supports native 30s (verified against OpenRouter's /api/v1/videos/models: supported_durations
 // is 4-30 for 2.5, 4-15 for 2.0-fast). 30 stays the fallback for any duration that isn't
 // exactly 15, matching maxClipDurationSeconds below.
-function modelFor(durationSeconds: number) {
-  return durationSeconds === 15 ? "bytedance/seedance-2.0-fast" : "bytedance/seedance-2.5";
+// Exception: 15s "ultra" goes to seedance-2.0 (non-fast), the only one of the three with a real
+// 1080p tier (supported_resolutions 480p/720p/1080p/4K, durations 4-15).
+function modelFor(durationSeconds: number, quality: SubmitParams["quality"]) {
+  if (durationSeconds !== 15) return "bytedance/seedance-2.5";
+  return quality === "ultra" ? "bytedance/seedance-2.0" : "bytedance/seedance-2.0-fast";
 }
 
-// The model only exposes two resolution tiers; "ultra" shares the "high" ceiling.
-// ponytail: no 1080p tier exists on this model yet, ceiling is 720p.
-const RESOLUTION_BY_QUALITY: Record<SubmitParams["quality"], "480p" | "720p"> = {
-  standard: "480p",
-  high: "720p",
-  ultra: "720p",
-};
+// ponytail: 2.5 has no 1080p tier, so a 30s "ultra" still renders 720p; switch it here when
+// a 30s-capable model gains 1080p.
+function resolutionFor(durationSeconds: number, quality: SubmitParams["quality"]) {
+  if (quality === "standard") return "480p";
+  return quality === "ultra" && durationSeconds === 15 ? "1080p" : "720p";
+}
 
 /**
- * Seedance via OpenRouter's video generation API — 2.0-fast for 15s clips, 2.5 for 30s
- * (see modelFor above) — https://openrouter.ai/docs/guides/overview/multimodal/video-generation
+ * Seedance via OpenRouter's video generation API — 2.0-fast for 15s clips (2.0 for 15s
+ * 1080p), 2.5 for 30s (see modelFor above) — https://openrouter.ai/docs/guides/overview/multimodal/video-generation
  */
 class SeedanceProvider implements VideoProvider {
   // Seedance 2.5 (the 30s model) supports native clips up to 30s in a single call; 2.0-fast (the
@@ -66,10 +68,10 @@ class SeedanceProvider implements VideoProvider {
       method: "POST",
       headers: { ...this.authHeader, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: modelFor(params.durationSeconds),
+        model: modelFor(params.durationSeconds, params.quality),
         prompt: params.prompt,
         duration: params.durationSeconds,
-        resolution: RESOLUTION_BY_QUALITY[params.quality],
+        resolution: resolutionFor(params.durationSeconds, params.quality),
         aspect_ratio: params.aspectRatio,
       }),
     });

@@ -58,7 +58,7 @@ This key powers video analysis (Step 2), script generation/editing (Steps 3–4)
 
 - Set `OPENROUTER_API_KEY` from your [OpenRouter dashboard](https://openrouter.ai/settings/keys).
 - Until then, leave `MOCK_PROVIDERS=true` — generation requests will "complete" instantly with no real video, so you can exercise the entire upload → analyze → script → generate → result flow today.
-- **Model limits that shape the app's UI**: only 480p/720p resolution tiers (`standard` quality maps to 480p, `high`/`ultra` both map to 720p — there's no 1080p tier on this model).
+- **Model limits that shape the app's UI**: `standard` quality renders 480p and `high` 720p. `ultra` ("HD 1080p") renders real 1080p for 15s clips only, by routing to `bytedance/seedance-2.0`; 30s runs on 2.5, which has no 1080p tier, so it stays 720p.
 - **No chaining**: Seedance 2.5 renders up to 30s natively in a single OpenRouter call (`SeedanceProvider.maxClipDurationSeconds = 30`), which covers both durations the app requests (15s/30s). There's no clip-stitching path in this codebase at all anymore (removed in migration `0018_remove_generation_chaining.sql`) — `generation.ts` just rejects a request outright if `durationSeconds` exceeds the provider's `maxClipDurationSeconds`, it doesn't split and stitch.
 - To add a second real provider later, implement the `VideoProvider` interface (see `src/lib/providers/higgsfield.ts` for the current stub) and register it in `src/lib/providers/index.ts`. Set `maxClipDurationSeconds` accurately — that's the ceiling `generation.ts` enforces for it.
 

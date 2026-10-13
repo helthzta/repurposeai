@@ -203,6 +203,7 @@ export function GenerateStep({
             options={[
               { value: "standard", label: QUALITY_LABELS.standard },
               { value: "high", label: QUALITY_LABELS.high },
+              { value: "ultra", label: QUALITY_LABELS.ultra },
             ]}
           />
           <OptionGroup
