@@ -1,38 +1,41 @@
 <!-- Overwrite this entire file at the end of every session. Do not append —
 replace. One current snapshot of where work stands right now. -->
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-06_
 
 ## Status
 
-Worked through client feedback items 5–15. Code changes are done on branch
-`fix/client-feedback-round-2` (uncommitted — not asked to commit). Details and what is
-verified vs. not are in `progress-tracker.md`; rules in `learned-rules.md` R-060–R-065.
+Client feedback round 2 is merged to `main` (PR #1). This session was the production rollout
+on Supabase project `xvtkjkvxjxsbeispjlrh`, half finished:
 
-Already satisfied before this session: 50-credit signup bonus (live in DB), landing pricing
-section, landing "Any Viral Ad" headline, reclone copyright clause (section 24A), credit
-top-up opening in a new tab so the generation page survives.
+- Done, verified live: migration `0003` applied (`scripts.style` accepts `reclone`);
+  `dodo-webhook` Edge Function deployed (`verify_jwt: false`).
+- Not done: migration `0004`, `expire-subscriptions` deploy, cron repoint, function secrets.
 
 ## Current branch
 
-`fix/client-feedback-round-2`, uncommitted. New files: `src/lib/credit-ledger.ts`,
-`supabase/migrations/0003_reclone_script_style.sql`, `0004_lock_down_spend_credits.sql`,
-`.mcp.json` (project-scoped Supabase MCP server).
+`main`, only `context/` files changed (uncommitted).
 
 ## Blockers
 
-Three production actions need the account holder (see `progress-tracker.md` "Blocked on a
-human"): apply 0003, deploy then apply 0004, deploy the two Edge Functions + webhook secret.
-Applying migrations from the agent session was blocked by the permission classifier.
+The permission classifier denied `apply_migration` for `0004` and the `expire-subscriptions`
+deploy; neither was retried by another route. The account holder has to run them or add
+permission rules for `mcp__supabase__apply_migration` / `mcp__supabase__deploy_edge_function`.
+`spend_credits` is still executable by `anon` — the credit-granting hole is open.
+Full list in `progress-tracker.md` "Blocked on a human".
 
 ## Drift flagged
 
 - `context/project-overview.md` still calls the product "Repurpose AI"; the app is "Adiy AI".
-- `architecture.md`/`decision-log.md` describe Edge Functions as deployed — none are on the
-  current project.
-- `list_migrations` is empty on the live project although the schema is present (R-024 again).
+- `architecture.md`/`decision-log.md` describe both Edge Functions as deployed — only
+  `dodo-webhook` is.
+- `0001_baseline.sql`'s cron block and the live cron job still name the old project
+  (`xxitlqjgmfqxesqiuouk`).
+- Not known whether the hosted app runs the merged build (`NEXT_PUBLIC_SITE_URL` is localhost
+  in `.env`); `0004` depends on it.
 
 ## First action next session
 
-Confirm the three production actions happened, then click-test: Recreated script, brand save
-with a non-English filename, admin free generation, admin credit/plan controls, cancel.
+Confirm `0004`, `expire-subscriptions`, the cron repoint and the Dodo secrets are in place,
+then click-test: Recreated script, brand save with a non-English filename, admin free
+generation, admin credit/plan controls, cancel.

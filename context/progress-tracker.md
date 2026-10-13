@@ -5,7 +5,7 @@ _Last updated: 2026-10-05_
 
 ## Current phase
 
-Client feedback round 2 (items 5–15), on branch `fix/client-feedback-round-2`, uncommitted.
+Client feedback round 2 (items 5–15), merged to `main` (PR #1); production rollout in progress.
 Code-complete for: Adiy AI rename, viral-ad wording, reclone script + idea-card order/labels,
 admin free generations + admin credit/plan controls, cancel-route audit row, upload filename
 sanitizing + brand-dialog error handling, video-prompt hand/voice rules, landing demo-ads
@@ -15,14 +15,30 @@ Verified: `tsc --noEmit` 0 errors; `npm run lint` 1 error (generated `next-env.d
 public pages + unauthenticated API responses smoke-tested on a dev server. **Not** verified:
 any signed-in flow (generation, brand save, admin controls, checkout, cancel).
 
+2026-10-13: every Gemini `generateContent` call now goes through `generate()` in
+`src/lib/ai/gemini.ts`, which on a 503 UNAVAILABLE (model overloaded) retries `GEMINI_MODEL` once, then falls through
+to `gemini-3.7-flash` and `gemini-3.5-flash-lite`. Default model is now `gemini-3.8-flash`
+(`gemini-2.5-flash` 404s on this key). `tsc`/eslint clean; fallback path not yet seen firing live.
+
 ## Blocked on a human
 
-1. Apply `0003_reclone_script_style.sql` to the live DB — until then, writing a Recreated
-   script fails on the `scripts_style_check` constraint.
-2. Deploy this branch, THEN apply `0004_lock_down_spend_credits.sql` (order matters — older
-   builds call the RPC with the user's client). Until applied, anyone can grant credits.
-3. Deploy `dodo-webhook` + `expire-subscriptions` to project `xvtkjkvxjxsbeispjlrh`, set
-   `DODO_PAYMENTS_WEBHOOK_KEY`, check the cron job's URL (R-065). Payments cannot work before this.
+Done 2026-10-06 (verified live): `0003` applied; `dodo-webhook` deployed (`verify_jwt: false`);
+`DODO_PAYMENTS_WEBHOOK_KEY` secret set.
+
+0. Redeploy `dodo-webhook` from the repo — the live version 500s on every request (SDK
+   constructor throws without a `bearerToken`); fixed in `supabase/functions/dodo-webhook/index.ts`,
+   uncommitted, redeploy denied to the agent. Expect 401 "Invalid signature" on an unsigned POST.
+
+1. Apply `0004_lock_down_spend_credits.sql` — agent's attempt was denied by the permission
+   classifier. Production must be on the merged main build first (older builds call the RPC
+   with the user's client). Until applied, anyone can grant credits (`anon` can still execute).
+2. Deploy `expire-subscriptions` (`verify_jwt: true`) — also denied to the agent. Then repoint
+   the `expire-subscriptions` cron job: it still posts to `xxitlqjgmfqxesqiuouk` with that
+   project's anon key (R-065).
+3. Set Edge Function secrets `DODO_PAYMENTS_WEBHOOK_KEY`, `DODO_STARTER_PRODUCT_ID`,
+   `DODO_PRO_PRODUCT_ID`, and register
+   `https://xvtkjkvxjxsbeispjlrh.supabase.co/functions/v1/dodo-webhook` in the Dodo dashboard
+   (`payment.succeeded`). Payments cannot work before this.
 
 ## Open questions
 

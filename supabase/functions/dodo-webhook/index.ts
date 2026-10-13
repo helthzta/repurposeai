@@ -55,7 +55,9 @@ Deno.serve(async (req: Request) => {
     return new Response("Not configured", { status: 500 });
   }
 
-  const dodo = new DodoPayments({ webhookKey });
+  // The SDK constructor throws without a bearerToken even though unwrap() only needs the
+  // webhook key; this function never calls the Dodo API, so a placeholder is enough.
+  const dodo = new DodoPayments({ bearerToken: "unused", webhookKey });
   let event;
   try {
     event = dodo.webhooks.unwrap(rawBody, {

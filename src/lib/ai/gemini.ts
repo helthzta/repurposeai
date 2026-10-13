@@ -5,6 +5,7 @@ import {
   GoogleGenAI,
   Type,
 } from "@google/genai";
+import type { GenerateContentParameters } from "@google/genai";
 import type {
   AiInsights,
   BrandProfile,
@@ -23,7 +24,7 @@ import {
   scorePrompt,
 } from "./prompts";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 let client: GoogleGenAI | null = null;
 function ai() {
@@ -35,6 +36,26 @@ function ai() {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Gemini answers 503 UNAVAILABLE ("model is experiencing high demand") when one model is
+// overloaded, and that can last minutes — so retry the configured model once, then fall through
+// to other models rather than waiting it out. Only 503: a 429 is the quota cap and a 404 is a bad
+// model name, neither is fixed by trying again.
+// ponytail: hardcoded fallback list, last entry is a lower-quality lite model kept as a last
+// resort. Model ids get retired — re-check against ListModels if these start returning 404.
+const FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-3.5-flash-lite"];
+const MODEL_CHAIN = [MODEL, MODEL, ...FALLBACK_MODELS.filter((model) => model !== MODEL)];
+async function generate(params: GenerateContentParameters) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await ai().models.generateContent({ ...params, model: MODEL_CHAIN[attempt] });
+    } catch (error) {
+      const isLast = attempt === MODEL_CHAIN.length - 1;
+      if ((error as { status?: number }).status !== 503 || isLast) throw error;
+      await sleep(1000);
+    }
+  }
+}
 
 const MAX_IMAGE_BYTES = 5_000_000;
 const IMAGE_FETCH_TIMEOUT_MS = 8000;
@@ -145,7 +166,7 @@ export async function analyzeVideo(bytes: Buffer, mimeType: string): Promise<Ana
   if (file.state !== "ACTIVE")
     throw new Error(`Gemini file processing did not complete (state: ${file.state})`);
 
-  const response = await client.models.generateContent({
+  const response = await generate({
     model: MODEL,
     contents: createUserContent([
       createPartFromUri(file.uri!, file.mimeType!),
@@ -200,8 +221,7 @@ export async function generateScripts(
   analysis: VideoAnalysis,
   brand: BrandProfile,
 ): Promise<GeneratedScript[]> {
-  const client = ai();
-  const response = await client.models.generateContent({
+  const response = await generate({
     model: MODEL,
     contents: await scriptContents(scriptGenerationPrompt(analysis, brand), brand),
     config: {
@@ -235,8 +255,6 @@ export async function generateScriptIdeas(
   brand: BrandProfile,
   keepRecloneIdea?: ScriptIdea | null,
 ): Promise<ScriptIdea[]> {
-  const client = ai();
-
   if (keepRecloneIdea) {
     // Only regenerate the 2 repurposed ideas, preserving the existing reclone.
     const repurposedSchema = {
@@ -245,7 +263,7 @@ export async function generateScriptIdeas(
       minItems: 2,
       maxItems: 2,
     };
-    const response = await client.models.generateContent({
+    const response = await generate({
       model: MODEL,
       contents: await scriptContents(scriptIdeasPrompt(analysis, brand, true), brand),
       config: { responseMimeType: "application/json", responseSchema: repurposedSchema },
@@ -257,7 +275,7 @@ export async function generateScriptIdeas(
   }
 
   // Initial generation: 2 repurposed + 1 reclone
-  const response = await client.models.generateContent({
+  const response = await generate({
     model: MODEL,
     contents: await scriptContents(scriptIdeasPrompt(analysis, brand, false), brand),
     config: {
@@ -280,8 +298,7 @@ export async function generateMasterScript(
   durationSeconds: 15 | 30,
   options?: { language?: ScriptLanguage; subtitles?: boolean },
 ): Promise<GeneratedScript> {
-  const client = ai();
-  const response = await client.models.generateContent({
+  const response = await generate({
     model: MODEL,
     contents: await scriptContents(
       masterScriptPrompt(analysis, brand, idea, durationSeconds, options),
@@ -297,8 +314,7 @@ export async function generateMasterScript(
 }
 
 export async function editScript(currentBody: string, instruction: string): Promise<string> {
-  const client = ai();
-  const response = await client.models.generateContent({
+  const response = await generate({
     model: MODEL,
     contents: scriptAssistPrompt(currentBody, instruction),
   });
@@ -329,8 +345,7 @@ export async function scoreGeneration(
   scriptBody: string,
   brand: BrandProfile,
 ): Promise<AiInsights> {
-  const client = ai();
-  const response = await client.models.generateContent({
+  const response = await generate({
     model: MODEL,
     contents: scorePrompt(scriptBody, brand),
     config: { responseMimeType: "application/json", responseSchema: INSIGHTS_SCHEMA },
