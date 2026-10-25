@@ -11,7 +11,6 @@ import {
   History,
   LayoutDashboard,
   Menu,
-  ShieldCheck,
   User,
   X,
   Zap,
@@ -20,6 +19,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useProfile } from "@/hooks/use-profile";
+import { PLAN_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -36,9 +36,8 @@ function useCurrentUser() {
   const profile = data?.profile;
   return {
     name: profile?.full_name || profile?.username || "",
-    plan: profile?.plan ?? "starter",
+    plan: profile?.plan ?? "free",
     credits: profile?.credits_balance ?? null,
-    isAdmin: !!profile?.is_admin,
     avatarUrl: profile?.avatar_url ?? null,
   };
 }
@@ -70,10 +69,7 @@ function Avatar({
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { name, plan, isAdmin, avatarUrl } = useCurrentUser();
-  const items = isAdmin
-    ? [...navItems, { title: "Admin", url: "/admin", icon: ShieldCheck }]
-    : navItems;
+  const { name, plan, avatarUrl } = useCurrentUser();
 
   return (
     <div className="flex h-full flex-col">
@@ -85,7 +81,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </Link>
 
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {items.map((item) => {
+        {navItems.map((item) => {
           const active = pathname === item.url || pathname.startsWith(`${item.url}/`);
           return (
             <Link
@@ -111,7 +107,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Avatar name={name} avatarUrl={avatarUrl} className="h-9 w-9 shrink-0 text-xs" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{name || "Loading…"}</p>
-            <p className="truncate text-xs capitalize text-muted-foreground">{plan} plan</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {plan === "free" ? "No active plan" : `${PLAN_LABELS[plan] ?? plan} plan`}
+            </p>
           </div>
         </div>
       </div>

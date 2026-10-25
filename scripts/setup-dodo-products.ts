@@ -1,20 +1,37 @@
 /**
- * One-time setup: creates the Starter/Pro one-time-payment Dodo Products (idempotently — safe to
- * re-run) and a webhook endpoint pointed at the deployed dodo-webhook Edge Function, then prints
- * exactly what to paste into .env.local and the one CLI command needed to finish setup.
+ * One-time setup (idempotent — safe to re-run): for every row in billing_plans, creates a Dodo
+ * subscription product with that row's price and interval and writes its id back to
+ * billing_plans.dodo_product_id. Then registers the dodo-webhook Edge Function as a webhook
+ * endpoint and prints the signing secret to set on the function.
  *
- * Usage:
- *   1. Add DODO_PAYMENTS_API_KEY (and DODO_PAYMENTS_ENVIRONMENT=test_mode) to .env.local
- *   2. npm run setup:dodo
+ * Prices come from the database, not this file — change billing_plans first, then re-run. An
+ * existing product is matched by name and left as is; Dodo prices are immutable on purpose, so a
+ * price change means a new product (rename or archive the old one in the Dodo dashboard first).
+ *
+ * Usage: DODO_PAYMENTS_API_KEY, DODO_PAYMENTS_ENVIRONMENT, NEXT_PUBLIC_SUPABASE_URL and
+ * SUPABASE_SERVICE_ROLE_KEY in .env / .env.local, then `npm run setup:dodo`.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
 import DodoPayments from "dodopayments";
-import { PLAN_CONFIG } from "../src/lib/payments/plans";
 
-const WEBHOOK_URL = "https://xxitlqjgmfqxesqiuouk.supabase.co/functions/v1/dodo-webhook";
+const PROJECT_REF = "xvtkjkvxjxsbeispjlrh";
+const WEBHOOK_URL = `https://${PROJECT_REF}.supabase.co/functions/v1/dodo-webhook`;
+const WEBHOOK_EVENTS = [
+  "payment.succeeded",
+  "payment.failed",
+  "refund.succeeded",
+  "subscription.active",
+  "subscription.renewed",
+  "subscription.updated",
+  "subscription.plan_changed",
+  "subscription.on_hold",
+  "subscription.cancelled",
+  "subscription.expired",
+  "subscription.failed",
+] as const;
 
-// Minimal .env loader (no dependency) — .env.local wins over .env, matching Next.js's own
-// precedence, and never overwrites a var already set in the actual process environment.
+// Minimal .env loader — .env.local wins over .env, never overwrites the real environment.
 function loadEnvFile(path: string) {
   if (!existsSync(path)) return;
   for (const line of readFileSync(path, "utf8").split("\n")) {
@@ -25,100 +42,97 @@ function loadEnvFile(path: string) {
     process.env[key] = rawValue.replace(/^["']|["']$/g, "");
   }
 }
-loadEnvFile(".env");
 loadEnvFile(".env.local");
+loadEnvFile(".env");
 
-async function main() {
-  const apiKey = process.env.DODO_PAYMENTS_API_KEY;
-  if (!apiKey) {
-    console.error("Missing DODO_PAYMENTS_API_KEY — add it to .env.local and re-run.");
+function required(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`Missing ${name} — add it to .env.local and re-run.`);
     process.exit(1);
   }
+  return value;
+}
+
+async function main() {
   const environment =
     (process.env.DODO_PAYMENTS_ENVIRONMENT as "test_mode" | "live_mode" | undefined) ?? "test_mode";
-
-  const client = new DodoPayments({ bearerToken: apiKey, environment });
+  const dodo = new DodoPayments({ bearerToken: required("DODO_PAYMENTS_API_KEY"), environment });
+  const db = createClient(
+    required("NEXT_PUBLIC_SUPABASE_URL"),
+    required("SUPABASE_SERVICE_ROLE_KEY"),
+  );
   console.log(`Using Dodo ${environment}...\n`);
 
-  const productIds: Record<string, string> = {};
+  const { data: plans, error } = await db.from("billing_plans").select("*").order("sort_order");
+  if (error) throw error;
 
-  for (const [key, plan] of Object.entries(PLAN_CONFIG)) {
-    const productName = `Repurpose AI — ${plan.name}`;
-
-    let existingId: string | null = null;
-    for await (const product of client.products.list()) {
-      if (product.name === productName) {
-        existingId = product.product_id;
-        break;
-      }
-    }
-
-    if (existingId) {
-      console.log(`✓ ${productName} already exists — ${existingId}`);
-      productIds[key] = existingId;
-      continue;
-    }
-
-    const created = await client.products.create({
-      name: productName,
-      tax_category: "saas",
-      price: {
-        type: "one_time_price",
-        currency: "USD",
-        price: plan.priceCents,
-        discount: 0,
-        purchasing_power_parity: false,
-      },
-    });
-    console.log(`+ created ${productName} — ${created.product_id}`);
-    productIds[key] = created.product_id;
+  const existing = new Map<string, string>();
+  for await (const product of dodo.products.list()) {
+    if (product.name) existing.set(product.name, product.product_id);
   }
 
-  let webhookSecret: string | null = null;
-  let existingWebhookId: string | null = null;
-  for await (const webhook of client.webhooks.list()) {
-    if (webhook.url === WEBHOOK_URL) {
-      existingWebhookId = webhook.id;
-      break;
+  for (const plan of plans ?? []) {
+    const interval = plan.billing_interval === "year" ? "Year" : "Month";
+    const productName = `Adiy AI — ${plan.name} (${plan.billing_interval === "year" ? "yearly" : "monthly"})`;
+    let productId = existing.get(productName);
+    if (productId) {
+      console.log(`✓ ${productName} already exists — ${productId}`);
+    } else {
+      const created = await dodo.products.create({
+        name: productName,
+        description: `${plan.credits_per_month} credits every month`,
+        tax_category: "saas",
+        price: {
+          type: "recurring_price",
+          currency: "USD",
+          price: plan.price_cents,
+          discount: 0,
+          purchasing_power_parity: false,
+          payment_frequency_count: 1,
+          payment_frequency_interval: interval,
+          // How long the subscription runs before it needs re-subscribing — effectively forever.
+          subscription_period_count: 10,
+          subscription_period_interval: "Year",
+        },
+      });
+      productId = created.product_id;
+      console.log(`+ created ${productName} — ${productId}`);
     }
+    const { error: updateError } = await db
+      .from("billing_plans")
+      .update({ dodo_product_id: productId })
+      .eq("id", plan.id);
+    if (updateError) throw updateError;
   }
 
-  if (existingWebhookId) {
-    console.log(`\n✓ Webhook endpoint already registered — ${existingWebhookId}`);
-    const secretResponse = await client.webhooks.retrieveSecret(existingWebhookId);
-    webhookSecret = secretResponse.secret ?? null;
+  let webhookId: string | null = null;
+  for await (const webhook of dodo.webhooks.list()) {
+    if (webhook.url === WEBHOOK_URL) webhookId = webhook.id;
+  }
+  if (webhookId) {
+    await dodo.webhooks.update(webhookId, { filter_types: [...WEBHOOK_EVENTS] });
+    console.log(`\n✓ Webhook endpoint already registered — ${webhookId} (event list updated)`);
   } else {
-    const webhook = await client.webhooks.create({
-      url: WEBHOOK_URL,
-      description: "Repurpose AI billing",
-      filter_types: ["payment.succeeded", "payment.failed"],
-    });
-    console.log(`\n+ registered webhook endpoint — ${webhook.id}`);
-    const secretResponse = await client.webhooks.retrieveSecret(webhook.id);
-    webhookSecret = secretResponse.secret ?? null;
+    webhookId = (
+      await dodo.webhooks.create({
+        url: WEBHOOK_URL,
+        description: "Adiy AI billing",
+        filter_types: [...WEBHOOK_EVENTS],
+      })
+    ).id;
+    console.log(`\n+ registered webhook endpoint — ${webhookId}`);
   }
+  const secret = (await dodo.webhooks.retrieveSecret(webhookId)).secret;
 
   console.log("\n──────────────────────────────────────────────────────────────");
-  console.log("Add these to .env.local:\n");
-  console.log(`DODO_STARTER_PRODUCT_ID=${productIds.starter}`);
-  console.log(`DODO_PRO_PRODUCT_ID=${productIds.pro}`);
-
-  if (webhookSecret) {
-    console.log(
-      "\nThen set the webhook signing secret on the Edge Function (this is the one value\n" +
-        "this script can't put in .env for you — it belongs to the deployed function, not\n" +
-        "the Next.js app) by running:\n",
-    );
-    console.log(
-      `supabase secrets set DODO_PAYMENTS_WEBHOOK_KEY=${webhookSecret} --project-ref xxitlqjgmfqxesqiuouk`,
-    );
-  } else {
-    console.log(
-      "\nCouldn't read the webhook secret via the API — open the endpoint in the Dodo\n" +
-        "dashboard (Developer → Webhooks) to copy it, then run:\n" +
-        "supabase secrets set DODO_PAYMENTS_WEBHOOK_KEY=<secret> --project-ref xxitlqjgmfqxesqiuouk",
-    );
-  }
+  console.log(
+    "billing_plans.dodo_product_id is filled in — checkout works once the app is deployed.",
+  );
+  console.log("Set the webhook signing secret on the Edge Function:\n");
+  console.log(
+    `supabase secrets set DODO_PAYMENTS_WEBHOOK_KEY=${secret ?? "<copy from Dodo dashboard>"} --project-ref ${PROJECT_REF}`,
+  );
   console.log("──────────────────────────────────────────────────────────────");
 }
 

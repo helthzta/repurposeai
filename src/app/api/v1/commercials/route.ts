@@ -3,7 +3,7 @@ import { analyzeVideo, generateScripts } from "@/lib/ai/gemini";
 import { ApiError, requireApiKey } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
-import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
+import { ASPECT_RATIOS, type AspectRatio, type VideoProviderName } from "@/lib/types";
 
 /**
  * Public integration endpoint: POST /api/v1/commercials
@@ -37,6 +37,9 @@ export const POST = withLogger(
         400,
         "source_video, brand, length, aspect_ratio and provider are required",
       );
+    }
+    if (!ASPECT_RATIOS.includes(aspectRatio)) {
+      throw new ApiError(400, `aspect_ratio must be one of ${ASPECT_RATIOS.join(", ")}`);
     }
 
     // v1 callers don't manage reusable brand profiles the dashboard does — each call gets its

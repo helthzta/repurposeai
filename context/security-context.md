@@ -68,6 +68,20 @@ src/lib/api-keys.ts, middleware.ts. This is a client project under NDA
   they never break the request.
 - Credit spend/refund is self-auditing: every `spend_credits` call inserts a
   `credit_transactions` row with the resulting balance (append-only ledger).
+- Admin actions (login success/failure/lockout, logout, credit and plan
+  changes, contact status) write `admin_audit_log` with admin id and IP;
+  visible at `/admin/activity` with the Dodo webhook delivery stream.
+
+### Admin console (D-035)
+- Separate identity from customers: `admin_users` (scrypt hashes, 5-failure
+  15-min lockout), `admin_sessions` (sha256 of a random token; cookie is
+  httpOnly, SameSite=Strict, Secure in prod, 8h), all three admin tables
+  RLS-on with no policies and privileges revoked from anon/authenticated.
+- Login: per-IP limit 5 / 15 min; unknown email and wrong password take the
+  same path and return the same 401.
+- Every admin page calls `requireAdminPage()`; every admin API calls
+  `requireAdmin(req)`, which also rejects mutations whose Origin isn't this
+  host. The middleware cookie check is a redirect convenience only.
 
 ## Standing findings
 
@@ -86,7 +100,10 @@ None tracked yet.
    `update` on `profiles`.
    App code calls it only via `src/lib/credit-ledger.ts` (service-role client) with a `userId`
    taken from the session, never from request input. `0004_lock_down_spend_credits.sql`
-   revokes EXECUTE from `anon`/`authenticated` — until that is applied live, the RPC is
-   publicly callable (anyone can grant credits to any account).
-5. New storage writes → path is `{user_id}/{project_id}/{filename}`, never
+   revokes EXECUTE from `anon`/`authenticated` (repeated in `0009`) — until one is applied
+   live, the RPC is publicly callable (anyone can grant credits to any account). Still open
+   as of 2026-10-25. `reset_credits`/`billing_sweep` (0005/0008) are service-role only.
+5. New admin page/route → `requireAdminPage()` / `requireAdmin(req)` + `audit()` for
+   any mutation.
+6. New storage writes → path is `{user_id}/{project_id}/{filename}`, never
    caller-supplied verbatim.

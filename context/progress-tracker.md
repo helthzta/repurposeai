@@ -1,64 +1,45 @@
 <!-- Soft cap ~50 lines. Completed work lives in git history, not here.
 Compact at the end of every session per CLAUDE.md ritual. -->
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-25_
 
 ## Current phase
 
-Client feedback round 2 (items 5–15), merged to `main` (PR #1); production rollout in progress.
-Code-complete for: Adiy AI rename, viral-ad wording, reclone script + idea-card order/labels,
-admin free generations + admin credit/plan controls, cancel-route audit row, upload filename
-sanitizing + brand-dialog error handling, video-prompt hand/voice rules, landing demo-ads
-placeholders + mobile admin link, credit ledger moved to service-role (R-060–R-064).
+Pricing / subscriptions / admin overhaul (brief items 6, 7, 7.1, 10–14 + admin), on branch
+`feat/subscriptions-pricing-admin`, uncommitted. Code-complete: 0 sign-up credits, DB-held pricing
+(D-034), Dodo subscriptions monthly + yearly with cancel-at-period-end (D-032), in-DB billing sweep
+(D-033), separate admin console with its own auth (D-035), Script page / 480p / 1:1 removed
+(D-036), landing redesign with pricing toggle + 3 demo videos, real provider cost tracking,
+`docs/generation-cost-note.md`.
 
-Verified: `tsc --noEmit` 0 errors; `npm run lint` 1 error (generated `next-env.d.ts`, pre-existing);
-public pages + unauthenticated API responses smoke-tested on a dev server. **Not** verified:
-any signed-in flow (generation, brand save, admin controls, checkout, cancel).
+Verified 2026-10-25: `tsc` clean (src + scripts), eslint 0 errors; `test:billing` 19/19;
+`scripts/test-webhook.ts` 17/17 against the live DB; `scripts/test-credit-deduction.ts` 8/8 via
+the real route on a MOCK_PROVIDERS dev server; admin login/lockout/CSRF/logout and all 10 admin
+pages smoke-tested; landing screenshotted at 1440 and 500 px.
 
-2026-10-13: every Gemini `generateContent` call now goes through `generate()` in
-`src/lib/ai/gemini.ts`, which on a 503 UNAVAILABLE (model overloaded) retries `GEMINI_MODEL` once, then falls through
-to `gemini-3.7-flash` and `gemini-3.5-flash-lite`. Default model is now `gemini-3.8-flash`
-(`gemini-2.5-flash` 404s on this key). `tsc`/eslint clean; fallback path not yet seen firing live.
-
-2026-10-13: Visual Quality picker is now 480p / 720p / HD 1080p (`standard`/`high`/`ultra`, D-030
-updated); labels + picker only, no provider/rate/schema change. `tsc` clean, lint unchanged (1
-pre-existing error). Not click-tested signed-in. Native 30s re-confirmed against OpenRouter's
-`/api/v1/videos/models` (2.5: 4–30s); no clip-merging code is left in `src/`. 15s HD 1080p now
-routes to `bytedance/seedance-2.0` at real 1080p (30s HD 1080p still 720p) — no live render run,
-and `CREDIT_RATE_15S.ultra` (0.6) was not repriced for the costlier model: needs a number.
+Applied live: migrations 0005–0008 (additive). Admin account `admin@adiy.ai` created.
 
 ## Blocked on a human
 
-Done 2026-10-06 (verified live): `0003` applied; `dodo-webhook` deployed (`verify_jwt: false`);
-`DODO_PAYMENTS_WEBHOOK_KEY` secret set.
-
-0. Redeploy `dodo-webhook` from the repo — the live version 500s on every request (SDK
-   constructor throws without a `bearerToken`); fixed in `supabase/functions/dodo-webhook/index.ts`,
-   uncommitted, redeploy denied to the agent. Expect 401 "Invalid signature" on an unsigned POST.
-
-1. Apply `0004_lock_down_spend_credits.sql` — agent's attempt was denied by the permission
-   classifier. Production must be on the merged main build first (older builds call the RPC
-   with the user's client). Until applied, anyone can grant credits (`anon` can still execute).
-2. Deploy `expire-subscriptions` (`verify_jwt: true`) — also denied to the agent. Then repoint
-   the `expire-subscriptions` cron job: it still posts to `xxitlqjgmfqxesqiuouk` with that
-   project's anon key (R-065).
-3. Set Edge Function secrets `DODO_PAYMENTS_WEBHOOK_KEY`, `DODO_STARTER_PRODUCT_ID`,
-   `DODO_PRO_PRODUCT_ID`, and register
-   `https://xvtkjkvxjxsbeispjlrh.supabase.co/functions/v1/dodo-webhook` in the Dodo dashboard
-   (`payment.succeeded`). Payments cannot work before this.
+1. Deploy `dodo-webhook` (+ `supabase/functions/_shared/`) — refused to the agent (R-068).
+   `supabase functions deploy dodo-webhook --no-verify-jwt --project-ref xvtkjkvxjxsbeispjlrh`.
+2. `npm run setup:dodo` — creates the 4 subscription products, fills
+   `billing_plans.dodo_product_id`, registers the webhook events, prints the secret to set.
+   Checkout returns 503 until this runs.
+3. Ship the app build (production builds from `helthzta/repurposeai`, see memory).
+4. After 3: apply `0009` (drops `profiles.is_admin`, removes 1:1, revokes `spend_credits` from
+   anon — the credit-granting hole is still open until then).
+5. One Dodo test-mode purchase + cancel end to end (needs 1–3).
 
 ## Open questions
 
-- Client asked for cancel on "monthly and yearly" plans — no yearly plan exists. Build one?
-- "Around 10 polish items" — no list was provided.
-- Idea-card labels: implemented as "Recreated" (first) / "Repurposed — …" with a small
-  "Regenerates" tag on cards 2–3; client's literal wording for those was "Regenerate".
-- HM Mollah's missing generations: consistent with the move to a new Supabase project; old
-  data would be in `xxitlqjgmfqxesqiuouk` if it still exists.
-- Demo ad videos and video-costing numbers still to come from the client (pricing untouched).
+- Pro yearly 30s 720p margin is ~6% at the sheet's cost ($7.38 vs $6.94); Start yearly 15s 720p
+  is a loss at the F10 cost ($1.07 vs $1.37). Re-price `credit_rates` once real costs accrue?
+- Existing 6 users kept their 50 sign-up credits — zero them?
+- Yearly toggle shows "Save 21%" (true saving after whole-dollar rounding); want it to say 20%?
+- Demo captions are neutral guesses — client to supply real titles/brands.
 
 ## Next steps
 
-1. Get the three "Blocked on a human" items done, then click-test signed-in flows.
-2. Run one Dodo test-mode payment end to end.
-3. Drop real demo videos into `demoAds` in `src/app/page.tsx`.
+1. Human items 1–4 above, then item 5.
+2. Watch admin → Generations "Real cost" vs "Est. cost" for a week; adjust `credit_rates`.

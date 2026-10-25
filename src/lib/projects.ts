@@ -86,13 +86,13 @@ export async function requireProjectBrand(
   return brand;
 }
 
-export type WorkflowPhase = "analysis" | "ideas" | "script" | "settings" | "generating" | "result";
+export type WorkflowPhase = "analysis" | "ideas" | "settings" | "generating" | "result";
 
 export interface WorkflowState {
   phase: WorkflowPhase;
-  /** The current script variants (15s and 30s) written for the picked idea — what the Ideas->Script hand-off shows. */
+  /** The current script variants (15s and 30s) written for the picked idea — the Settings step's length picker. */
   scripts: Script[];
-  /** Whichever of `scripts` is active/selected — used once past the Script step. */
+  /** Whichever of `scripts` is active/selected. */
   script: Script | null;
   generationId: string | null;
   /** Cached ideas so the Ideas step can resume without regenerating a different set. */
@@ -157,7 +157,7 @@ export function deriveWorkflowPhase(project: ProjectDetail): WorkflowState {
   const latest = generations[0];
   if (!latest) {
     return {
-      phase: "script",
+      phase: "settings",
       scripts,
       script,
       generationId: null,

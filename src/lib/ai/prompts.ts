@@ -225,17 +225,6 @@ Return "scene_descriptions" as a short plain-language beat summary (for the UI l
 estimated_duration to "${durationSeconds}s", and set "language" to "${language}".`;
 }
 
-export function scriptAssistPrompt(currentBody: string, instruction: string) {
-  return `Here is the current commercial script:
-"""
-${currentBody}
-"""
-
-Apply this instruction and return the FULL revised script (not a diff, not commentary): "${instruction}".
-Preserve everything about the script that the instruction doesn't ask you to change — keep the same scenes,
-timestamps and structure unless the instruction implies otherwise.`;
-}
-
 export function videoPrompt(params: {
   scriptBody: string;
   brand: BrandProfile;

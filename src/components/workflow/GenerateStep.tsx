@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Camera,
   Clock,
+  Languages,
   Loader2,
   MonitorPlay,
   RectangleVertical,
@@ -13,9 +14,26 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { usePricing } from "@/hooks/use-pricing";
+import { rateFor } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { costForGeneration } from "@/lib/credits";
-import { QUALITY_LABELS, type AspectRatio, type Quality } from "@/lib/types";
+import {
+  QUALITY_LABELS,
+  SCRIPT_LANGUAGE_LABELS,
+  type AspectRatio,
+  type Quality,
+  type Script,
+  type ScriptLanguage,
+} from "@/lib/types";
 
 function OptionGroup<T extends string>({
   label,
@@ -23,14 +41,14 @@ function OptionGroup<T extends string>({
   options,
   value,
   onChange,
-  disabledValues = [],
+  disabled = false,
 }: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   options: { value: T; label: string; hint?: string }[];
   value: T;
   onChange: (v: T) => void;
-  disabledValues?: T[];
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -40,20 +58,19 @@ function OptionGroup<T extends string>({
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {options.map((opt) => {
-          const disabled = disabledValues.includes(opt.value);
           const active = value === opt.value;
           return (
             <button
               key={opt.value}
+              type="button"
               disabled={disabled}
+              aria-pressed={active}
               onClick={() => onChange(opt.value)}
               className={cn(
-                "rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200",
+                "rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60",
                 active
                   ? "border-primary bg-accent text-accent-foreground shadow-glow"
                   : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                disabled &&
-                  "cursor-not-allowed opacity-45 hover:border-border hover:text-muted-foreground",
               )}
             >
               {opt.label}
@@ -70,27 +87,70 @@ function OptionGroup<T extends string>({
 
 export function GenerateStep({
   projectId,
-  scriptId,
-  durationSeconds,
+  scripts: initialScripts,
   onBack,
   onGenerate,
 }: {
   projectId: string;
-  scriptId: string;
-  /** Fixed by which script variant (15s/30s) the user picked in the Script step. */
-  durationSeconds: number;
-  /** Back to the Script step — e.g. to switch the 15s/30s variant before generating. */
+  /** The 15s and 30s variants written for the picked idea — the length picker switches between them. */
+  scripts: Script[];
+  /** Back to the Ideas step. */
   onBack: () => void;
-  onGenerate: (generationId: string) => void;
+  onGenerate: (generationId: string, script: Script) => void;
 }) {
+  const [scripts, setScripts] = useState(initialScripts);
+  const active = scripts.find((s) => s.is_selected) ?? scripts[0];
+  const durationSeconds = active.target_duration_seconds ?? 15;
   const [aspect, setAspect] = useState<AspectRatio>("9:16");
   const [quality, setQuality] = useState<Quality>("high");
   const [style, setStyle] = useState("original");
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState<"length" | "script" | "submit" | null>(null);
   const [insufficientCredits, setInsufficientCredits] = useState(false);
+  const { data: pricing } = usePricing();
+  const rate = pricing ? rateFor(pricing.rates, durationSeconds, quality) : null;
+
+  const pickLength = async (target: Script) => {
+    if (target.id === active.id) return;
+    setBusy("length");
+    try {
+      const res = await fetch(`/api/scripts/${target.id}/select`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not switch length");
+      setScripts((prev) => prev.map((s) => ({ ...s, is_selected: s.id === target.id })));
+    } catch (err) {
+      toast.error("Couldn't switch length", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // Changing language or subtitles re-writes this script's body from scratch through the same
+  // structured prompt as first-time generation — never a translation-in-place of the old text.
+  const updateScript = async (patch: { language?: ScriptLanguage; subtitles?: boolean }) => {
+    setBusy("script");
+    try {
+      const res = await fetch(`/api/scripts/${active.id}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not update the script");
+      setScripts((prev) => prev.map((s) => (s.id === data.script.id ? data.script : s)));
+      toast.success("Script updated");
+    } catch (err) {
+      toast.error("Couldn't update script", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const handleGenerate = async () => {
-    setSubmitting(true);
+    setBusy("submit");
     setInsufficientCredits(false);
     try {
       const res = await fetch("/api/generations", {
@@ -98,7 +158,7 @@ export function GenerateStep({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId,
-          scriptId,
+          scriptId: active.id,
           provider: "seedance",
           aspectRatio: aspect,
           quality,
@@ -107,29 +167,25 @@ export function GenerateStep({
       });
       const data = await res.json();
       if (res.status === 402) {
-        // Insufficient credits — show the inline buy-credits banner without navigating away
         setInsufficientCredits(true);
         toast.error("Not enough credits", {
-          description: "Top up your credits to continue generating.",
+          description: "Choose a plan to keep generating.",
           action: {
-            label: "Buy Credits",
-            onClick: () => {
-              // Open in a new tab so the user doesn't lose their generation settings
-              window.open(`/credits`, "_blank", "noopener");
-            },
+            label: "View plans",
+            onClick: () => window.open("/credits", "_blank", "noopener"),
           },
           duration: 8000,
         });
         return;
       }
       if (!res.ok) throw new Error(data.error ?? "Could not start generation");
-      onGenerate(data.generation.id);
+      onGenerate(data.generation.id, active);
     } catch (err) {
       toast.error("Generation failed to start", {
         description: err instanceof Error ? err.message : undefined,
       });
     } finally {
-      setSubmitting(false);
+      setBusy(null);
     }
   };
 
@@ -142,24 +198,21 @@ export function GenerateStep({
             size="icon"
             className="shrink-0 rounded-xl"
             onClick={onBack}
-            aria-label="Back to script"
+            aria-label="Back to ideas"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl gradient-primary shadow-card">
             <MonitorPlay className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-extrabold tracking-tight">Generation Settings</h2>
-            <p className="text-xs text-muted-foreground">
-              Fine-tune how your commercial is rendered
-            </p>
+            <p className="truncate text-xs text-muted-foreground">{active.title}</p>
           </div>
         </div>
 
-        {/* Insufficient credits inline banner */}
         {insufficientCredits && (
-          <div className="mt-6 flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3">
             <ShoppingCart className="h-4 w-4 shrink-0 text-destructive" />
             <p className="flex-1 text-sm text-destructive">
               Not enough credits for this generation.
@@ -169,30 +222,88 @@ export function GenerateStep({
               className="btn-glow rounded-xl font-semibold"
               onClick={() => window.open("/credits", "_blank", "noopener")}
             >
-              Buy Credits
+              View plans
             </Button>
           </div>
         )}
 
         <div className="mt-8 space-y-8">
+          <OptionGroup
+            label="Video Length"
+            icon={Clock}
+            value={active.id}
+            onChange={(id) => {
+              const target = scripts.find((s) => s.id === id);
+              if (target) void pickLength(target);
+            }}
+            disabled={busy !== null}
+            options={scripts.map((s) => ({
+              value: s.id,
+              label: `${s.target_duration_seconds ?? "?"}s`,
+            }))}
+          />
+
           <div>
             <p className="flex items-center gap-2 text-sm font-bold">
-              <Clock className="h-4 w-4 text-primary" />
-              Video Length
+              <Languages className="h-4 w-4 text-primary" />
+              Script
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {durationSeconds}s — set by the script version you picked
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-5">
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="script-language"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
+                  Language
+                </Label>
+                <Select
+                  value={active.language}
+                  onValueChange={(value) => updateScript({ language: value as ScriptLanguage })}
+                  disabled={busy !== null}
+                >
+                  <SelectTrigger id="script-language" className="h-9 w-32 rounded-lg text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(SCRIPT_LANGUAGE_LABELS) as ScriptLanguage[]).map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {SCRIPT_LANGUAGE_LABELS[code]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="script-subtitles"
+                  className="text-xs font-semibold text-muted-foreground"
+                >
+                  Subtitles
+                </Label>
+                <Switch
+                  id="script-subtitles"
+                  checked={active.subtitles}
+                  onCheckedChange={(checked) => updateScript({ subtitles: checked })}
+                  disabled={busy !== null}
+                />
+              </div>
+              {busy === "script" && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Rewriting script…
+                </span>
+              )}
+            </div>
           </div>
+
           <OptionGroup
             label="Aspect Ratio"
             icon={RectangleVertical}
             value={aspect}
             onChange={setAspect}
             options={[
-              { value: "9:16", label: "9:16" },
-              { value: "16:9", label: "16:9" },
-              { value: "1:1", label: "1:1" },
+              { value: "9:16", label: "9:16", hint: "Reels · TikTok" },
+              { value: "16:9", label: "16:9", hint: "YouTube" },
             ]}
           />
           <OptionGroup
@@ -200,11 +311,14 @@ export function GenerateStep({
             icon={Sparkles}
             value={quality}
             onChange={setQuality}
-            options={[
-              { value: "standard", label: QUALITY_LABELS.standard },
-              { value: "high", label: QUALITY_LABELS.high },
-              { value: "ultra", label: QUALITY_LABELS.ultra },
-            ]}
+            options={(["high", "ultra"] as const).map((q) => {
+              const r = pricing ? rateFor(pricing.rates, durationSeconds, q) : null;
+              return {
+                value: q,
+                label: QUALITY_LABELS[q],
+                hint: r ? `${r.credits} credits` : undefined,
+              };
+            })}
           />
           <OptionGroup
             label="Camera Style"
@@ -226,9 +340,9 @@ export function GenerateStep({
           size="lg"
           className="btn-glow mt-10 h-14 w-full rounded-2xl text-base font-bold"
           onClick={handleGenerate}
-          disabled={submitting}
+          disabled={busy !== null || !rate}
         >
-          {submitting ? (
+          {busy === "submit" ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
             <Sparkles className="h-5 w-5" />
@@ -236,7 +350,7 @@ export function GenerateStep({
           Generate Commercial
         </Button>
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Uses {costForGeneration(durationSeconds, quality, aspect)} credits · Estimated 2–4 minutes
+          {rate ? `Uses ${rate.credits} credits` : "Loading price…"} · Estimated 2–4 minutes
         </p>
       </div>
     </div>

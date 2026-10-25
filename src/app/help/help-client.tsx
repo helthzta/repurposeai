@@ -36,7 +36,15 @@ const faqs = [
   },
   {
     q: "How do credits work?",
-    a: "Each generation uses credits based on length and quality — a 15s HD 1080p video uses 9 credits, a 30s HD 1080p video uses 42. Credits reset monthly with your plan.",
+    a: "Each video has a fixed credit price: 15s 720p uses 5 credits, 15s HD 1080p uses 35, 30s 720p uses 40 and 30s HD 1080p uses 42. Your plan's credits reset every month (yearly plans too) and don't roll over. If a render fails, its credits are refunded automatically.",
+  },
+  {
+    q: "How do monthly and yearly plans work?",
+    a: "Start is $19/month with 70 credits; Pro is $39/month with 168 credits. Paying yearly saves 20% ($15 or $31 a month, billed once a year) with the same credits every month. You can switch plans from the Credits page — the price difference is prorated by our payment provider.",
+  },
+  {
+    q: "How do I cancel?",
+    a: "Go to Credits → Cancel subscription. You won't be charged again, and you keep your plan and remaining credits until the end of the period you've paid for. You can undo the cancellation until then. Payments already made aren't refunded.",
   },
 ];
 

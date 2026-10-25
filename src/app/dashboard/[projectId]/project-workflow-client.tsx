@@ -6,7 +6,6 @@ import { AppShell } from "@/components/app/AppShell";
 import { StepProgress } from "@/components/workflow/StepProgress";
 import { AnalysisStep } from "@/components/workflow/AnalysisStep";
 import { IdeaStep } from "@/components/workflow/IdeaStep";
-import { ScriptStep } from "@/components/workflow/ScriptStep";
 import { GenerateStep } from "@/components/workflow/GenerateStep";
 import { GenerationScreen } from "@/components/workflow/GenerationScreen";
 import { ResultStep } from "@/components/workflow/ResultStep";
@@ -16,10 +15,9 @@ import type { WorkflowPhase } from "@/lib/projects";
 const phaseStep: Record<WorkflowPhase, number> = {
   analysis: 1,
   ideas: 2,
-  script: 3,
-  settings: 4,
-  generating: 4,
-  result: 5,
+  settings: 3,
+  generating: 3,
+  result: 4,
 };
 
 export function ProjectWorkflowClient({
@@ -34,7 +32,7 @@ export function ProjectWorkflowClient({
 }: {
   projectId: string;
   initialPhase: WorkflowPhase;
-  /** The script variant(s) for the Script step, once an idea's been picked. */
+  /** The 15s/30s script variants for the Settings step, once an idea's been picked. */
   initialScripts: Script[];
   initialScript: Script | null;
   initialGenerationId: string | null;
@@ -74,28 +72,17 @@ export function ProjectWorkflowClient({
             onIdeasReady={setIdeas}
             onScriptsReady={(scripts) => {
               setScripts(scripts);
-              setPhase("script");
-            }}
-          />
-        )}
-        {phase === "script" && scripts.length > 0 && (
-          <ScriptStep
-            scripts={scripts}
-            originalTone={originalTone}
-            onBack={() => setPhase("ideas")}
-            onContinue={(script) => {
-              setSelectedScript(script);
               setPhase("settings");
             }}
           />
         )}
-        {phase === "settings" && selectedScript && (
+        {phase === "settings" && scripts.length > 0 && (
           <GenerateStep
             projectId={projectId}
-            scriptId={selectedScript.id}
-            durationSeconds={selectedScript.target_duration_seconds ?? 15}
-            onBack={() => setPhase("script")}
-            onGenerate={(id) => {
+            scripts={scripts}
+            onBack={() => setPhase("ideas")}
+            onGenerate={(id, script) => {
+              setSelectedScript(script);
               setGenerationId(id);
               setPhase("generating");
             }}

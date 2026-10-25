@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
  */
 export function CheckoutSuccessClient() {
   const searchParams = useSearchParams();
-  const expectedPlan = searchParams.get("plan");
+  // A billing_plans id, e.g. "pro_yearly" — confirmed once the webhook has made it the current subscription.
+  const expectedPlanId = searchParams.get("plan");
   const [confirmed, setConfirmed] = useState(false);
   const [attempts, setAttempts] = useState(0);
 
@@ -24,7 +25,10 @@ export function CheckoutSuccessClient() {
       try {
         const res = await fetch("/api/credits");
         const data = await res.json();
-        if (data.plan === expectedPlan) {
+        if (
+          data.subscription?.plan_id === expectedPlanId &&
+          data.subscription?.status === "active"
+        ) {
           setConfirmed(true);
           return;
         }
@@ -34,7 +38,7 @@ export function CheckoutSuccessClient() {
       setAttempts((n) => n + 1);
     }, 2000);
     return () => clearTimeout(timer);
-  }, [attempts, confirmed, expectedPlan]);
+  }, [attempts, confirmed, expectedPlanId]);
 
   const timedOut = !confirmed && attempts >= 15;
 
@@ -46,7 +50,7 @@ export function CheckoutSuccessClient() {
             <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
             <h1 className="mt-4 text-lg font-extrabold tracking-tight">Payment confirmed</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Your credits have landed — you're all set.
+              Your subscription is active and your credits have landed.
             </p>
           </>
         ) : timedOut ? (

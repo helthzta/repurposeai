@@ -1,55 +1,22 @@
 import { NextResponse } from "next/server";
 import { ApiError } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
-import { requireAdmin } from "@/lib/admin";
+import { audit, requireAdmin } from "@/lib/admin-auth";
 import { adminAdjustCredits } from "@/lib/credit-ledger";
-import { GRACE_DAYS, PERIOD_DAYS } from "@/lib/payments/plans";
+import { GRACE_DAYS, PERIOD_DAYS } from "@/lib/pricing";
 
 const PLANS = ["free", "starter", "pro", "custom"] as const;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const GET = withLogger(
-  "admin.users.get",
-  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
-    const { admin } = await requireAdmin();
-    const { id } = await params;
-
-    const { data: profile, error: profileError } = await admin
-      .from("profiles")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    if (!profile) throw new ApiError(404, "User not found");
-
-    const { data: projects, error: projectsError } = await admin
-      .from("projects")
-      .select("*, generations(*)")
-      .eq("user_id", id)
-      .order("created_at", { ascending: false });
-    if (projectsError) throw projectsError;
-
-    const { data: transactions, error: transactionsError } = await admin
-      .from("credit_transactions")
-      .select("*")
-      .eq("user_id", id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (transactionsError) throw transactionsError;
-
-    return NextResponse.json({ profile, projects, transactions });
-  },
-);
-
 /**
  * Admin-only manual controls for testing and support: a signed credit adjustment and/or a plan
  * change. A paid plan set here gets the same 30-day period + grace window a real payment would
- * (see dodo-webhook), so expire-subscriptions treats it like any other paid period.
+ * (see dodo-webhook), so billing_sweep() expires it like any other paid period.
  */
 export const PATCH = withLogger(
   "admin.users.update",
   async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
-    const { admin } = await requireAdmin();
+    const { admin: actor, db: admin } = await requireAdmin(request);
     const { id } = await params;
     const { creditsDelta, plan } = (await request.json().catch(() => ({}))) as {
       creditsDelta?: number;
@@ -83,6 +50,12 @@ export const PATCH = withLogger(
         .maybeSingle();
       if (error) throw error;
       if (!updated) throw new ApiError(404, "User not found");
+      await audit("user.plan_changed", {
+        adminId: actor.id,
+        targetType: "user",
+        targetId: id,
+        metadata: { plan },
+      });
     }
 
     if (creditsDelta !== undefined) {
@@ -94,6 +67,12 @@ export const PATCH = withLogger(
         }
         throw error;
       }
+      await audit("user.credits_adjusted", {
+        adminId: actor.id,
+        targetType: "user",
+        targetId: id,
+        metadata: { creditsDelta },
+      });
     }
 
     const { data: profile, error: profileError } = await admin
