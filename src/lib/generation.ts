@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { getProvider } from "@/lib/providers";
 import { getPricing, rateFor } from "@/lib/pricing";
 import { mirrorToStorage, publicStorageUrl, signUrl } from "@/lib/storage";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type {
   AspectRatio,
   BrandProfile,
@@ -99,7 +100,10 @@ export async function createGeneration(
     });
     logger.info("generation", "provider job submitted", { jobId });
 
-    const { data: generation, error } = await client
+    // generations is read-only for users (migration 0010) — credits_charged is what refunds trust,
+    // so only the server writes it. Ownership was already checked by the caller (RLS-scoped reads
+    // of the script and project brand).
+    const { data: generation, error } = await createAdminClient()
       .from("generations")
       .insert({
         project_id: params.projectId,
@@ -217,7 +221,7 @@ async function finishAfterUpload(
     });
   }
 
-  const { data: updated, error } = await client
+  const { data: updated, error } = await createAdminClient()
     .from("generations")
     .update({
       status: "completed",
@@ -242,16 +246,9 @@ async function failGeneration(
   generation: Generation,
   errorMessage: string,
 ): Promise<Generation> {
-  if (generation.credits_charged > 0) {
-    await refundCredits(
-      userId,
-      generation.credits_charged,
-      "generation_refund",
-      "generation",
-      generation.id,
-    );
-  }
-  const { data: updated } = await client
+  // Flip processing → failed in one statement first; only the request that wins the flip refunds,
+  // so two concurrent polls can't both refund. The amount comes from the stored row, not the caller.
+  const { data: updated } = await createAdminClient()
     .from("generations")
     .update({
       status: "failed",
@@ -259,7 +256,26 @@ async function failGeneration(
       completed_at: new Date().toISOString(),
     })
     .eq("id", generation.id)
+    .eq("status", "processing")
     .select()
-    .single();
-  return (updated as Generation) ?? generation;
+    .maybeSingle();
+  if (!updated) {
+    const { data: current } = await client
+      .from("generations")
+      .select("*")
+      .eq("id", generation.id)
+      .maybeSingle();
+    return (current as Generation) ?? generation;
+  }
+
+  if (updated.credits_charged > 0) {
+    await refundCredits(
+      userId,
+      updated.credits_charged,
+      "generation_refund",
+      "generation",
+      generation.id,
+    );
+  }
+  return updated as Generation;
 }

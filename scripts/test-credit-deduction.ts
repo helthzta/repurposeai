@@ -171,6 +171,23 @@ async function main() {
       assert.equal(await balance(), expected + 5);
     });
 
+    await step(
+      "three concurrent polls of a failing 35c render refund it exactly once",
+      async () => {
+        const before = await balance();
+        // ids[1] is the 15s 1080p (35c) render, still processing; the mock provider fails it.
+        const polls = await Promise.all(
+          [0, 1, 2].map(() =>
+            fetch(`${BASE}/api/generations/${ids[1]}`, { headers: { Cookie: cookie } }).then((r) =>
+              r.json(),
+            ),
+          ),
+        );
+        for (const p of polls) assert.equal(p.generation.status, "failed");
+        assert.equal(await balance(), before + 35);
+      },
+    );
+
     console.log(`\n${passed} checks passed`);
   } finally {
     await db.auth.admin.deleteUser(userId);
