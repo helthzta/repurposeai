@@ -14,6 +14,8 @@ export interface PollResult {
   outputUrl?: string;
   /** Headers required to fetch outputUrl — set when the provider's download endpoint needs auth (e.g. OpenRouter). */
   outputHeaders?: Record<string, string>;
+  /** What the provider billed for the job (USD), when it reports it. */
+  costUsd?: number;
   error?: string;
 }
 

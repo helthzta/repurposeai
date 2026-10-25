@@ -3,7 +3,13 @@ import { ApiError, requireUser } from "@/lib/auth";
 import { withLogger } from "@/lib/logger";
 import { createGeneration } from "@/lib/generation";
 import { requireProjectBrand } from "@/lib/projects";
-import type { AspectRatio, Quality, VideoProviderName } from "@/lib/types";
+import {
+  ASPECT_RATIOS,
+  QUALITIES,
+  type AspectRatio,
+  type Quality,
+  type VideoProviderName,
+} from "@/lib/types";
 
 export const POST = withLogger(
   "generations.create",
@@ -24,6 +30,12 @@ export const POST = withLogger(
         400,
         "projectId, scriptId, provider, aspectRatio, quality and cameraStyle are required",
       );
+    }
+    if (!ASPECT_RATIOS.includes(aspectRatio)) {
+      throw new ApiError(400, `aspectRatio must be one of ${ASPECT_RATIOS.join(", ")}`);
+    }
+    if (!QUALITIES.includes(quality)) {
+      throw new ApiError(400, `quality must be one of ${QUALITIES.join(", ")}`);
     }
 
     const { data: script, error: scriptError } = await supabase

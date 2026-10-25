@@ -17,7 +17,6 @@ function modelFor(durationSeconds: number, quality: SubmitParams["quality"]) {
 // ponytail: 2.5 has no 1080p tier, so a 30s "ultra" still renders 720p; switch it here when
 // a 30s-capable model gains 1080p.
 function resolutionFor(durationSeconds: number, quality: SubmitParams["quality"]) {
-  if (quality === "standard") return "480p";
   return quality === "ultra" && durationSeconds === 15 ? "1080p" : "720p";
 }
 
@@ -101,7 +100,9 @@ class SeedanceProvider implements VideoProvider {
       const outputUrl = data.unsigned_urls?.[0];
       if (!outputUrl) return { status: "failed", error: "no video output returned" };
       // unsigned_urls point back at the OpenRouter API and need the same bearer token to fetch.
-      return { status: "completed", outputUrl, outputHeaders: this.authHeader };
+      // usage.cost is what OpenRouter actually billed for this job, in USD.
+      const costUsd = typeof data.usage?.cost === "number" ? data.usage.cost : undefined;
+      return { status: "completed", outputUrl, outputHeaders: this.authHeader, costUsd };
     }
     if (data.status === "failed") {
       return { status: "failed", error: data.error ?? "generation failed" };

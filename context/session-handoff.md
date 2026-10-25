@@ -1,41 +1,36 @@
 <!-- Overwrite this entire file at the end of every session. Do not append —
 replace. One current snapshot of where work stands right now. -->
 
-_Last updated: 2026-10-06_
+_Last updated: 2026-10-25_
 
 ## Status
 
-Client feedback round 2 is merged to `main` (PR #1). This session was the production rollout
-on Supabase project `xvtkjkvxjxsbeispjlrh`, half finished:
-
-- Done, verified live: migration `0003` applied (`scripts.style` accepts `reclone`);
-  `dodo-webhook` Edge Function deployed (`verify_jwt: false`).
-- Not done: migration `0004`, `expire-subscriptions` deploy, cron repoint, function secrets.
+Pricing, subscriptions, landing and admin overhaul is code-complete and tested on branch
+`feat/subscriptions-pricing-admin` (uncommitted). Migrations 0005–0008 are live on
+`xvtkjkvxjxsbeispjlrh`; the app code using them is not deployed yet. The old production build
+keeps working against the additive schema. Since 0006, new sign-ups get 0 credits while the old
+landing copy still says 50, until the new build ships.
 
 ## Current branch
 
-`main`, only `context/` files changed (uncommitted).
+`feat/subscriptions-pricing-admin`, all changes uncommitted (nothing pushed).
 
 ## Blockers
 
-The permission classifier denied `apply_migration` for `0004` and the `expire-subscriptions`
-deploy; neither was retried by another route. The account holder has to run them or add
-permission rules for `mcp__supabase__apply_migration` / `mcp__supabase__deploy_edge_function`.
-`spend_credits` is still executable by `anon` — the credit-granting hole is open.
-Full list in `progress-tracker.md` "Blocked on a human".
+- `dodo-webhook` deploy refused by the permission classifier — human runs it.
+- `npm run setup:dodo` not run — no Dodo subscription products yet, so checkout returns 503.
+- `0009` (drop `is_admin`, 1:1 constraint, `spend_credits` lock-down) must wait for the deploy.
+  `anon` can still call `spend_credits` until then.
 
 ## Drift flagged
 
-- `context/project-overview.md` still calls the product "Repurpose AI"; the app is "Adiy AI".
-- `architecture.md`/`decision-log.md` describe both Edge Functions as deployed — only
-  `dodo-webhook` is.
-- `0001_baseline.sql`'s cron block and the live cron job still name the old project
-  (`xxitlqjgmfqxesqiuouk`).
-- Not known whether the hosted app runs the merged build (`NEXT_PUBLIC_SITE_URL` is localhost
-  in `.env`); `0004` depends on it.
+- `context/project-overview.md` still says "Repurpose AI"; product is "Adiy AI".
+- `supabase/migrations/0001_baseline.sql` cron block names the old project (superseded by 0008).
+- `docs/*.docx` legal drafts not checked against the new subscription/refund terms
+  (`src/lib/legal/terms.ts` already says non-refundable).
 
 ## First action next session
 
-Confirm `0004`, `expire-subscriptions`, the cron repoint and the Dodo secrets are in place,
-then click-test: Recreated script, brand save with a non-English filename, admin free
-generation, admin credit/plan controls, cancel.
+Confirm the webhook deploy and `setup:dodo` happened, then run one Dodo test-mode subscription:
+buy Start monthly → check `/admin/subscriptions` and credits = 70 → cancel → confirm "Ends <date>"
+on `/credits`. Then apply `0009`.

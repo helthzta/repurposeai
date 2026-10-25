@@ -8,7 +8,7 @@ import type { ScriptIdea, ScriptLanguage } from "@/lib/types";
  * Writes the "master script" for whichever idea the user picked (or typed themselves) in
  * IdeaStep — routed through the shared writeScript() helper so this is byte-for-byte the same
  * prompt/schema call as a later regenerate. Writes both the 15s and 30s variants up front (each
- * paced to its own runtime, not just truncated/padded from the other) so ScriptStep can switch
+ * paced to its own runtime, not just truncated/padded from the other) so the Settings step (GenerateStep) can switch
  * between them instantly — the 15s variant starts out selected.
  */
 export const POST = withLogger(

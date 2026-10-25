@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const steps = ["Upload", "AI Analysis", "Ideas", "Script", "Generate"];
+const steps = ["Upload", "AI Analysis", "Ideas", "Generate", "Result"];
 
 export function StepProgress({ current }: { current: number }) {
   return (

@@ -20,9 +20,18 @@ avoid anything that reads as playful/consumer — this is a B2B SaaS surface.
   `destructive`, `border`, `input`, `ring`, `chart-1..5`, `sidebar-*`).
   Primary is oklch-defined blue; success/warning/destructive are the only
   semantic-status colors — don't introduce ad hoc status colors.
-- **Typography** — `--font-sans: "Inter", ...` is the only font family
-  token; no separate display font. No lockdown rule beyond that found in
-  code.
+- **Typography** — `--font-sans: "Inter", ...` for everything in the app.
+  `--font-display: "Instrument Serif"` (2026-10-25) is for italic accent
+  words in public-page headlines and plan names only (`font-display italic`)
+  — never body text or app UI.
+- **Public "screening room" band** — the landing demo reel sits on a dark
+  `oklch(0.16 0.03 264)` band (also used behind `/admin/login`); demo videos
+  are `public/demos/demo-N.{mp4,jpg}`, encoded with `scripts/encode-demo.sh`
+  and listed in `demoAds` in `src/app/page.tsx`.
+- **Admin console** — shadcn `Sidebar` (`variant="inset"`) +
+  `src/components/admin/{AdminShell,DataTable,OverviewCharts}.tsx`. Charts use
+  a validated blue/red pair (completed/revenue vs failed) via ChartConfig
+  `theme`.
 - **Spacing** — no custom spacing scale defined; Tailwind's default spacing
   scale applies (no override found in `globals.css`).
 - **Radius / shadow** — `--radius: 1rem` (16px) is the base; `--radius-sm`

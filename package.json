@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "setup:dodo": "tsx scripts/setup-dodo-products.ts"
+    "setup:dodo": "tsx scripts/setup-dodo-products.ts",
+    "test:billing": "tsx scripts/test-billing.ts",
+    "create:admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",

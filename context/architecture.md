@@ -13,7 +13,7 @@ and src/lib/*. Citations inline. -->
 | Data fetching | `@tanstack/react-query` (client), direct Supabase queries in route handlers (server) | |
 | Auth + DB | Supabase (Postgres + Auth + Storage), `@supabase/ssr` for cookie-based session | |
 | AI | `@google/genai` (Gemini) for analysis/scripts/insights; provider-abstracted video gen (Seedance via OpenRouter live, Higgsfield stub) | |
-| Billing | Dodo Payments (`dodopayments` SDK) — one-time-payment checkout per 30-day period, not Dodo Subscriptions (D-026) | |
+| Billing | Dodo Payments (`dodopayments` SDK) — native subscriptions, monthly + yearly (D-032) | |
 | Background/scheduled jobs | Supabase Edge Functions (Deno, `supabase/functions/*`) + `pg_cron`/`pg_net` — the only scheduled job in the app (R-055) | |
 | Hosting | {{TODO: confirm with a human — no deploy config found in repo}} | |
 | Package manager | npm (`package-lock.json` present; `bunfig.toml` also present — {{TODO: confirm with a human which is canonical}}) | |
@@ -68,30 +68,31 @@ and src/lib/*. Citations inline. -->
   native 30s support as a clean drop-in later).
 - `middleware.ts` — page-level auth gate only. Explicitly does NOT gate
   `/api/*` — those routes handle their own auth (see comment in the file).
-- **Billing (D-026)** — `POST /api/billing/checkout` (session-authed Next.js
-  route, `src/lib/payments/{plans,dodo}.ts`) creates a Dodo Checkout Session
-  for a one-time payment against the Starter/Pro Product and returns its
-  hosted `checkout_url`; the browser redirects there directly. Entitlement is
-  never granted from this route or the post-payment browser redirect — only
-  from `payment.succeeded`, handled by the `dodo-webhook` Supabase Edge
-  Function (`supabase/functions/dodo-webhook`, R-052/R-057), which grants
-  `PLAN_CONFIG[plan].credits` (reset, not top-up — R-053), sets
-  `profiles.plan`, and stamps `plan_period_end`/`plan_grace_end` (+30d/+33d).
-  A second scheduled Edge Function, `expire-subscriptions`, runs every 6h via
-  `pg_cron`/`pg_net` (migration `0029`) and downgrades anyone past
-  `plan_grace_end` with no renewal back to `'free'`, credits untouched
-  (R-054/R-055). Both Edge Functions are a genuinely separate Deno
-  deploy/runtime from the Next.js app — `supabase/functions` is excluded
-  from the root `tsconfig.json`, code is hand-kept in sync with
-  `src/lib/payments/plans.ts` where it overlaps (R-052/R-053). The Custom
-  plan never reaches any of this — Contact-Us only (D-023/D-024).
+- **Billing (D-032–D-034)** — plans and per-video credit costs are rows in
+  `billing_plans` / `credit_rates` (public-read), read via `src/lib/pricing.ts`
+  by the app, landing page and webhook — no prices in code. `POST
+  /api/billing/checkout` takes a `billing_plans.id`: no live subscription →
+  Dodo checkout session for that subscription product; already subscribed →
+  `subscriptions.changePlan(prorated_immediately)`. `POST /api/billing/cancel`
+  sets `cancel_at_next_billing_date` (or undoes it with `{resume:true}`).
+  Entitlement is only written by the `dodo-webhook` Edge Function
+  (`supabase/functions/dodo-webhook`, handlers in `_shared/webhook.ts`, pure
+  rules in `_shared/billing.ts`): subscription events upsert `subscriptions`,
+  set `profiles.plan`/`plan_period_end`/`plan_grace_end`/`dodo_subscription_id`
+  and reset credits once per period via `reset_credits()`; payment events
+  write `payments` (succeeded/failed/refunded). `public.billing_sweep()` runs
+  hourly from pg_cron (0008): monthly refills for yearly plans, and moves
+  anything past `plan_grace_end` to `'free'` with credits zeroed. Custom is
+  Contact-Us only (D-023/D-024).
 
 ## Storage model
 
 - **Postgres (Supabase)** — `profiles`, `projects`, `brand_profiles`,
   `source_videos`, `video_analyses`, `scripts`, `generations`,
   `credit_transactions`, `api_keys`, `error_logs`, `contact_submissions`,
-  `payments`, `dodo_webhook_events`. As of 2026-08-13 the canonical schema
+  `payments`, `dodo_webhook_events`, plus (2026-10-25, migrations 0005–0008)
+  `billing_plans`, `credit_rates`, `subscriptions`, `admin_users`,
+  `admin_sessions`, `admin_audit_log`. As of 2026-08-13 the canonical schema
   source is a single consolidated file, `supabase/migrations/0001_baseline.sql`
   (R-058/D-031) — built by introspecting the live project directly, not from
   the 29 incremental files that got here (now archived under
@@ -143,10 +144,8 @@ and src/lib/*. Citations inline. -->
   polling for generation status is request-driven (client polls
   `GET /api/generations/[id]`, which calls `pollAndFinalize`), not backed by
   a queue or cache layer. The one exception is billing's grace-period
-  downgrade, which genuinely needs to run without a request to trigger it —
-  solved with `pg_cron`/`pg_net` calling a Supabase Edge Function
-  (`expire-subscriptions`) directly, not application code (see the Billing
-  bullet above and R-054/R-055).
+  sweep (yearly refills + expiry), which runs without a request — pg_cron
+  calls `public.billing_sweep()` hourly inside the database (D-033).
 
 ## Auth and access model
 
@@ -162,16 +161,17 @@ and src/lib/*. Citations inline. -->
   `src/lib/auth.ts`, for the dashboard's own calls) and Bearer API key
   (`requireApiKey`, sha256-hashed token lookup against `api_keys.key_hash`,
   for `/api/v1/*`). Every `api_keys` row's `last_used_at` is bumped on use.
-- **Roles** — `profiles.is_admin` (added `0016`) gates `/admin` and the
-  `/api/admin/*` routes via `requireAdmin()` (`src/lib/admin.ts`): it checks
-  the caller's own row through the RLS-scoped client, then hands back the
-  service-role client for the cross-user queries the dashboard needs — a
-  non-admin can never reach another user's data this way. No user starts as
-  admin; flip a row manually after applying `0016` (see the migration's
-  trailing comment). Beyond that, still just the implicit owner/authenticated
-  split; `Profile.plan` (`starter`/`pro`/`enterprise`) exists as a field but
-  no plan-gated logic was found in the routes scanned — {{TODO: confirm with
-  a human whether plan should gate any feature yet}}.
+- **Roles** — customers are Supabase Auth users; there is no admin flag on
+  `profiles` (dropped in 0009). Admins are separate accounts in `admin_users`
+  with their own login (`/admin/login`), scrypt password hashes and a
+  server-side session (`admin_sessions`, sha256 of an httpOnly SameSite=Strict
+  cookie, 8h). `src/lib/admin-auth.ts`: every admin page calls
+  `requireAdminPage()`, every admin API `requireAdmin(req)` (which also
+  rejects cross-origin mutations); admin actions write `admin_audit_log`.
+  Admin pages read cross-user data with the service-role client server-side.
+  Create/reset an admin with `npm run create:admin -- <email> "<name>"`.
+  `profiles.plan` gates nothing directly — credits do (0 credits = can't
+  generate).
 - **Rate limiting** — every route handler goes through `withLogger()`
   (`src/lib/logger.ts`), which now applies an in-memory, per-process fixed-
   window limit (`src/lib/rate-limit.ts`) before the handler runs — a
@@ -197,13 +197,14 @@ and src/lib/*. Citations inline. -->
    checks (both RLS policy and any app code) rely on this being the literal
    first path segment. Never write a file outside this convention.
 3. Credit balance changes only ever go through `spend_credits` (Postgres
-   function, `security definer`) — it raises `insufficient_credits` if a
+   function, `security definer`; `reset_credits` wraps it for plan resets) — it raises `insufficient_credits` if a
    spend would take the balance negative, making concurrent spends safe.
    Never mutate `profiles.credits_balance` directly from application code.
 4. The service-role (`admin`) Supabase client (`src/lib/supabase/admin.ts`)
-   is only for API-key lookup and error logging — never used to serve a
-   session-authenticated user's own data (that must go through the
-   RLS-scoped `server.ts` client).
+   is for API-key lookup, error logging, the credit ledger, billing writes
+   and admin pages (after `requireAdmin*`) — never to serve a
+   session-authenticated user's own reads (those go through the RLS-scoped
+   `server.ts` client).
 5. Adding a video provider means implementing `VideoProvider`
    (`src/lib/providers/types.ts`) and registering it in
    `src/lib/providers/index.ts` — route handlers and UI must not special-case
@@ -229,6 +230,7 @@ and src/lib/*. Citations inline. -->
    discipline. Adding a new self-editable profile field needs a migration
    (`grant update (...)`) in addition to `/api/profile`'s `EDITABLE_FIELDS`
    (R-056) — every other field (`credits_balance`, `plan`,
-   `plan_period_end`, `plan_grace_end`, `dodo_customer_id`, `is_admin`) must
+   `plan_period_end`, `plan_grace_end`, `dodo_customer_id`,
+   `dodo_subscription_id`) must
    only ever change via `spend_credits` or the service-role key
    (webhook/cron/admin routes), never a direct client update.

@@ -3,10 +3,10 @@ import { scoreGeneration } from "@/lib/ai/gemini";
 import { videoPrompt } from "@/lib/ai/prompts";
 import { ApiError } from "@/lib/auth";
 import { refundCredits, spendCredits } from "@/lib/credit-ledger";
-import { costForGeneration } from "@/lib/credits";
 import { logError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getProvider } from "@/lib/providers";
+import { getPricing, rateFor } from "@/lib/pricing";
 import { mirrorToStorage, publicStorageUrl, signUrl } from "@/lib/storage";
 import type {
   AspectRatio,
@@ -35,20 +35,15 @@ export async function createGeneration(
   brand: BrandProfile,
   params: CreateGenerationParams,
 ): Promise<Generation> {
-  // Admins generate for free so they can always test — nothing is charged, so nothing is
-  // refunded on failure either (credits_charged is stored as 0).
-  const { data: profile } = await client
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .maybeSingle();
-  const cost = profile?.is_admin
-    ? 0
-    : costForGeneration(params.durationSeconds, params.quality, params.aspectRatio);
-  if (cost > 0) {
-    logger.info("generation", "spending credits", { userId, cost, projectId: params.projectId });
-    await spendCredits(userId, cost, "generation", "project", params.projectId);
+  // Credits come from the credit_rates table (column C of the pricing sheet), so a price change is
+  // a row update. A combination with no row (e.g. the removed 480p tier) can't be generated.
+  const rate = rateFor((await getPricing(client)).rates, params.durationSeconds, params.quality);
+  if (!rate) {
+    throw new ApiError(400, `${params.durationSeconds}s at this quality isn't available`);
   }
+  const cost = rate.credits;
+  logger.info("generation", "spending credits", { userId, cost, projectId: params.projectId });
+  await spendCredits(userId, cost, "generation", "project", params.projectId);
 
   // "Original" camera style means "match the source video we analyzed" — only look that
   // up when actually needed, not on every generation.
@@ -120,6 +115,7 @@ export async function createGeneration(
         script_body: script.body,
         provider_job_id: jobId,
         credits_charged: cost,
+        est_cost_usd: rate.est_cost_usd,
       })
       .select()
       .single();
@@ -129,9 +125,7 @@ export async function createGeneration(
 
     return generation as Generation;
   } catch (submitError) {
-    if (cost > 0) {
-      await refundCredits(userId, cost, "generation_refund", "project", params.projectId);
-    }
+    await refundCredits(userId, cost, "generation_refund", "project", params.projectId);
     await logError("generation.submit", submitError, {
       userId,
       metadata: { projectId: params.projectId },
@@ -197,7 +191,7 @@ export async function pollAndFinalize(
     return failGeneration(client, userId, generation, "Failed to save the generated video");
   }
 
-  return finishAfterUpload(client, userId, generation, output_path, script, brand);
+  return finishAfterUpload(client, userId, generation, output_path, script, brand, result.costUsd);
 }
 
 /** Shared tail once a video is uploaded to output_path: score + mark completed. */
@@ -208,6 +202,7 @@ async function finishAfterUpload(
   output_path: string,
   script: Script,
   brand: BrandProfile,
+  providerCostUsd: number | undefined,
 ): Promise<Generation> {
   let ai_insights = null;
   try {
@@ -228,6 +223,7 @@ async function finishAfterUpload(
       status: "completed",
       output_path,
       ai_insights,
+      provider_cost_usd: providerCostUsd ?? null,
       completed_at: new Date().toISOString(),
     })
     .eq("id", generation.id)

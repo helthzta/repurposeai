@@ -1,21 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CheckCircle,
-  Clapperboard,
-  Layers,
-  PenLine,
-  Play,
-  ScanEye,
-  ShieldCheck,
-  Sparkles,
-  Timer,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Clapperboard, Layers, PenLine, Play, ScanEye, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DemoReel, type DemoAd } from "@/components/landing/DemoReel";
+import { PricingTable } from "@/components/pricing/PricingTable";
+import { formatUsd, getPricing, monthlyPriceCents, type Pricing } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Adiy AI — Turn Any Viral Ad Into Your Own AI Commercial",
@@ -23,105 +13,52 @@ export const metadata: Metadata = {
     "Upload any viral ad. Our AI understands the strategy, rewrites it for your brand, and generates a brand-new cinematic commercial in minutes.",
 };
 
-const features = [
+// Add a demo: run scripts/encode-demo.sh on the file, then append an entry here.
+const demoAds: DemoAd[] = [
+  {
+    title: "Downhill, close up",
+    caption: "15s · 16:9 · sports gear",
+    src: "/demos/demo-1.mp4",
+    poster: "/demos/demo-1.jpg",
+    aspect: "16:9",
+  },
+  {
+    title: "Ridge line",
+    caption: "15s · 16:9 · outdoor brand",
+    src: "/demos/demo-2.mp4",
+    poster: "/demos/demo-2.jpg",
+    aspect: "16:9",
+  },
+  {
+    title: "Night rider",
+    caption: "15s · 9:16 · Reels & TikTok",
+    src: "/demos/demo-3.mp4",
+    poster: "/demos/demo-3.jpg",
+    aspect: "9:16",
+  },
+];
+
+const steps = [
   {
     icon: ScanEye,
-    title: "AI Video Analysis",
-    desc: "Deconstructs any viral ad into hook, structure, emotion, and strategy in seconds.",
+    title: "Upload a viral ad",
+    desc: "AI breaks it down into hook, structure, emotion and why it worked.",
   },
   {
     icon: PenLine,
-    title: "AI Script Repurposing",
-    desc: "Rewrites the winning formula for your brand voice, offer, and audience.",
+    title: "Pick an idea",
+    desc: "Three repurposed concepts for your brand — or recreate the original shot for shot.",
   },
   {
     icon: Timer,
-    title: "15–30 Second Generation",
-    desc: "Cinematic commercials rendered in minutes — ready for every platform.",
+    title: "Generate",
+    desc: "A cinematic 15s or 30s commercial in 720p or HD 1080p, in minutes.",
   },
   {
     icon: Layers,
-    title: "Multi AI Provider Ready",
-    desc: "Launching with Seedance, built to add Higgsfield and future providers next.",
+    title: "Ship everywhere",
+    desc: "9:16 for Reels and TikTok, 16:9 for YouTube. Download and post.",
   },
-];
-
-const pricingPlans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    credits: "50 credits",
-    highlight: false,
-    features: [
-      "50 free credits on sign up",
-      "15s video generation",
-      "720p quality",
-      "AI script repurposing",
-    ],
-    cta: "Start Free",
-    href: "/signup",
-  },
-  {
-    name: "Starter",
-    price: "$19",
-    period: "/ 30-day period",
-    credits: "350 credits",
-    highlight: true,
-    features: [
-      "350 credits per period",
-      "15s & 30s videos",
-      "1 AI provider",
-      "720p quality",
-      "Priority support",
-    ],
-    cta: "Get Starter",
-    href: "/signup",
-  },
-  {
-    name: "Pro",
-    price: "$39",
-    period: "/ 30-day period",
-    credits: "700 credits",
-    highlight: false,
-    features: [
-      "700 credits per period",
-      "All video lengths",
-      "HD 1080p quality",
-      "Priority rendering",
-      "Advanced analytics",
-    ],
-    cta: "Get Pro",
-    href: "/signup",
-  },
-  {
-    name: "Custom",
-    price: "Custom",
-    period: "tailored to your volume",
-    credits: "Custom credit allotment",
-    highlight: false,
-    features: ["Dedicated capacity", "SSO & API access", "Success manager", "Custom SLA"],
-    cta: "Contact Us",
-    href: "/contact",
-  },
-];
-
-// ponytail: placeholders until the real demo ads arrive — set `src` to a file in /public (or a
-// hosted mp4) and the card renders the video instead of the "coming soon" tile.
-const demoAds: { title: string; caption: string; src: string | null }[] = [
-  { title: "Demo ad 1", caption: "Original viral ad → repurposed commercial", src: null },
-  { title: "Demo ad 2", caption: "Original viral ad → repurposed commercial", src: null },
-  { title: "Demo ad 3", caption: "Original viral ad → recreated clone", src: null },
-];
-
-const particles = [
-  { top: "12%", left: "8%", size: 8, delay: "0s" },
-  { top: "24%", left: "82%", size: 6, delay: "1.2s" },
-  { top: "58%", left: "12%", size: 10, delay: "2.1s" },
-  { top: "70%", left: "88%", size: 7, delay: "0.6s" },
-  { top: "38%", left: "94%", size: 5, delay: "1.8s" },
-  { top: "82%", left: "42%", size: 6, delay: "2.6s" },
-  { top: "16%", left: "46%", size: 5, delay: "3.2s" },
 ];
 
 export default async function Landing() {
@@ -131,56 +68,42 @@ export default async function Landing() {
   } = await supabase.auth.getUser();
   const ctaHref = user ? "/dashboard" : "/signup";
 
-  // Check if the current user is an admin (for the nav admin link)
-  let isAdmin = false;
-  if (user) {
-    try {
-      const adminClient = createAdminClient();
-      const { data: profile } = await adminClient
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", user.id)
-        .single();
-      isAdmin = !!profile?.is_admin;
-    } catch {
-      // non-critical — if this fails, just don't show the admin link
-    }
+  let pricing: Pricing | null = null;
+  try {
+    pricing = await getPricing(supabase);
+  } catch {
+    // Rendered as a "contact us" fallback below rather than failing the whole landing page.
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Nav */}
       <header className="fixed inset-x-0 top-0 z-40 glass">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2.5">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl gradient-primary shadow-card">
               <Clapperboard className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
             <span className="truncate text-[15px] font-bold tracking-tight">Adiy AI</span>
-          </div>
+          </Link>
+          <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
+            <Link href="#demos" className="transition-colors hover:text-foreground">
+              Demos
+            </Link>
+            <Link href="#how-it-works" className="transition-colors hover:text-foreground">
+              How it works
+            </Link>
+            <Link href="#pricing" className="transition-colors hover:text-foreground">
+              Pricing
+            </Link>
+          </nav>
           <div className="flex items-center gap-2">
             {user ? (
-              <>
-                {isAdmin && (
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 rounded-xl text-xs font-semibold text-muted-foreground"
-                  >
-                    <Link href="/admin">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Admin
-                    </Link>
-                  </Button>
-                )}
-                <Button asChild className="btn-glow rounded-xl">
-                  <Link href="/dashboard">
-                    Go to Dashboard
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </>
+              <Button asChild className="btn-glow rounded-xl">
+                <Link href="/dashboard">
+                  Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
             ) : (
               <>
                 <Button asChild variant="ghost" className="hidden sm:inline-flex">
@@ -188,7 +111,7 @@ export default async function Landing() {
                 </Button>
                 <Button asChild className="btn-glow rounded-xl">
                   <Link href="/signup">
-                    Sign up free
+                    Get started
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -199,42 +122,31 @@ export default async function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden gradient-hero animate-gradient-pan pt-36 pb-24 sm:pt-44 sm:pb-32">
-        {/* floating blobs */}
+      <section className="relative overflow-hidden gradient-hero pt-36 pb-20 sm:pt-44 sm:pb-28">
         <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-primary/10 blur-3xl animate-float-slow" />
         <div className="pointer-events-none absolute top-1/3 -right-32 h-[28rem] w-[28rem] rounded-full bg-primary-glow/15 blur-3xl animate-float" />
-        {/* particles */}
-        {particles.map((p, i) => (
-          <span
-            key={i}
-            className="pointer-events-none absolute rounded-full bg-primary/30 animate-float"
-            style={{
-              top: p.top,
-              left: p.left,
-              width: p.size,
-              height: p.size,
-              animationDelay: p.delay,
-            }}
-          />
-        ))}
 
-        <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
-          <div className="animate-fade-up mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-card/70 px-4 py-1.5 text-xs font-semibold text-primary shadow-card backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI-Powered Video Repurposing
-          </div>
+        <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
+          <p className="animate-fade-up mx-auto mb-7 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-card/70 px-4 py-1.5 text-xs font-semibold text-primary shadow-card backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse-soft" />
+            AI commercials from the ads that already work
+          </p>
           <h1
-            className="animate-fade-up text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-6xl"
+            className="animate-fade-up text-[2.6rem] font-extrabold leading-[1.02] tracking-[-0.035em] sm:text-7xl"
             style={{ animationDelay: "80ms" }}
           >
-            Turn Any Viral Ad Into <span className="gradient-text">Your Own AI Commercial</span>
+            Turn any viral ad into{" "}
+            <span className="font-display font-normal italic tracking-normal text-primary">
+              your own
+            </span>{" "}
+            AI commercial
           </h1>
           <p
-            className="animate-fade-up mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
+            className="animate-fade-up mx-auto mt-7 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg"
             style={{ animationDelay: "160ms" }}
           >
-            Upload any viral ad. Our AI understands the strategy, rewrites it for your brand, and
-            generates a brand-new cinematic commercial in minutes.
+            Upload any viral ad. Adiy reads the strategy, rewrites it for your brand, and renders a
+            brand-new cinematic commercial in minutes.
           </p>
           <div
             className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
@@ -246,7 +158,7 @@ export default async function Landing() {
               className="btn-glow h-13 rounded-2xl px-8 text-base font-semibold"
             >
               <Link href={ctaHref}>
-                Start Repurposing Free
+                {user ? "Open dashboard" : "Create your account"}
                 <ArrowRight className="h-4.5 w-4.5" />
               </Link>
             </Button>
@@ -256,162 +168,122 @@ export default async function Landing() {
               variant="outline"
               className="h-13 rounded-2xl bg-card/70 px-8 text-base font-semibold backdrop-blur hover:bg-card"
             >
-              <Link href="#how-it-works">
+              <Link href="#demos">
                 <Play className="h-4.5 w-4.5" />
-                See How It Works
+                Watch the demos
               </Link>
             </Button>
           </div>
+          {pricing && (
+            <p
+              className="animate-fade-up mt-5 text-xs text-muted-foreground"
+              style={{ animationDelay: "300ms" }}
+            >
+              Plans from {formatUsd(Math.min(...pricing.plans.map(monthlyPriceCents)))}/month ·
+              cancel anytime
+            </p>
+          )}
+        </div>
+      </section>
 
-          {/* glass workflow strip */}
-          <div
-            className="animate-fade-up mx-auto mt-16 max-w-3xl rounded-3xl glass p-4 shadow-card sm:p-5"
-            style={{ animationDelay: "320ms" }}
-          >
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {["Upload Video", "AI Analysis", "Choose Script", "Generate"].map((step, i) => (
-                <div
-                  key={step}
-                  className="flex items-center gap-2.5 rounded-2xl bg-card/80 px-3.5 py-3 text-left shadow-card"
-                >
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg gradient-primary text-xs font-bold text-primary-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0 truncate text-xs font-semibold">{step}</span>
-                </div>
-              ))}
+      {/* Demo reel — the dark "screening room" band */}
+      <section
+        id="demos"
+        className="scroll-mt-16 bg-[oklch(0.16_0.03_264)] py-20 text-white sm:py-28"
+      >
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-white/40">
+                Now showing
+              </p>
+              <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-5xl">
+                Made with <span className="font-display font-normal italic">Adiy</span>
+              </h2>
             </div>
+            <p className="max-w-sm text-sm text-white/55">
+              Demo commercials from Adiy AI. They play muted — tap the speaker for sound.
+            </p>
+          </div>
+          <div className="mt-12">
+            <DemoReel demos={demoAds} />
           </div>
         </div>
       </section>
 
-      {/* Feature cards */}
+      {/* How it works */}
       <section
         id="how-it-works"
-        className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28"
+        className="mx-auto max-w-6xl scroll-mt-16 px-4 py-20 sm:px-6 sm:py-28"
       >
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-          Everything between a viral ad and yours
+        <h2 className="text-center text-3xl font-extrabold tracking-tight sm:text-4xl">
+          From viral ad to{" "}
+          <span className="font-display font-normal italic text-primary">yours</span>, in four steps
         </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
-          A single workflow that takes you from a viral video to a finished commercial.
-        </p>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((f) => (
-            <div key={f.title} className="hover-lift rounded-2xl border bg-card p-6 shadow-card">
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-accent">
-                <f.icon className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="mt-5 text-[15px] font-bold">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Demo ads */}
-      <section id="demos" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6 sm:pb-28">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-          See what Adiy AI makes
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
-          Real commercials generated from viral ads.
-        </p>
-        <div className="mt-12 grid gap-5 sm:grid-cols-3">
-          {demoAds.map((demo) => (
-            <div
-              key={demo.title}
-              className="hover-lift overflow-hidden rounded-3xl border bg-card shadow-card"
-            >
-              {demo.src ? (
-                <video
-                  src={demo.src}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="aspect-[9/16] w-full bg-muted object-cover"
-                />
-              ) : (
-                <div className="grid aspect-[9/16] w-full place-items-center bg-muted">
-                  <div className="text-center">
-                    <Play className="mx-auto h-8 w-8 text-muted-foreground/50" />
-                    <p className="mt-2 text-xs font-semibold text-muted-foreground">Coming soon</p>
-                  </div>
+        <ol className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((s, i) => (
+            <li key={s.title} className="hover-lift rounded-3xl border bg-card p-6 shadow-card">
+              <div className="flex items-center justify-between">
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-accent">
+                  <s.icon className="h-5 w-5 text-primary" />
                 </div>
-              )}
-              <div className="p-4">
-                <h3 className="text-sm font-bold">{demo.title}</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{demo.caption}</p>
+                <span className="font-display text-3xl italic text-muted-foreground/40">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
               </div>
-            </div>
+              <h3 className="mt-5 text-[15px] font-bold">{s.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-20 sm:px-6 sm:pb-28">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">
-          Simple, transparent pricing
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
-          Start free with 50 credits. Upgrade when you need more firepower.
-        </p>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {pricingPlans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`hover-lift flex flex-col rounded-3xl border bg-card p-6 shadow-card${plan.highlight ? " border-primary/50 ring-1 ring-primary/20" : ""}`}
-            >
-              {plan.highlight && (
-                <div className="mb-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-bold uppercase text-accent-foreground">
-                  <Zap className="h-2.5 w-2.5" />
-                  Most Popular
-                </div>
-              )}
-              <h3 className="text-[15px] font-bold">{plan.name}</h3>
-              <p className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-2xl font-extrabold tracking-tight">{plan.price}</span>
-                <span className="text-xs font-medium text-muted-foreground">{plan.period}</span>
+      <section id="pricing" className="scroll-mt-16 border-t bg-muted/40 py-20 sm:py-28">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="text-center text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Simple plans,{" "}
+            <span className="font-display font-normal italic text-primary">honest</span> credits
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground sm:text-base">
+            Every video has a fixed credit price, so you always know what a month buys.
+          </p>
+          <div className="mt-10">
+            {pricing ? (
+              <PricingTable
+                plans={pricing.plans}
+                rates={pricing.rates}
+                ctaHref={user ? "/credits" : "/signup"}
+              />
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                Pricing is temporarily unavailable —{" "}
+                <Link href="/contact" className="font-semibold text-primary hover:underline">
+                  contact us
+                </Link>
+                .
               </p>
-              <p className="mt-1 text-xs font-semibold text-primary">{plan.credits}</p>
-              <ul className="mt-5 flex-1 space-y-2.5">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                asChild
-                variant={plan.highlight ? "default" : "outline"}
-                className={`mt-6 rounded-xl font-semibold${plan.highlight ? " btn-glow" : ""}`}
-              >
-                <Link href={plan.href}>{plan.cta}</Link>
-              </Button>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
         <div className="relative overflow-hidden rounded-3xl gradient-primary px-6 py-16 text-center shadow-lift sm:px-12">
           <div className="pointer-events-none absolute -top-20 left-1/4 h-64 w-64 rounded-full bg-primary-foreground/10 blur-3xl" />
-          <h2 className="text-2xl font-extrabold tracking-tight text-primary-foreground sm:text-4xl">
-            Your next commercial is one upload away
+          <h2 className="text-3xl font-extrabold tracking-tight text-primary-foreground sm:text-5xl">
+            Your next commercial is{" "}
+            <span className="font-display font-normal italic">one upload</span> away
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-primary-foreground/80 sm:text-base">
-            Join teams shipping cinematic AI commercials in minutes, not weeks.
-          </p>
           <Button
             asChild
             size="lg"
             variant="secondary"
-            className="mt-8 h-13 rounded-2xl px-8 text-base font-semibold hover-lift"
+            className="mt-9 h-13 rounded-2xl px-8 text-base font-semibold hover-lift"
           >
             <Link href={ctaHref}>
-              Start Repurposing Free
+              {user ? "Open dashboard" : "Create your account"}
               <ArrowRight className="h-4.5 w-4.5" />
             </Link>
           </Button>
@@ -430,17 +302,26 @@ export default async function Landing() {
             <Link href="#pricing" className="hover:text-foreground">
               Pricing
             </Link>
+            <Link href="/contact" className="hover:text-foreground">
+              Contact
+            </Link>
             <Link href="/terms" className="hover:text-foreground">
-              Terms of Service
+              Terms
             </Link>
             <Link href="/privacy" className="hover:text-foreground">
-              Privacy Policy
+              Privacy
             </Link>
             <Link href="/copyright" className="hover:text-foreground">
-              Copyright Policy
+              Copyright
             </Link>
           </nav>
-          <p>© 2026 Adiy AI. All rights reserved.</p>
+          <p className="text-xs">
+            © {new Date().getFullYear()} Adiy AI ·{" "}
+            {/* Discreet entry to the separate admin console (own login, not a user account). */}
+            <Link href="/admin/login" className="text-muted-foreground/60 hover:text-foreground">
+              Admin
+            </Link>
+          </p>
         </div>
       </footer>
     </div>

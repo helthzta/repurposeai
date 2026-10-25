@@ -119,14 +119,15 @@ export interface Script {
 }
 
 export type VideoProviderName = "seedance" | "higgsfield";
-export type AspectRatio = "9:16" | "16:9" | "1:1";
-export type Quality = "standard" | "high" | "ultra";
+export type AspectRatio = "9:16" | "16:9";
+export type Quality = "high" | "ultra";
+export const ASPECT_RATIOS: readonly AspectRatio[] = ["9:16", "16:9"];
+export const QUALITIES: readonly Quality[] = ["high", "ultra"];
 
-// Display labels only. "480p" and "720p" match what's sent to the provider; "HD 1080p" is real
-// 1080p for 15s clips only — a 30s one still renders 720p (resolutionFor in seedance.ts), a
-// deliberate product choice made with the gap known. Don't use these strings for anything but
-// on-screen text.
-export const QUALITY_LABELS: Record<Quality, string> = {
+// Display labels only. 1080p is real 1080p for 15s; a 30s "1080p" still renders 720p (Seedance 2.5
+// has no 1080p tier) — a deliberate product choice (D-030). "standard" (480p) is no longer offered
+// but old generation rows still carry it, so it keeps a label.
+export const QUALITY_LABELS: Record<string, string> = {
   standard: "480p",
   high: "720p",
   ultra: "HD 1080p",
@@ -159,10 +160,22 @@ export interface Generation {
   output_url: string | null;
   ai_insights: AiInsights | null;
   credits_charged: number;
+  /** credit_rates.est_cost_usd at submit time (USD). */
+  est_cost_usd: number | null;
+  /** What the provider actually billed (USD) — null until the job completes. */
+  provider_cost_usd: number | null;
   error_message: string | null;
   created_at: string;
   completed_at: string | null;
 }
+
+/** profiles.plan values as customers see them ("starter" is sold as "Start"). */
+export const PLAN_LABELS: Record<string, string> = {
+  free: "No plan",
+  starter: "Start",
+  pro: "Pro",
+  custom: "Custom",
+};
 
 export interface Profile {
   id: string;
@@ -172,7 +185,8 @@ export interface Profile {
   avatar_url: string | null;
   plan: "free" | "starter" | "pro" | "custom";
   credits_balance: number;
-  is_admin: boolean;
+  plan_period_end: string | null;
+  plan_grace_end: string | null;
 }
 
 export interface ApiKey {

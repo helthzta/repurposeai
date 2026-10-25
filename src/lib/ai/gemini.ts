@@ -18,7 +18,6 @@ import { publicStorageUrl } from "@/lib/storage";
 import {
   ANALYSIS_SYSTEM_PROMPT,
   masterScriptPrompt,
-  scriptAssistPrompt,
   scriptGenerationPrompt,
   scriptIdeasPrompt,
   scorePrompt,
@@ -311,16 +310,6 @@ export async function generateMasterScript(
   const generated = JSON.parse(response.text) as GeneratedScript;
   // The requested language is authoritative — don't trust Gemini's self-reported code over it.
   return { ...generated, language: options?.language ?? generated.language };
-}
-
-export async function editScript(currentBody: string, instruction: string): Promise<string> {
-  const response = await generate({
-    model: MODEL,
-    contents: scriptAssistPrompt(currentBody, instruction),
-  });
-
-  if (!response.text) throw new Error("Gemini returned no revised script");
-  return response.text.trim();
 }
 
 const INSIGHTS_SCHEMA = {
